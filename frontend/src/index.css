@@ -1,0 +1,229 @@
+/* ------------------------------
+   RESET
+------------------------------ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ------------------------------
+   ROOT COLORS
+------------------------------ */
+:root {
+  --bg-main: #0f1115;
+  --bg-card: rgba(28, 31, 38, 0.6);
+  --accent: #00ff88;
+  --accent-dark: #00cc6a;
+  --text-main: #ffffff;
+  --text-muted: #a0a0a0;
+}
+
+/* ------------------------------
+   BODY
+------------------------------ */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #000; /* 🔥 FULL SCREEN MODE */
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow: hidden; /* 🔥 important for full UI */
+}
+
+/* ------------------------------
+   SCROLLBAR
+------------------------------ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--accent), transparent);
+  border-radius: 10px;
+}
+
+/* ------------------------------
+   NAVBAR
+------------------------------ */
+nav {
+  background: rgba(12, 12, 12, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #222;
+}
+
+nav a {
+  color: var(--text-main);
+  text-decoration: none;
+  margin-right: 20px;
+  font-weight: 500;
+  transition: 0.3s;
+}
+
+nav a:hover {
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent);
+}
+
+/* ------------------------------
+   BUTTONS
+------------------------------ */
+button {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, var(--accent), #00ffaa);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+button:hover {
+  background: linear-gradient(135deg, var(--accent-dark), #00dd99);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+}
+
+/* ------------------------------
+   INPUTS
+------------------------------ */
+input,
+select {
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 8px;
+  border: 1px solid #2a2d35;
+  outline: none;
+  background: #1a1d24;
+  color: white;
+  transition: 0.3s;
+  width:300px;
+  font-size: 20px;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+/* ------------------------------
+   CANVAS (FULLSCREEN)
+------------------------------ */
+canvas {
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+/* ------------------------------
+   METRICS PANEL
+------------------------------ */
+.metrics-panel {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* ------------------------------
+   METRIC BOX
+------------------------------ */
+.metric-box {
+  padding: 12px;
+  border-radius: 10px;
+  transition: 0.3s;
+}
+
+.metric-good {
+  background: rgba(27, 94, 32, 0.5);
+  border: 1px solid #2e7d32;
+}
+
+.metric-bad {
+  background: rgba(127, 0, 0, 0.5);
+  border: 1px solid #c62828;
+}
+
+/* ------------------------------
+   STEP LIST
+------------------------------ */
+.step-item {
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.step-item:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.step-active {
+  background: var(--accent);
+  color: black;
+  font-weight: bold;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+/* ------------------------------
+   🔥 FEEDBACK BAR (FIXED)
+------------------------------ */
+.feedback-bar {
+  position: absolute;
+  top: 20px;
+  left: 380px;
+  right: 350px;
+
+
+  padding: 25px 50px;
+  text-align: center;
+
+
+  z-index: 10;
+
+ ;
+
+}
+
+/* BIG TEXT */
+.feedback-text {
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  
+
+  color: #00ff88;
+
+  text-shadow:
+    0 0 10px rgba(9, 41, 26, 0.8),
+    0 0 20px rgba(12, 92, 55, 0.5);
+
+  animation: fadeSlide 0.4s ease;
+}
+
+/* ANIMATION */
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ------------------------------
+   RESPONSIVE
+------------------------------ */
+@media (max-width: 900px) {
+  .feedback-text {
+    font-size: 20px;
+  }
+}

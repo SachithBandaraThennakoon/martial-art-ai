@@ -1,0 +1,25 @@
+uvicorn main:app --reload
+pip install psycopg2-binary
+pip install python-jose passlib[bcrypt]
+
+pip uninstall bcrypt passlib -y
+pip install bcrypt==4.0.1
+pip install passlib[bcrypt]
+
+pip freeze > requirements.txt
+pip install -r requirements.txt
+
+uvicorn main:app --reload
+python -m venv venv
+venv\Scripts\activate
+
+pip install python-multipart
+npm install @mediapipe/tasks-vision
+
+pip install python-multipart
+///////////////////////////////////////////////
+
+Ctrl + Shift + P → Reload Window
+
+npm install @mediapipe/pose @mediapipe/drawing_utils @mediapipe/camera_utils
+
