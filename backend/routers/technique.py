@@ -24,8 +24,23 @@ def get_db():
 # CREATE TECHNIQUE
 # -------------------------
 @router.post("/")
-def create_technique(name: str, description: str, db: Session = Depends(get_db)):
-    technique = Technique(name=name, description=description)
+def create_technique(
+    name: str,
+    description: str = "",
+    category: str = "",
+    subcategory: str = "",
+    difficulty: str = "Beginner",
+    price: float = 0,
+    db: Session = Depends(get_db)
+):
+    technique = Technique(
+        name=name,
+        description=description,
+        category=category,
+        subcategory=subcategory,
+        difficulty=difficulty,
+        price=price
+    )
     db.add(technique)
     db.commit()
     db.refresh(technique)
@@ -91,6 +106,10 @@ def get_techniques(db: Session = Depends(get_db)):
         {
             "id": t.id,
             "name": t.name,
+            "category": t.category,
+            "subcategory": t.subcategory,
+            "difficulty": t.difficulty,
+            "price": t.price,
             "description": t.description
         }
         for t in techniques
@@ -123,7 +142,11 @@ def get_steps(technique_id: int, db: Session = Depends(get_db)):
 def create_full_technique(data: dict, db: Session = Depends(get_db)):
     technique = Technique(
         name=data["name"],
-        description=data.get("description", "")
+        description=data.get("description", ""),
+        category=data.get("category", ""),
+        subcategory=data.get("subcategory", ""),
+        difficulty=data.get("difficulty", "Beginner"),
+        price=data.get("price", 0)
     )
 
     db.add(technique)

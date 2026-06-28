@@ -1,102 +1,53 @@
 import { Link } from "react-router-dom";
 import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../context/auth";
+import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
 
 export default function Navbar() {
   const { token, logout } = useContext(AuthContext);
 
   return (
-    <nav style={styles.nav}>
-      
-      {/* LEFT */}
-      <div style={styles.left}>
-
-
-        <Link to="/" style={styles.link}>Home</Link>
+    <nav className="navbar">
+      <div className="navbar__left">
+        <Link to="/" className="navbar__brand">
+          Martial Art AI
+        </Link>
 
         {token && (
-          <Link to="/training" style={styles.link}>
-            <span style={styles.logo}>🥋 AI Trainer</span>
+          <Link to="/training" className="navbar__link">
+            Studio
           </Link>
         )}
+
+        <div className="navbar__categories" aria-label="Main categories">
+          {MAIN_CATEGORIES.map((category) => (
+            <Link
+              className="navbar__category"
+              key={category}
+              to={`/categories/${slugify(category)}`}
+            >
+              {category}
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* RIGHT */}
-      <div style={styles.right}>
+      <div className="navbar__right">
         {!token ? (
           <>
-            <Link to="/login" style={styles.link}>Login</Link>
-            <Link to="/register" style={styles.registerBtn}>
+            <Link to="/login" className="navbar__link">
+              Login
+            </Link>
+            <Link to="/register" className="btn btn--light btn--small">
               Register
             </Link>
           </>
         ) : (
-          <button style={styles.logoutBtn} onClick={logout}>
+          <button className="btn btn--ghost btn--small" onClick={logout}>
             Logout
           </button>
         )}
       </div>
-
     </nav>
   );
 }
-
-const styles = {
-  nav: {
-    position: "sticky",
-    top: 16,
-    zIndex: 100,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "12px 30px",
-    background: "rgba(17,17,17,0.7)",
-    backdropFilter: "blur(12px)",
-    borderBottom: "1px solid #222"
-  },
-
-  left: {
-    display: "flex",
-    alignItems: "center",
-    gap: "20px"
-  },
-
-  right: {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px"
-  },
-
-  logo: {
-    fontWeight: "bold",
-    fontSize: "18px",
-    background: "linear-gradient(90deg, #00ff88, #00ffaa)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent"
-  },
-
-  link: {
-    color: "#ccc",
-    textDecoration: "none",
-    fontSize: "18px",
-    transition: "0.3s"
-  },
-
-  registerBtn: {
-    padding: "12px 18px",
-    borderRadius: "6px",
-    background: "linear-gradient(135deg, #00ff88, #00ffaa)",
-    color: "#000",
-    textDecoration: "none",
-    fontWeight: "bold"
-  },
-
-  logoutBtn: {
-    padding: "12px 18px",
-    borderRadius: "6px",
-    background: "#ff4d4d",
-    color: "#fff",
-    border: "none",
-    cursor: "pointer"
-  }
-};

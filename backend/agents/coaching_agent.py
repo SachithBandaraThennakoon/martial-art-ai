@@ -1,43 +1,40 @@
-from openai import OpenAI
-from utils.config import OPENAI_API_KEY
+def _format_angle(value):
+    if value is None:
+        return "not visible"
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+    return f"{int(round(value))} deg"
 
 
-def generate_feedback(analysis):
-    prompt = f"""
-You are a martial arts coach.
+def _format_target(target):
+    min_angle, max_angle = target
+    return f"{int(round(min_angle))}-{int(round(max_angle))} deg"
 
-Based on the movement analysis below, give short and clear coaching feedback.
 
-Analysis:
-{analysis}
+def generate_feedback(analysis, max_points=3):
+    if not analysis:
+        return "Move into frame so I can read your form."
 
-Rules:
-- Be concise
-- Give actionable advice
-- Mention body parts
-- Encourage improvement
-- Focus on the most critical issues
-- max 11 words per feedback point
-- Provide 5 feedback points at most with good and bad points
-- for good points, use positive emojis (e.g. "👍", "👏", "✅")
-- for bad points, use negative emojis (e.g. "👎", "❌", "⚠️")
-- All points include angle value and target range after the advice
-- bulet point format
-- each point add new line
+    issues = [
+        item for item in analysis
+        if item["issue"] in {"too_closed", "too_open", "missing"}
+    ]
+    good_parts = [item for item in analysis if item["issue"] == "good"]
 
-example feedback format:
-- 👎 Left Elbow: Too low at 45° (target 90 to 120°)
-"""
+    lines = []
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are an expert martial arts coach."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.5
-    )
+    for item in sorted(issues, key=lambda entry: entry["severity"], reverse=True)[:max_points]:
+        lines.append(
+            f"{item['cue']} Current: {_format_angle(item['value'])}; "
+            f"target: {_format_target(item['target'])}."
+        )
 
-    return response.choices[0].message.content
+    if good_parts and len(lines) < max_points:
+        best = min(good_parts, key=lambda entry: entry["difference"])
+        lines.append(
+            f"Good {best['label']} position at {_format_angle(best['value'])}."
+        )
+
+    if not lines:
+        return "Good form. Hold this position and keep breathing."
+
+    return "\n".join(lines)

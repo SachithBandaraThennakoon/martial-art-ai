@@ -7,14 +7,19 @@ export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
 
   ctx.clearRect(0, 0, w, h);
 
-  ctx.strokeStyle = "black";
-  ctx.fillStyle = "black";
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = "#ffffff";
   ctx.lineCap = "round";
+  ctx.shadowColor = "rgba(255, 255, 255, 0.45)";
+  ctx.shadowBlur = 10;
 
-  const toXY = (p) => ({
-    x: p.x * w,
-    y: p.y * h
+  const fitLivePoint = (point) => ({
+    ...point,
+    x: 0.5 + (point.x - 0.5) * 0.7,
+    y: 0.5 + (point.y - 0.5) * 0.7
   });
+
+  const fittedPoseLandmarks = poseLandmarks.map(fitLivePoint);
 
   const drawBone = (a, b, thickness = 4) => {
     ctx.lineWidth = thickness;
@@ -34,25 +39,37 @@ export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
   // BODY
   // =========================
   const bodyConnections = [
-    [11,12],
-    [11,13],[13,15],
-    [12,14],[14,16],
-    [11,23],[12,24],
-    [23,24],
-    [23,25],[25,27],
-    [24,26],[26,28],
-    [28,32],[27,31],
-    [28,30],[30,32],
-    [27,29],[29,31],
-    [15,17],[17,19],[19,15],
-    [16,18],[18,20],[20,16]
+    [11, 12],
+    [11, 13],
+    [13, 15],
+    [12, 14],
+    [14, 16],
+    [11, 23],
+    [12, 24],
+    [23, 24],
+    [23, 25],
+    [25, 27],
+    [24, 26],
+    [26, 28],
+    [28, 32],
+    [27, 31],
+    [28, 30],
+    [30, 32],
+    [27, 29],
+    [29, 31],
+    [15, 17],
+    [17, 19],
+    [19, 15],
+    [16, 18],
+    [18, 20],
+    [20, 16]
   ];
 
-  bodyConnections.forEach(([a,b]) => {
-    drawBone(poseLandmarks[a], poseLandmarks[b], 6);
+  bodyConnections.forEach(([a, b]) => {
+    drawBone(fittedPoseLandmarks[a], fittedPoseLandmarks[b], 6);
   });
 
-  poseLandmarks.forEach(p => drawJoint(p, 3));
+  fittedPoseLandmarks.forEach(p => drawJoint(p, 3));
 
   // =========================
   // HAND LOCKING
@@ -75,21 +92,36 @@ export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
       const offsetX = anchor.x - handWrist.x;
       const offsetY = anchor.y - handWrist.y;
 
-      const adjustedHand = hand.map(p => ({
+      const adjustedHand = hand.map(p => fitLivePoint({
         x: p.x + offsetX,
         y: p.y + offsetY,
         z: p.z
       }));
 
       const handConnections = [
-        [0,1],[1,2],[2,3],[3,4],
-        [0,5],[5,6],[6,7],[7,8],
-        [0,9],[9,10],[10,11],[11,12],
-        [0,13],[13,14],[14,15],[15,16],
-        [0,17],[17,18],[18,19],[19,20]
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [0, 5],
+        [5, 6],
+        [6, 7],
+        [7, 8],
+        [0, 9],
+        [9, 10],
+        [10, 11],
+        [11, 12],
+        [0, 13],
+        [13, 14],
+        [14, 15],
+        [15, 16],
+        [0, 17],
+        [17, 18],
+        [18, 19],
+        [19, 20]
       ];
 
-      handConnections.forEach(([a,b]) => {
+      handConnections.forEach(([a, b]) => {
         drawBone(adjustedHand[a], adjustedHand[b], 3);
       });
 

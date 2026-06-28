@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/auth";
+import { Link, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../services/api";
 
 export default function Login() {
   const { login } = useContext(AuthContext);
@@ -8,9 +9,13 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleLogin = async () => {
-    const response = await fetch("http://127.0.0.1:8000/login", {
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setError("");
+
+    const response = await fetch(`${API_BASE_URL}/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
@@ -24,96 +29,51 @@ export default function Login() {
       login(data.access_token);
       navigate("/training");
     } else {
-      alert("Login failed");
+      setError("Login failed. Please check your details and try again.");
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Welcome Back </h2>
-        <p style={styles.subtitle}>Login to continue training</p>
+    <main className="page auth-page">
+      <form className="auth-card" onSubmit={handleLogin}>
+        <p className="eyebrow">Welcome back</p>
+        <h1>Continue Training</h1>
+        <p className="auth-card__subtitle">
+          Sign in to resume your technique practice.
+        </p>
 
-        <input
-          style={styles.input}
-          placeholder="Email"
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <label className="field">
+          <span>Email</span>
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </label>
 
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <label className="field">
+          <span>Password</span>
+          <input
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+        </label>
 
-        <button style={styles.button} onClick={handleLogin}>
+        {error && <p className="form-error">{error}</p>}
+
+        <button className="btn btn--light btn--full" type="submit">
           Login
         </button>
-        <p style={styles.subtitle2}>Start your AI training journey</p>
-      </div>
-    </div>
+
+        <p className="auth-card__footer">
+          New here? <Link to="/register">Create an account</Link>
+        </p>
+      </form>
+    </main>
   );
 }
-
-const styles = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "linear-gradient(135deg, #0f1115, #050608)",
-    color: "white"
-  },
-
-  card: {
-    background: "rgba(28, 31, 38, 0.7)",
-    padding: "40px",
-    borderRadius: "16px",
-    width: "440px",height: "550px",
-    textAlign: "center",
-    backdropFilter: "blur(15px)",
-    boxShadow: "0 0 30px rgba(0,255,136,0.15)",
-    border: "1px solid rgba(255,255,255,0.05)"
-  },
-
-  title: {
-    marginBottom: "10px",
-    fontSize: "24px"
-  },
-
-  subtitle: {
-    color: "#aaa",
-    marginBottom: "20px",
-    fontSize: "14px"
-  },
-
-  subtitle2: {
-    color: "#aaa",
-    marginTop: "20px",
-    fontSize: "14px"
-  },
-
-  input: {
-    width: "100%",
-    padding: "12px",
-    marginBottom: "12px",
-    borderRadius: "8px",
-    border: "1px solid #2a2d35",
-    background: "#1a1d24",
-    color: "white",
-    outline: "none"
-  },
-
-  button: {
-    width: "100%",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "none",
-    fontWeight: "bold",
-    cursor: "pointer",
-    background: "linear-gradient(135deg, #00ff88, #00ffaa)",
-    color: "#000",
-    transition: "0.3s"
-  }
-};
