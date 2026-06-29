@@ -26,7 +26,7 @@ export default function Login() {
     const data = await response.json();
 
     if (data.access_token) {
-      login(data.access_token);
+      login(data.access_token, data.plan || "FREE_PLAN");
       navigate("/training");
     } else {
       setError("Login failed. Please check your details and try again.");

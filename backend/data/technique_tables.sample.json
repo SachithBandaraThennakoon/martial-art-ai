@@ -6,7 +6,8 @@
       "category": "Technique Training",
       "subcategory": "Punching",
       "difficulty": "Beginner",
-      "price": 0
+      "price": 0,
+      "required_plan": "FREE_PLAN"
     },
     {
       "id": 2,
@@ -14,7 +15,8 @@
       "category": "Technique Training",
       "subcategory": "Punching",
       "difficulty": "Beginner",
-      "price": 0
+      "price": 0,
+      "required_plan": "FREE_PLAN"
     },
     {
       "id": 3,
@@ -22,63 +24,80 @@
       "category": "Technique Training",
       "subcategory": "Kicking",
       "difficulty": "Beginner",
-      "price": 0
+      "price": 0,
+      "required_plan": "STARTER_PLAN"
     },
     {
       "id": 4,
+      "name": "Roundhouse Kick",
+      "category": "Technique Training",
+      "subcategory": "Kicking",
+      "difficulty": "Intermediate",
+      "price": 3.99,
+      "required_plan": "PRO_PLAN"
+    },
+    {
+      "id": 5,
       "name": "Hip Mobility Flow",
       "category": "Flexibility & Mobility",
       "subcategory": "Hip Mobility",
       "difficulty": "Beginner",
-      "price": 0
+      "price": 0,
+      "required_plan": "FREE_PLAN"
     },
     {
-      "id": 5,
+      "id": 6,
       "name": "Fighter Conditioning Circuit",
       "category": "Conditioning & Fitness",
       "subcategory": "Cardio Conditioning",
       "difficulty": "Intermediate",
-      "price": 4.99
+      "price": 4.99,
+      "required_plan": "STARTER_PLAN"
     },
     {
-      "id": 6,
+      "id": 7,
       "name": "Standing Meditation",
       "category": "Meditation & Posture",
       "subcategory": "Breath & Alignment",
       "difficulty": "Beginner",
-      "price": 0
+      "price": 0,
+      "required_plan": "FREE_PLAN"
     },
     {
-      "id": 7,
+      "id": 8,
       "name": "Basic Form One",
       "category": "Forms",
       "subcategory": "Beginner Forms",
       "difficulty": "Beginner",
-      "price": 2.99
+      "price": 2.99,
+      "required_plan": "STARTER_PLAN"
     },
     {
-      "id": 8,
+      "id": 9,
       "name": "Bo Staff Guard",
       "category": "Weapons",
       "subcategory": "Staff",
       "difficulty": "Intermediate",
-      "price": 6.99
+      "price": 6.99,
+      "required_plan": "PRO_PLAN"
     },
     {
-      "id": 9,
+      "id": 10,
       "name": "Wrist Grab Escape",
       "category": "Self-Defense",
       "subcategory": "Grab Escapes",
       "difficulty": "Beginner",
-      "price": 0
+      "price": 0,
+      "required_plan": "FREE_PLAN"
     },
     {
-      "id": 10,
+      "id": 11,
       "name": "Distance Control",
       "category": "Fighting",
       "subcategory": "Footwork",
       "difficulty": "Intermediate",
-      "price": 5.99
+      "price": 5.99,
+      "required_plan": "PRO_PLAN"
     }
   ],
   "technique_steps": [
@@ -89,15 +108,17 @@
     { "id": 5, "technique_id": 2, "step_number": 2, "step_name": "Rotate hip and punch" },
     { "id": 6, "technique_id": 3, "step_number": 1, "step_name": "Chamber knee" },
     { "id": 7, "technique_id": 3, "step_number": 2, "step_name": "Extend kick" },
-    { "id": 8, "technique_id": 4, "step_number": 1, "step_name": "Open stance" },
-    { "id": 9, "technique_id": 4, "step_number": 2, "step_name": "Sink into hip stretch" },
-    { "id": 10, "technique_id": 5, "step_number": 1, "step_name": "Athletic stance" },
-    { "id": 11, "technique_id": 5, "step_number": 2, "step_name": "Fast knee drive" },
-    { "id": 12, "technique_id": 6, "step_number": 1, "step_name": "Stack posture" },
-    { "id": 13, "technique_id": 7, "step_number": 1, "step_name": "Ready position" },
-    { "id": 14, "technique_id": 8, "step_number": 1, "step_name": "Staff guard" },
-    { "id": 15, "technique_id": 9, "step_number": 1, "step_name": "Anchor elbow" },
-    { "id": 16, "technique_id": 10, "step_number": 1, "step_name": "Outside step" }
+    { "id": 8, "technique_id": 4, "step_number": 1, "step_name": "Pivot support foot" },
+    { "id": 9, "technique_id": 4, "step_number": 2, "step_name": "Turn hip and extend kick" },
+    { "id": 10, "technique_id": 5, "step_number": 1, "step_name": "Open stance" },
+    { "id": 11, "technique_id": 5, "step_number": 2, "step_name": "Sink into hip stretch" },
+    { "id": 12, "technique_id": 6, "step_number": 1, "step_name": "Athletic stance" },
+    { "id": 13, "technique_id": 6, "step_number": 2, "step_name": "Fast knee drive" },
+    { "id": 14, "technique_id": 7, "step_number": 1, "step_name": "Stack posture" },
+    { "id": 15, "technique_id": 8, "step_number": 1, "step_name": "Ready position" },
+    { "id": 16, "technique_id": 9, "step_number": 1, "step_name": "Staff guard" },
+    { "id": 17, "technique_id": 10, "step_number": 1, "step_name": "Anchor elbow" },
+    { "id": 18, "technique_id": 11, "step_number": 1, "step_name": "Outside step" }
   ],
   "target_angles": [
     { "id": 1, "step_id": 1, "body_part": "elbow_left", "min_angle": 70, "max_angle": 105 },
@@ -109,14 +130,17 @@
     { "id": 7, "step_id": 5, "body_part": "elbow_right", "min_angle": 155, "max_angle": 180 },
     { "id": 8, "step_id": 6, "body_part": "knee_right", "min_angle": 45, "max_angle": 85 },
     { "id": 9, "step_id": 7, "body_part": "knee_right", "min_angle": 150, "max_angle": 180 },
-    { "id": 10, "step_id": 8, "body_part": "hip_left", "min_angle": 90, "max_angle": 130 },
-    { "id": 11, "step_id": 9, "body_part": "knee_left", "min_angle": 80, "max_angle": 120 },
-    { "id": 12, "step_id": 10, "body_part": "knee_left", "min_angle": 120, "max_angle": 160 },
-    { "id": 13, "step_id": 11, "body_part": "hip_right", "min_angle": 50, "max_angle": 95 },
-    { "id": 14, "step_id": 12, "body_part": "shoulder_left", "min_angle": 75, "max_angle": 105 },
-    { "id": 15, "step_id": 13, "body_part": "elbow_right", "min_angle": 85, "max_angle": 125 },
-    { "id": 16, "step_id": 14, "body_part": "wrist_right", "min_angle": 155, "max_angle": 180 },
-    { "id": 17, "step_id": 15, "body_part": "elbow_left", "min_angle": 55, "max_angle": 95 },
-    { "id": 18, "step_id": 16, "body_part": "ankle_left", "min_angle": 85, "max_angle": 125 }
+    { "id": 10, "step_id": 8, "body_part": "ankle_left", "min_angle": 75, "max_angle": 115 },
+    { "id": 11, "step_id": 9, "body_part": "hip_right", "min_angle": 85, "max_angle": 130 },
+    { "id": 12, "step_id": 9, "body_part": "knee_right", "min_angle": 145, "max_angle": 180 },
+    { "id": 13, "step_id": 10, "body_part": "hip_left", "min_angle": 90, "max_angle": 130 },
+    { "id": 14, "step_id": 11, "body_part": "knee_left", "min_angle": 80, "max_angle": 120 },
+    { "id": 15, "step_id": 12, "body_part": "knee_left", "min_angle": 120, "max_angle": 160 },
+    { "id": 16, "step_id": 13, "body_part": "hip_right", "min_angle": 50, "max_angle": 95 },
+    { "id": 17, "step_id": 14, "body_part": "shoulder_left", "min_angle": 75, "max_angle": 105 },
+    { "id": 18, "step_id": 15, "body_part": "elbow_right", "min_angle": 85, "max_angle": 125 },
+    { "id": 19, "step_id": 16, "body_part": "wrist_right", "min_angle": 155, "max_angle": 180 },
+    { "id": 20, "step_id": 17, "body_part": "elbow_left", "min_angle": 55, "max_angle": 95 },
+    { "id": 21, "step_id": 18, "body_part": "ankle_left", "min_angle": 85, "max_angle": 125 }
   ]
 }

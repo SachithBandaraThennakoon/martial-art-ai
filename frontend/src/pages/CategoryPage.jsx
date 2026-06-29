@@ -1,5 +1,8 @@
+import { useContext } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { AuthContext } from "../context/auth";
 import { getCategoryBySlug, slugify } from "../data/techniqueCatalog";
+import { canAccessPlan, formatPlanName } from "../data/planAccess";
 
 function formatPrice(price) {
   return price === 0 ? "Free" : `$${price.toFixed(2)}`;
@@ -8,6 +11,7 @@ function formatPrice(price) {
 export default function CategoryPage() {
   const { categorySlug } = useParams();
   const category = getCategoryBySlug(categorySlug);
+  const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
 
   if (!category) {
     return <Navigate to="/" replace />;
@@ -36,26 +40,53 @@ export default function CategoryPage() {
             </div>
 
             <div className="technique-list">
-              {subcategory.techniques.map((technique) => (
-                <div className="technique-row" key={technique.name}>
-                  <div>
+              {subcategory.techniques.map((technique) => {
+                const requiredPlan = technique.requiredPlan || "FREE_PLAN";
+                const hasAccess = canAccessPlan(userPlan, requiredPlan);
+
+                return (
+                <div
+                  className={`technique-row ${
+                    hasAccess ? "" : "technique-row--locked"
+                  }`}
+                  key={technique.name}
+                >
+                  <div className="technique-row__body">
                     <strong>{technique.name}</strong>
                     <span>
                       {technique.difficulty} / {formatPrice(technique.price)}
                     </span>
+                    <small
+                      className={`plan-chip ${
+                        hasAccess ? "plan-chip--open" : "plan-chip--locked"
+                      }`}
+                    >
+                      {hasAccess
+                        ? "Available"
+                        : `${formatPlanName(requiredPlan)} required`}
+                    </small>
                   </div>
-                  <Link
-                    className="btn btn--light btn--small"
-                    to={`/training?mode=train&category=${slugify(
-                      category.category
-                    )}&subcategory=${slugify(
-                      subcategory.name
-                    )}&technique=${encodeURIComponent(technique.name)}`}
-                  >
-                    Studio
-                  </Link>
+                  <div className="technique-row__actions">
+                    {hasAccess ? (
+                      <Link
+                        className="btn btn--light btn--small"
+                        to={`/training?mode=train&category=${slugify(
+                          category.category
+                        )}&subcategory=${slugify(
+                          subcategory.name
+                        )}&technique=${encodeURIComponent(technique.name)}`}
+                      >
+                        Studio
+                      </Link>
+                    ) : (
+                      <Link className="btn btn--ghost btn--small" to="/pricing">
+                        Upgrade
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </article>
         ))}

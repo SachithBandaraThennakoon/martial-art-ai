@@ -4,6 +4,7 @@ from database import SessionLocal
 from models.user import User
 from utils.security import hash_password, verify_password, create_access_token
 from fastapi import Form
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -30,7 +31,11 @@ def register(
     user = User(
         name=name,
         email=email,
-        password_hash=hash_password(password)
+        password_hash=hash_password(password),
+        role="user",
+        plan="FREE_PLAN",
+        subscription_status="trial",
+        trial_ends_at=datetime.utcnow() + timedelta(days=3)
     )
 
     db.add(user)
@@ -52,4 +57,9 @@ def login(
 
     access_token = create_access_token({"sub": user.email})
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "plan": user.plan or "FREE_PLAN",
+        "subscription_status": user.subscription_status or "trial"
+    }

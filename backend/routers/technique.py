@@ -31,6 +31,7 @@ def create_technique(
     subcategory: str = "",
     difficulty: str = "Beginner",
     price: float = 0,
+    required_plan: str = "FREE_PLAN",
     db: Session = Depends(get_db)
 ):
     technique = Technique(
@@ -39,7 +40,8 @@ def create_technique(
         category=category,
         subcategory=subcategory,
         difficulty=difficulty,
-        price=price
+        price=price,
+        required_plan=required_plan
     )
     db.add(technique)
     db.commit()
@@ -110,6 +112,7 @@ def get_techniques(db: Session = Depends(get_db)):
             "subcategory": t.subcategory,
             "difficulty": t.difficulty,
             "price": t.price,
+            "required_plan": t.required_plan,
             "description": t.description
         }
         for t in techniques
@@ -146,7 +149,8 @@ def create_full_technique(data: dict, db: Session = Depends(get_db)):
         category=data.get("category", ""),
         subcategory=data.get("subcategory", ""),
         difficulty=data.get("difficulty", "Beginner"),
-        price=data.get("price", 0)
+        price=data.get("price", 0),
+        required_plan=data.get("required_plan", "FREE_PLAN")
     )
 
     db.add(technique)

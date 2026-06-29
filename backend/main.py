@@ -16,6 +16,7 @@ from models import user, technique, technique_step, target_angle
 # Routers
 from routers import auth
 from routers import technique as technique_router
+from routers import subscription as subscription_router
 
 # Services
 from services.angle_service import compare_angles
@@ -55,6 +56,7 @@ app.add_middleware(
 # -----------------------------
 app.include_router(auth.router)
 app.include_router(technique_router.router)
+app.include_router(subscription_router.router)
 
 
 # -----------------------------

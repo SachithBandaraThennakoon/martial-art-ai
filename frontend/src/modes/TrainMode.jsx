@@ -1,6 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import MetricsPanel from "../components/MetricsPanel";
+import { AuthContext } from "../context/auth";
+import { canAccessPlan, formatPlanName } from "../data/planAccess";
 import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
 
 export default function TrainMode({
@@ -17,6 +20,7 @@ export default function TrainMode({
       }),
     [categorySlug, selectedTechniqueName, subcategorySlug]
   );
+  const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
 
   const steps = currentTechnique?.steps || [];
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -105,6 +109,28 @@ export default function TrainMode({
             Open a technique from a main category, sub category, and technique
             card to start training.
           </p>
+        </div>
+      </aside>
+    );
+  }
+
+  const requiredPlan = currentTechnique.requiredPlan || "FREE_PLAN";
+  const hasAccess = canAccessPlan(userPlan, requiredPlan);
+
+  if (!hasAccess) {
+    return (
+      <aside className="training-panel training-panel--left">
+        <div className="panel-block locked-access-card">
+          <p className="eyebrow">Locked Technique</p>
+          <h1>{currentTechnique.name}</h1>
+          <p className="practice-copy">
+            Your current plan is {formatPlanName(userPlan)}. Upgrade to{" "}
+            {formatPlanName(requiredPlan)} or higher to open this technique in
+            Studio.
+          </p>
+          <Link className="btn btn--light btn--full" to="/pricing">
+            View Packages
+          </Link>
         </div>
       </aside>
     );

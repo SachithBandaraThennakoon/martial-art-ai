@@ -11,19 +11,20 @@ export const MAIN_CATEGORIES = [
 
 export const techniqueCatalog = [
   {
+    code: "FREE_PLAN",
     category: "Flexibility & Mobility",
     subcategories: [
       {
         name: "Hip Mobility",
         techniques: [
-          { name: "Hip Mobility Flow", difficulty: "Beginner", price: 0 },
-          { name: "Low Stance Opener", difficulty: "Intermediate", price: 2.99 }
+          { name: "Hip Mobility Flow", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" },
+          { name: "Low Stance Opener", difficulty: "Intermediate", price: 2.99, requiredPlan: "STARTER_PLAN" }
         ]
       },
       {
         name: "Dynamic Stretching",
         techniques: [
-          { name: "Kick Range Prep", difficulty: "Beginner", price: 0 }
+          { name: "Kick Range Prep", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" }
         ]
       }
     ]
@@ -34,13 +35,13 @@ export const techniqueCatalog = [
       {
         name: "Cardio Conditioning",
         techniques: [
-          { name: "Fighter Conditioning Circuit", difficulty: "Intermediate", price: 4.99 }
+          { name: "Fighter Conditioning Circuit", difficulty: "Intermediate", price: 4.99, requiredPlan: "STARTER_PLAN" }
         ]
       },
       {
         name: "Strength",
         techniques: [
-          { name: "Core Guard Builder", difficulty: "Beginner", price: 1.99 }
+          { name: "Core Guard Builder", difficulty: "Beginner", price: 1.99, requiredPlan: "FREE_PLAN" }
         ]
       }
     ]
@@ -55,6 +56,7 @@ export const techniqueCatalog = [
             name: "Jab",
             difficulty: "Beginner",
             price: 0,
+            requiredPlan: "FREE_PLAN",
             steps: [
               {
                 id: "jab-guard",
@@ -92,6 +94,7 @@ export const techniqueCatalog = [
             name: "Cross",
             difficulty: "Beginner",
             price: 0,
+            requiredPlan: "FREE_PLAN",
             steps: [
               {
                 id: "cross-load",
@@ -113,7 +116,7 @@ export const techniqueCatalog = [
               }
             ]
           },
-          { name: "Hook", difficulty: "Intermediate", price: 3.99 }
+          { name: "Hook", difficulty: "Intermediate", price: 3.99, requiredPlan: "STARTER_PLAN" }
         ]
       },
       {
@@ -123,6 +126,7 @@ export const techniqueCatalog = [
             name: "Front Kick",
             difficulty: "Beginner",
             price: 0,
+            requiredPlan: "STARTER_PLAN",
             steps: [
               {
                 id: "front-kick-chamber",
@@ -144,7 +148,7 @@ export const techniqueCatalog = [
               }
             ]
           },
-          { name: "Roundhouse Kick", difficulty: "Intermediate", price: 3.99 }
+          { name: "Roundhouse Kick", difficulty: "Intermediate", price: 3.99, requiredPlan: "PRO_PLAN" }
         ]
       }
     ]
@@ -155,8 +159,8 @@ export const techniqueCatalog = [
       {
         name: "Breath & Alignment",
         techniques: [
-          { name: "Standing Meditation", difficulty: "Beginner", price: 0 },
-          { name: "Rooted Posture Drill", difficulty: "Beginner", price: 0 }
+          { name: "Standing Meditation", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" },
+          { name: "Rooted Posture Drill", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" }
         ]
       }
     ]
@@ -167,13 +171,13 @@ export const techniqueCatalog = [
       {
         name: "Beginner Forms",
         techniques: [
-          { name: "Basic Form One", difficulty: "Beginner", price: 2.99 }
+          { name: "Basic Form One", difficulty: "Beginner", price: 2.99, requiredPlan: "STARTER_PLAN" }
         ]
       },
       {
         name: "Advanced Forms",
         techniques: [
-          { name: "Power Form Sequence", difficulty: "Advanced", price: 7.99 }
+          { name: "Power Form Sequence", difficulty: "Advanced", price: 7.99, requiredPlan: "PRO_PLAN" }
         ]
       }
     ]
@@ -184,13 +188,13 @@ export const techniqueCatalog = [
       {
         name: "Staff",
         techniques: [
-          { name: "Bo Staff Guard", difficulty: "Intermediate", price: 6.99 }
+          { name: "Bo Staff Guard", difficulty: "Intermediate", price: 6.99, requiredPlan: "PRO_PLAN" }
         ]
       },
       {
         name: "Short Stick",
         techniques: [
-          { name: "Stick Angle One", difficulty: "Beginner", price: 3.99 }
+          { name: "Stick Angle One", difficulty: "Beginner", price: 3.99, requiredPlan: "STARTER_PLAN" }
         ]
       }
     ]
@@ -201,13 +205,13 @@ export const techniqueCatalog = [
       {
         name: "Grab Escapes",
         techniques: [
-          { name: "Wrist Grab Escape", difficulty: "Beginner", price: 0 }
+          { name: "Wrist Grab Escape", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" }
         ]
       },
       {
         name: "Close Range",
         techniques: [
-          { name: "Frame And Exit", difficulty: "Intermediate", price: 4.99 }
+          { name: "Frame And Exit", difficulty: "Intermediate", price: 4.99, requiredPlan: "STARTER_PLAN" }
         ]
       }
     ]
@@ -218,13 +222,13 @@ export const techniqueCatalog = [
       {
         name: "Footwork",
         techniques: [
-          { name: "Distance Control", difficulty: "Intermediate", price: 5.99 }
+          { name: "Distance Control", difficulty: "Intermediate", price: 5.99, requiredPlan: "PRO_PLAN" }
         ]
       },
       {
         name: "Sparring",
         techniques: [
-          { name: "Counter Timing", difficulty: "Advanced", price: 8.99 }
+          { name: "Counter Timing", difficulty: "Advanced", price: 8.99, requiredPlan: "ELITE_PLAN" }
         ]
       }
     ]

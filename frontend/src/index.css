@@ -466,6 +466,13 @@ button {
   background: #050505;
 }
 
+.technique-row--locked {
+  border-color: rgba(255, 107, 107, 0.28);
+  background:
+    linear-gradient(145deg, rgba(255, 107, 107, 0.08), transparent 42%),
+    #050505;
+}
+
 .technique-row strong,
 .technique-row span {
   display: block;
@@ -479,6 +486,254 @@ button {
   margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.technique-row__body {
+  display: grid;
+  gap: 8px;
+}
+
+.technique-row__actions {
+  flex: 0 0 auto;
+}
+
+.plan-chip {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 26px;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.plan-chip--open {
+  border-color: rgba(96, 211, 148, 0.42);
+  color: var(--accent-green);
+}
+
+.plan-chip--locked {
+  border-color: rgba(255, 107, 107, 0.42);
+  color: var(--accent-red);
+}
+
+.pricing-page {
+  display: grid;
+  gap: 34px;
+}
+
+.pricing-hero {
+  max-width: 820px;
+}
+
+.pricing-hero h1 {
+  margin: 0;
+  font-size: clamp(42px, 7vw, 82px);
+  line-height: 0.98;
+}
+
+.pricing-hero p:last-child {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pricing-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.07), transparent 42%),
+    rgba(9, 9, 10, 0.86);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.34);
+}
+
+.pricing-card--featured {
+  border-color: rgba(106, 168, 255, 0.72);
+  box-shadow:
+    0 20px 70px rgba(0, 0, 0, 0.42),
+    0 0 34px rgba(106, 168, 255, 0.14);
+}
+
+.pricing-card--active {
+  border-color: rgba(96, 211, 148, 0.9);
+  background:
+    linear-gradient(145deg, rgba(96, 211, 148, 0.14), transparent 44%),
+    rgba(9, 9, 10, 0.94);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.46),
+    0 0 42px rgba(96, 211, 148, 0.2);
+}
+
+.pricing-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 6px 9px;
+  border: 1px solid rgba(106, 168, 255, 0.48);
+  border-radius: 999px;
+  color: var(--accent-blue);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pricing-badge--active {
+  border-color: rgba(96, 211, 148, 0.58);
+  color: var(--accent-green);
+}
+
+.pricing-card h2 {
+  margin: 0;
+  font-size: 42px;
+}
+
+.pricing-billing,
+.payment-note {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.current-plan-chip {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 28px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 0 10px;
+  border: 1px solid rgba(106, 168, 255, 0.36);
+  border-radius: 999px;
+  color: var(--accent-blue);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.current-plan-chip--active {
+  border-color: rgba(96, 211, 148, 0.58);
+  background: rgba(96, 211, 148, 0.12);
+  color: var(--accent-green);
+}
+
+.subscription-alert {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(96, 211, 148, 0.42);
+  border-radius: 8px;
+  background: rgba(96, 211, 148, 0.1);
+  color: var(--accent-green);
+  font-weight: 900;
+}
+
+.pricing-actions {
+  width: 100%;
+  min-height: 64px;
+  margin: 22px 0;
+}
+
+.paypal-button-wrap {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.paypal-button-wrap > div {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.paypal-button-wrap iframe {
+  max-width: 100% !important;
+}
+
+.pricing-login-box {
+  display: grid;
+  gap: 10px;
+}
+
+.active-plan-box {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(96, 211, 148, 0.32);
+  border-radius: 8px;
+  background: rgba(96, 211, 148, 0.08);
+}
+
+.active-plan-box strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.active-plan-box span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.pricing-login-box p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.payment-note {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.payment-note--error {
+  color: var(--accent-red);
+}
+
+.plan-features {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.plan-features div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.plan-features dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.plan-features dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 800;
 }
 
 .auth-page {
@@ -932,11 +1187,17 @@ select:focus {
   font-size: 24px;
 }
 
+.locked-access-card {
+  display: grid;
+  gap: 16px;
+}
+
 @media (max-width: 980px) {
   .hero,
   .feature-strip,
   .home-categories,
-  .subcategory-grid {
+  .subcategory-grid,
+  .pricing-grid {
     grid-template-columns: 1fr;
   }
 

@@ -19,6 +19,10 @@ export default function Navbar() {
           </Link>
         )}
 
+        <Link to="/pricing" className="navbar__link">
+          Pricing
+        </Link>
+
         <div className="navbar__categories" aria-label="Main categories">
           {MAIN_CATEGORIES.map((category) => (
             <Link
