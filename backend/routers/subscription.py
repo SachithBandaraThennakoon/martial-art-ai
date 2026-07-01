@@ -6,7 +6,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
+from database import get_db
 from models.user import User
 from utils.security import ALGORITHM, SECRET_KEY
 
@@ -19,14 +19,6 @@ VALID_PLANS = {"STARTER_PLAN", "PRO_PLAN", "ELITE_PLAN"}
 class SubscriptionActivation(BaseModel):
     plan: str
     paypal_subscription_id: str
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def get_current_email(token: str = Depends(oauth2_scheme)):

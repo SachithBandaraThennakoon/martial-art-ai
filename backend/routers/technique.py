@@ -1,23 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
+from database import get_db
 from models.technique import Technique
 from models.technique_step import TechniqueStep
 from models.target_angle import TargetAngle
 
 router = APIRouter(prefix="/techniques", tags=["Techniques"])
-
-
-# -------------------------
-# DB Dependency
-# -------------------------
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 # -------------------------

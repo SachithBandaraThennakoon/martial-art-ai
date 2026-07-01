@@ -61,6 +61,7 @@ export default function TrainingStudio() {
         <TrainMode
           categorySlug={categorySlug}
           key={`${categorySlug}-${subcategorySlug}-${selectedTechniqueName}`}
+          onModeChange={updateMode}
           selectedTechniqueName={selectedTechniqueName}
           subcategorySlug={subcategorySlug}
         />

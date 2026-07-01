@@ -2,16 +2,27 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 import time
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from jose import JWTError, jwt
 import json
 
 # DB
-from database import engine, Base, SessionLocal
+from database import get_db, init_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle
+from models import user, technique, technique_step, target_angle, training_memory
+from models.target_angle import TargetAngle
+from models.training_memory import (
+    TrainingFeedbackEvent,
+    TrainingSession,
+    TrainingStepAttempt,
+    UserTrainingMemory,
+)
 
 # Routers
 from routers import auth
@@ -20,6 +31,8 @@ from routers import subscription as subscription_router
 
 # Services
 from services.angle_service import compare_angles
+from agents.training_coach import CoachSession
+from agents.voice_agent import generate_voice
 
 # Security
 from utils.security import SECRET_KEY, ALGORITHM
@@ -33,7 +46,7 @@ from utils.security import SECRET_KEY, ALGORITHM
 app = FastAPI(title="AI Martial Platform")
 
 # Create DB tables
-Base.metadata.create_all(bind=engine)
+DATABASE_READY = init_db()
 
 
 # -----------------------------
@@ -65,12 +78,9 @@ app.include_router(subscription_router.router)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+class VoiceRequest(BaseModel):
+    text: str
+    voice: str = "cedar"
 
 
 # -----------------------------
@@ -78,7 +88,18 @@ def get_db():
 # -----------------------------
 @app.get("/")
 def root():
-    return {"message": "AI Martial Platform Running"}
+    return {
+        "message": "AI Martial Platform Running",
+        "database": "ready" if DATABASE_READY else "unavailable"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "database": "ready" if DATABASE_READY else "unavailable"
+    }
 
 
 # -----------------------------
@@ -94,6 +115,28 @@ def protected_route(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+@app.post("/voice/speak")
+def speak(request: VoiceRequest, token: str = Depends(oauth2_scheme)):
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    text = request.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    audio = generate_voice(text[:600], request.voice)
+    if not audio:
+        raise HTTPException(status_code=503, detail="Voice service unavailable")
+
+    return {
+        "audio": audio,
+        "format": "mp3",
+        "voice": request.voice
+    }
+
+
 # -----------------------------
 # WEBSOCKET (JWT PROTECTED)
 # -----------------------------
@@ -101,7 +144,6 @@ def protected_route(token: str = Depends(oauth2_scheme)):
 async def train(websocket: WebSocket):
 
     import time
-    from agents.summary_agent import summarize_movement
 
     token = websocket.query_params.get("token")
 
@@ -121,7 +163,31 @@ async def train(websocket: WebSocket):
 
     await websocket.accept()
 
-    db = SessionLocal()
+    db = None
+    db_ready = False
+    user_record = None
+    training_session = None
+
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db_ready = True
+    except SQLAlchemyError as exc:
+        print(f"Training persistence disabled: {exc}")
+
+    if db_ready:
+        user_record = db.query(user.User).filter(user.User.email == email).first()
+
+    coach = CoachSession()
+    if db_ready:
+        training_session = TrainingSession(
+            user_id=user_record.id if user_record else None,
+            technique_name=coach.technique_name,
+            mode=coach.mode
+        )
+        db.add(training_session)
+        db.commit()
+        db.refresh(training_session)
 
     # -----------------------------
     # MEMORY (PAST 5 SECONDS)
@@ -134,14 +200,67 @@ async def train(websocket: WebSocket):
     feedback_interval = 3
 
     last_feedback = "Start training"
+    last_body_part = None
+    last_issue = None
 
     try:
         while True:
             data = await websocket.receive_text()
             parsed = json.loads(data)
 
+            event_type = parsed.get("type", "training_frame")
+
+            if event_type == "session_config":
+                previous_step_key = coach.current_step_key
+                coach.technique_name = parsed.get("technique_name") or coach.technique_name
+                coach.mode = parsed.get("mode") or coach.mode
+                coach.current_step_key = parsed.get("step_key")
+                coach.current_step_name = parsed.get("step_name") or coach.current_step_name
+                if db_ready and training_session:
+                    training_session.technique_name = coach.technique_name
+                    training_session.mode = coach.mode
+                    db.commit()
+
+                if previous_step_key and previous_step_key == coach.current_step_key:
+                    continue
+
+                if previous_step_key and previous_step_key != coach.current_step_key:
+                    coach._reset_temporal_focus(keep_ready=True)
+                    coach.is_paused = False
+                    coach.readiness_prompted = False
+                    coach.last_accuracy = 0
+                    coach.last_spoken_message = ""
+                    last_feedback = ""
+                    last_body_part = None
+                    last_issue = None
+                    last_feedback_time = 0
+                    message = f"Next step: {coach.current_step_name}. Set your shape and I will correct it."
+                    action = "observe"
+                else:
+                    message = f"Hi. Ready to start {coach.technique_name} training?"
+                    action = "confirm_start"
+
+                await websocket.send_text(json.dumps(coach.panel_event(message, action=action)))
+                continue
+
+            if event_type == "user_message":
+                coach_event = coach.user_message(parsed.get("message", ""))
+                await websocket.send_text(json.dumps(coach_event))
+                continue
+
+            if event_type == "session_complete":
+                coach_event = coach.complete_session()
+                if db_ready and training_session:
+                    training_session.completed = True
+                    training_session.ended_at = func.now()
+                    db.commit()
+                await websocket.send_text(json.dumps(coach_event))
+                continue
+
             step_id = parsed.get("step_id")
+            step_name = parsed.get("step_name") or "selected step"
             live_angles = parsed.get("angles", {})
+            required_parts_payload = parsed.get("required_parts") or []
 
             current_time = time.time()
 
@@ -165,162 +284,158 @@ async def train(websocket: WebSocket):
             # -----------------------------
             # GET TARGET ANGLES
             # -----------------------------
-            required_parts = db.query(TargetAngle).filter(
-                TargetAngle.step_id == step_id
-            ).all()
+            if required_parts_payload:
+                required_parts = required_parts_payload
+            elif db_ready and isinstance(step_id, int):
+                required_parts = db.query(TargetAngle).filter(
+                    TargetAngle.step_id == step_id
+                ).all()
+            else:
+                required_parts = []
 
-            # -----------------------------
-            # ACCURACY
-            # -----------------------------
-            correct = 0
-            total = len(required_parts)
-
-            for part in required_parts:
-                value = live_angles.get(part.body_part)
-
-                if value is None:
-                    continue
-
-                if part.min_angle <= value <= part.max_angle:
-                    correct += 1
-
-            accuracy = int((correct / total) * 100) if total > 0 else 0
+            coach_event = coach.movement_event(
+                step_id,
+                step_name,
+                required_parts,
+                live_angles
+            )
+            accuracy = coach_event["accuracy"]
+            message_changed = coach_event["summary"] != last_feedback
+            focus_changed = (
+                coach_event.get("body_part") != last_body_part
+                or coach_event.get("issue") != last_issue
+            )
+            important_transition = coach_event.get("action") in {
+                "confirm_next",
+                "needs_targets",
+                "complete",
+            }
+            should_record = (
+                current_time - last_feedback_time > feedback_interval
+                or focus_changed
+                or important_transition
+            )
 
             # -----------------------------
             # SUMMARY FEEDBACK (THROTTLED)
             # -----------------------------
-            if current_time - last_feedback_time > feedback_interval:
-
-                summary = summarize_movement(
-                    history_angles,
-                    live_angles,
-                    required_parts
-                )
-
-                last_feedback = summary
+            if should_record:
+                last_feedback = coach_event["summary"]
+                last_body_part = coach_event.get("body_part")
+                last_issue = coach_event.get("issue")
                 last_feedback_time = current_time
+                if db_ready and training_session:
+                    _record_training_feedback(
+                        db,
+                        training_session.id,
+                        step_id,
+                        step_name,
+                        coach_event
+                    )
+                    _record_step_attempt(
+                        db,
+                        training_session.id,
+                        step_id,
+                        step_name,
+                        accuracy
+                    )
+                    if user_record:
+                        _record_user_training_memory(db, user_record.id, coach_event)
+            elif not message_changed:
+                coach_event["speak"] = False
+            else:
+                last_feedback = coach_event["summary"]
+                last_body_part = coach_event.get("body_part")
+                last_issue = coach_event.get("issue")
+                coach_event["speak"] = False
 
             # -----------------------------
             # SEND
             # -----------------------------
-            await websocket.send_text(json.dumps({
-                "accuracy": accuracy,
-                "feedback": [last_feedback],
-                "summary": last_feedback
-            }))
+            coach_event["summary"] = coach_event["message"]
+            coach_event["feedback"] = [coach_event["message"]]
+            await websocket.send_text(json.dumps(coach_event))
 
     except WebSocketDisconnect:
         print(f"{email} disconnected")
 
     finally:
-        db.close()
+        if db_ready and db and training_session:
+            training_session.final_accuracy = accuracy if "accuracy" in locals() else 0
+            training_session.ended_at = func.now()
+            db.commit()
+        if db:
+            db.close()
+
+def _record_training_feedback(db, session_id, step_key, step_name, coach_event):
+    db.add(TrainingFeedbackEvent(
+        session_id=session_id,
+        step_key=str(step_key or step_name),
+        body_part=coach_event.get("body_part"),
+        issue=coach_event.get("issue"),
+        feedback_text=coach_event.get("summary") or "",
+        accuracy=coach_event.get("accuracy") or 0
+    ))
+    db.commit()
 
 
+def _record_step_attempt(db, session_id, step_key, step_name, accuracy):
+    key = str(step_key or step_name)
+    attempt = db.query(TrainingStepAttempt).filter(
+        TrainingStepAttempt.session_id == session_id,
+        TrainingStepAttempt.step_key == key
+    ).first()
 
-    import time
+    if not attempt:
+        attempt = TrainingStepAttempt(
+            session_id=session_id,
+            step_key=key,
+            step_name=step_name,
+            best_accuracy=accuracy,
+            average_accuracy=accuracy,
+            attempts_count=1,
+            completed_at=func.now() if accuracy >= 100 else None
+        )
+        db.add(attempt)
+    else:
+        total = attempt.average_accuracy * attempt.attempts_count
+        attempt.attempts_count += 1
+        attempt.average_accuracy = (total + accuracy) / attempt.attempts_count
+        attempt.best_accuracy = max(attempt.best_accuracy or 0, accuracy)
+        if accuracy >= 100 and attempt.completed_at is None:
+            attempt.completed_at = func.now()
 
-    token = websocket.query_params.get("token")
+    db.commit()
 
-    # ❌ No token → reject
-    if not token:
-        await websocket.close()
-        return
 
-    # 🔐 Verify JWT
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        print("✅ TOKEN OK:", email)
+def _record_user_training_memory(db, user_id, coach_event):
+    event_memory = coach_event.get("memory", {})
+    memory_value = json.dumps({
+        "attention_score": event_memory.get("attention_score"),
+        "correction_frames": event_memory.get("correction_frames"),
+        "plateau_frames": event_memory.get("plateau_frames"),
+        "last_user_intent": event_memory.get("last_user_intent"),
+        "pending_question": event_memory.get("pending_question"),
+        "focus_body_part": coach_event.get("focus_body_part"),
+        "last_action": coach_event.get("action"),
+        "last_issue": coach_event.get("issue"),
+    })
 
-    except JWTError as e:
-        print("❌ TOKEN ERROR:", str(e))
-        await websocket.close()
-        return
+    memory = db.query(UserTrainingMemory).filter(
+        UserTrainingMemory.user_id == user_id,
+        UserTrainingMemory.memory_key == "coach_temporal_memory"
+    ).first()
 
-    await websocket.accept()
+    if memory:
+        memory.memory_value = memory_value
+    else:
+        db.add(UserTrainingMemory(
+            user_id=user_id,
+            memory_key="coach_temporal_memory",
+            memory_value=memory_value
+        ))
 
-    db = SessionLocal()
-
-    # 🔥 FEEDBACK CONTROL
-    last_feedback_time = 0
-    feedback_interval = 2  # seconds
-    last_feedback = "Start training"
-
-    feedback_history = []
-    MAX_HISTORY = 3
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            parsed = json.loads(data)
-
-            step_id = parsed.get("step_id")
-            live_angles = parsed.get("angles", {})
-
-            # -----------------------------
-            # GET TARGET ANGLES
-            # -----------------------------
-            required_parts = db.query(TargetAngle).filter(
-                TargetAngle.step_id == step_id
-            ).all()
-
-            # -----------------------------
-            # 🎯 CALCULATE ACCURACY
-            # -----------------------------
-            correct = 0
-            total = len(required_parts)
-
-            for part in required_parts:
-                value = live_angles.get(part.body_part)
-
-                if value is None:
-                    continue
-
-                if part.min_angle <= value <= part.max_angle:
-                    correct += 1
-
-            accuracy = int((correct / total) * 100) if total > 0 else 0
-
-            # -----------------------------
-            # 🤖 RUN AGENTS (THROTTLED)
-            # -----------------------------
-            current_time = time.time()
-
-            if current_time - last_feedback_time > feedback_interval:
-                from agents.orchestrator import run_agents
-
-                agent_result = run_agents(required_parts, live_angles)
-
-                new_feedback = agent_result["feedback"]
-
-                # store last 3 feedback batches
-                feedback_history.append(new_feedback)
-
-                if len(feedback_history) > MAX_HISTORY:
-                    feedback_history.pop(0)
-
-                last_feedback = new_feedback
-
-                #summary_text = generate_summary(feedback_history)
-
-                last_feedback_time = current_time
-
-            # -----------------------------
-            # SEND RESPONSE
-            # -----------------------------
-            await websocket.send_text(json.dumps({
-                "accuracy": accuracy,
-                "feedback": [last_feedback],
-                "summary": summary_text
-            }))
-
-    except WebSocketDisconnect:
-        print(f"{email} disconnected")
-
-    finally:
-        db.close()
-
-from models.target_angle import TargetAngle
+    db.commit()
 
 @app.get("/steps/{step_id}/angles")
 def get_angles(step_id: int, db: Session = Depends(get_db)):

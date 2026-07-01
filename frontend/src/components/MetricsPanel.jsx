@@ -4,9 +4,21 @@ export default function MetricsPanel({
   accuracy,
   angles,
   requiredParts,
-  feedback
+  feedback,
+  coachEvent
 }) {
   const currentStep = steps[currentStepIndex];
+  const focusPart = coachEvent?.focus_body_part || coachEvent?.body_part;
+  const activeParts = [...requiredParts].sort((first, second) => {
+    if (first.body_part === focusPart) return -1;
+    if (second.body_part === focusPart) return 1;
+    return 0;
+  });
+
+  const formatBodyPart = (bodyPart) =>
+    bodyPart
+      ? bodyPart.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+      : "Whole form";
 
   const getFeedback = (value, min, max) => {
     if (value < min) {
@@ -24,18 +36,19 @@ export default function MetricsPanel({
   return (
     <div className="metrics-panel">
       <div className={`accuracy-card ${accuracy >= 80 ? "is-good" : "is-low"}`}>
-        <span>Accuracy</span>
+        <span>Form Match</span>
         <strong>{accuracy}%</strong>
       </div>
 
-      <div className="panel-block">
-        <p className="eyebrow">Current Step</p>
-        <h2>{currentStep?.step_name || "No step selected"}</h2>
+      <div className="panel-block focus-board">
+        <p className="eyebrow">Master Focus</p>
+        <h2>{formatBodyPart(focusPart)}</h2>
+        <p>{coachEvent?.summary || feedback || currentStep?.step_name || "Move into frame."}</p>
       </div>
 
       <div className="panel-block">
         <div className="panel-heading">
-          <p className="eyebrow">Angles</p>
+          <p className="eyebrow">Live Values</p>
           <span>{requiredParts.length} tracked</span>
         </div>
 
@@ -43,24 +56,26 @@ export default function MetricsPanel({
           <p className="empty-state">No angle targets loaded yet.</p>
         ) : (
           <div className="metrics-grid">
-            {requiredParts.map((part) => {
+            {activeParts.map((part) => {
               const rawValue = angles?.[part.body_part];
-              const value = rawValue ? Math.round(rawValue) : 0;
-              const isCorrect = value >= part.min && value <= part.max;
+              const hasValue = Number.isFinite(rawValue);
+              const value = hasValue ? Math.round(rawValue) : 0;
+              const isCorrect = hasValue && value >= part.min && value <= part.max;
+              const isFocus = part.body_part === focusPart;
 
               return (
                 <article
                   className={`metric-card ${
                     isCorrect ? "metric-card--good" : "metric-card--bad"
-                  }`}
+                  } ${isFocus ? "metric-card--focus" : ""}`}
                   key={part.body_part}
                 >
-                  <span>{part.body_part.replace("_", " ")}</span>
-                  <strong>{value} deg</strong>
+                  <span>{formatBodyPart(part.body_part)}</span>
+                  <strong>{hasValue ? `${value} deg` : "--"}</strong>
                   <small>
                     Target {part.min}-{part.max} deg
                   </small>
-                  <em>{getFeedback(value, part.min, part.max)}</em>
+                  <em>{hasValue ? getFeedback(value, part.min, part.max) : "Waiting"}</em>
                 </article>
               );
             })}

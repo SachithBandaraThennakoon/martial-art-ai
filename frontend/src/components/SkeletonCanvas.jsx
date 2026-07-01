@@ -37,11 +37,15 @@ function calculateAngle(a, b, c) {
 export default function SkeletonCanvas({
   enableCoach = true,
   currentStepId,
+  currentStepName,
+  sessionConfig,
+  coachCommand,
   requiredParts,
   onAngleUpdate,
   onAccuracyUpdate,
   onFeedbackUpdate,
-  onSummaryUpdate
+  onSummaryUpdate,
+  onCoachEvent
 }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -51,6 +55,75 @@ export default function SkeletonCanvas({
   const previousPoseRef = useRef(null);
   const previousHandsRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
+  const lastCommandIdRef = useRef(null);
+  const currentStepIdRef = useRef(currentStepId);
+  const currentStepNameRef = useRef(currentStepName);
+  const requiredPartsRef = useRef(requiredParts);
+  const sessionConfigRef = useRef(sessionConfig);
+
+  useEffect(() => {
+    currentStepIdRef.current = currentStepId;
+    currentStepNameRef.current = currentStepName;
+    requiredPartsRef.current = requiredParts;
+    sessionConfigRef.current = sessionConfig;
+
+    if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "session_config",
+          ...sessionConfig,
+          step_key: currentStepId,
+          step_name: currentStepName
+        })
+      );
+    }
+  }, [currentStepId, currentStepName, enableCoach, requiredParts, sessionConfig]);
+
+  useEffect(() => {
+    if (!enableCoach) {
+      return undefined;
+    }
+
+    const token = localStorage.getItem("token");
+    wsRef.current = new WebSocket(`${WS_BASE_URL}/ws/train?token=${token}`);
+
+    wsRef.current.onopen = () => {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "session_config",
+          ...sessionConfigRef.current,
+          step_key: currentStepIdRef.current,
+          step_name: currentStepNameRef.current
+        })
+      );
+    };
+
+    wsRef.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      onAccuracyUpdate(data.accuracy);
+      onFeedbackUpdate(data.feedback?.join("\n") || data.message || "");
+
+      if (data.summary && onSummaryUpdate) {
+        onSummaryUpdate(data.summary);
+      }
+
+      if (onCoachEvent) {
+        onCoachEvent(data);
+      }
+    };
+
+    return () => {
+      wsRef.current?.close();
+      wsRef.current = null;
+    };
+  }, [
+    enableCoach,
+    onAccuracyUpdate,
+    onCoachEvent,
+    onFeedbackUpdate,
+    onSummaryUpdate
+  ]);
 
   useEffect(() => {
     let animationFrameId;
@@ -121,7 +194,7 @@ export default function SkeletonCanvas({
 
         const anglesPayload = {};
 
-        requiredParts?.forEach((part) => {
+        requiredPartsRef.current?.forEach((part) => {
           const mapping = BODY_PART_MAP[part.body_part];
 
           if (mapping) {
@@ -136,10 +209,12 @@ export default function SkeletonCanvas({
 
         onAngleUpdate(anglesPayload);
 
-        if (wsRef.current?.readyState === WebSocket.OPEN && currentStepId) {
+        if (wsRef.current?.readyState === WebSocket.OPEN && currentStepIdRef.current) {
           wsRef.current.send(
             JSON.stringify({
-              step_id: currentStepId,
+              step_id: currentStepIdRef.current,
+              step_name: currentStepNameRef.current,
+              required_parts: requiredPartsRef.current,
               angles: anglesPayload
             })
           );
@@ -191,22 +266,6 @@ export default function SkeletonCanvas({
         numHands: 2
       });
 
-      if (enableCoach) {
-        const token = localStorage.getItem("token");
-        wsRef.current = new WebSocket(`${WS_BASE_URL}/ws/train?token=${token}`);
-
-        wsRef.current.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-
-          onAccuracyUpdate(data.accuracy);
-          onFeedbackUpdate(data.feedback.join("\n"));
-
-          if (data.summary && onSummaryUpdate) {
-            onSummaryUpdate(data.summary);
-          }
-        };
-      }
-
       startCamera();
     };
 
@@ -214,18 +273,30 @@ export default function SkeletonCanvas({
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      wsRef.current?.close();
       cameraStream?.getTracks().forEach((track) => track.stop());
     };
   }, [
-    currentStepId,
-    enableCoach,
-    onAccuracyUpdate,
-    onAngleUpdate,
-    onFeedbackUpdate,
-    onSummaryUpdate,
-    requiredParts
+    onAngleUpdate
   ]);
+
+  useEffect(() => {
+    if (
+      !enableCoach ||
+      !coachCommand ||
+      coachCommand.id === lastCommandIdRef.current ||
+      wsRef.current?.readyState !== WebSocket.OPEN
+    ) {
+      return;
+    }
+
+    lastCommandIdRef.current = coachCommand.id;
+    wsRef.current.send(
+      JSON.stringify({
+        type: coachCommand.type || "user_message",
+        message: coachCommand.message
+      })
+    );
+  }, [coachCommand, enableCoach]);
 
   return (
     <div className="skeleton-canvas">
