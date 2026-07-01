@@ -23,3 +23,4 @@ Ctrl + Shift + P → Reload Window
 
 npm install @mediapipe/pose @mediapipe/drawing_utils @mediapipe/camera_utils
 
+Remove-Item -Path "C:\Users\DELL\OneDrive - Vantage Ltd\Documents\New project\martial-art-ai\.git\index.lock" -Force
