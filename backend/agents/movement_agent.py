@@ -47,8 +47,10 @@ def analyze_movement(required_parts, live_angles):
                 "value": None,
                 "target": (min_angle, max_angle),
                 "difference": None,
+                "degree_delta": None,
+                "direction": "show",
                 "severity": 999,
-                "cue": f"Bring your {_label(body_part)} into view."
+                "cue": f"Show your {_label(body_part)}."
             })
             continue
 
@@ -57,16 +59,19 @@ def analyze_movement(required_parts, live_angles):
         if value < min_angle:
             difference = min_angle - value
             issue = "too_closed"
-            cue = f"Open your {_label(body_part)} about {int(round(difference))} degrees."
+            direction = "increase"
+            cue = f"Increase {_label(body_part)} {int(round(difference))} degrees."
         elif value > max_angle:
             difference = value - max_angle
             issue = "too_open"
-            cue = f"Close your {_label(body_part)} about {int(round(difference))} degrees."
+            direction = "decrease"
+            cue = f"Decrease {_label(body_part)} {int(round(difference))} degrees."
         else:
             target_center = (min_angle + max_angle) / 2
             difference = abs(value - target_center)
             issue = "good"
-            cue = f"Keep your {_label(body_part)} steady."
+            direction = "hold"
+            cue = f"Hold {_label(body_part)}."
 
         analysis.append({
             "body_part": body_part,
@@ -75,6 +80,8 @@ def analyze_movement(required_parts, live_angles):
             "value": value,
             "target": (min_angle, max_angle),
             "difference": difference,
+            "degree_delta": int(round(difference)),
+            "direction": direction,
             "severity": difference if issue != "good" else 0,
             "cue": cue
         })

@@ -22,12 +22,13 @@ export default function MetricsPanel({
 
   const getFeedback = (value, min, max) => {
     if (value < min) {
-      const diff = min - value;
-      return diff > 40 ? "Extend more" : "Slightly more";
+      const diff = Math.round(min - value);
+      return `Increase ${diff} deg`;
     }
 
     if (value > max) {
-      return "Reduce angle";
+      const diff = Math.round(value - max);
+      return `Decrease ${diff} deg`;
     }
 
     return "Good";

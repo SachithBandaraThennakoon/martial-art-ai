@@ -1,4 +1,6 @@
-export const MAIN_CATEGORIES = [
+import techniqueTables from "../../../backend/data/technique_tables.sample.json";
+
+const CATEGORY_ORDER = [
   "Flexibility & Mobility",
   "Conditioning & Fitness",
   "Technique Training",
@@ -9,231 +11,83 @@ export const MAIN_CATEGORIES = [
   "Fighting"
 ];
 
-export const techniqueCatalog = [
-  {
-    code: "FREE_PLAN",
-    category: "Flexibility & Mobility",
-    subcategories: [
-      {
-        name: "Hip Mobility",
-        techniques: [
-          { name: "Hip Mobility Flow", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" },
-          { name: "Low Stance Opener", difficulty: "Intermediate", price: 2.99, requiredPlan: "STARTER_PLAN" }
-        ]
-      },
-      {
-        name: "Dynamic Stretching",
-        techniques: [
-          { name: "Kick Range Prep", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Conditioning & Fitness",
-    subcategories: [
-      {
-        name: "Cardio Conditioning",
-        techniques: [
-          { name: "Fighter Conditioning Circuit", difficulty: "Intermediate", price: 4.99, requiredPlan: "STARTER_PLAN" }
-        ]
-      },
-      {
-        name: "Strength",
-        techniques: [
-          { name: "Core Guard Builder", difficulty: "Beginner", price: 1.99, requiredPlan: "FREE_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Technique Training",
-    subcategories: [
-      {
-        name: "Punching",
-        techniques: [
-          {
-            name: "Jab",
-            difficulty: "Beginner",
-            price: 0,
-            requiredPlan: "FREE_PLAN",
-            steps: [
-              {
-                id: "jab-guard",
-                step_number: 1,
-                step_name: "Guard stance",
-                angles: [
-                  { body_part: "elbow_left", min: 70, max: 105 },
-                  { body_part: "elbow_right", min: 70, max: 105 },
-                  { body_part: "shoulder_left", min: 55, max: 105 }
-                ]
-              },
-              {
-                id: "jab-extend",
-                step_number: 2,
-                step_name: "Extend lead hand",
-                angles: [
-                  { body_part: "elbow_left", min: 155, max: 180 },
-                  { body_part: "shoulder_left", min: 65, max: 115 },
-                  { body_part: "wrist_left", min: 150, max: 180 }
-                ]
-              },
-              {
-                id: "jab-return",
-                step_number: 3,
-                step_name: "Return to guard",
-                angles: [
-                  { body_part: "elbow_left", min: 70, max: 110 },
-                  { body_part: "elbow_right", min: 70, max: 110 },
-                  { body_part: "shoulder_left", min: 45, max: 95 }
-                ]
-              }
-            ]
-          },
-          {
-            name: "Cross",
-            difficulty: "Beginner",
-            price: 0,
-            requiredPlan: "FREE_PLAN",
-            steps: [
-              {
-                id: "cross-load",
-                step_number: 1,
-                step_name: "Load rear shoulder",
-                angles: [
-                  { body_part: "shoulder_right", min: 40, max: 85 },
-                  { body_part: "elbow_right", min: 70, max: 110 }
-                ]
-              },
-              {
-                id: "cross-rotate",
-                step_number: 2,
-                step_name: "Rotate hip and punch",
-                angles: [
-                  { body_part: "elbow_right", min: 155, max: 180 },
-                  { body_part: "hip_right", min: 70, max: 120 }
-                ]
-              }
-            ]
-          },
-          { name: "Hook", difficulty: "Intermediate", price: 3.99, requiredPlan: "STARTER_PLAN" }
-        ]
-      },
-      {
-        name: "Kicking",
-        techniques: [
-          {
-            name: "Front Kick",
-            difficulty: "Beginner",
-            price: 0,
-            requiredPlan: "STARTER_PLAN",
-            steps: [
-              {
-                id: "front-kick-chamber",
-                step_number: 1,
-                step_name: "Chamber knee",
-                angles: [
-                  { body_part: "knee_right", min: 45, max: 85 },
-                  { body_part: "hip_right", min: 50, max: 95 }
-                ]
-              },
-              {
-                id: "front-kick-extend",
-                step_number: 2,
-                step_name: "Extend kick",
-                angles: [
-                  { body_part: "knee_right", min: 150, max: 180 },
-                  { body_part: "ankle_right", min: 85, max: 125 }
-                ]
-              }
-            ]
-          },
-          { name: "Roundhouse Kick", difficulty: "Intermediate", price: 3.99, requiredPlan: "PRO_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Meditation & Posture",
-    subcategories: [
-      {
-        name: "Breath & Alignment",
-        techniques: [
-          { name: "Standing Meditation", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" },
-          { name: "Rooted Posture Drill", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Forms",
-    subcategories: [
-      {
-        name: "Beginner Forms",
-        techniques: [
-          { name: "Basic Form One", difficulty: "Beginner", price: 2.99, requiredPlan: "STARTER_PLAN" }
-        ]
-      },
-      {
-        name: "Advanced Forms",
-        techniques: [
-          { name: "Power Form Sequence", difficulty: "Advanced", price: 7.99, requiredPlan: "PRO_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Weapons",
-    subcategories: [
-      {
-        name: "Staff",
-        techniques: [
-          { name: "Bo Staff Guard", difficulty: "Intermediate", price: 6.99, requiredPlan: "PRO_PLAN" }
-        ]
-      },
-      {
-        name: "Short Stick",
-        techniques: [
-          { name: "Stick Angle One", difficulty: "Beginner", price: 3.99, requiredPlan: "STARTER_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Self-Defense",
-    subcategories: [
-      {
-        name: "Grab Escapes",
-        techniques: [
-          { name: "Wrist Grab Escape", difficulty: "Beginner", price: 0, requiredPlan: "FREE_PLAN" }
-        ]
-      },
-      {
-        name: "Close Range",
-        techniques: [
-          { name: "Frame And Exit", difficulty: "Intermediate", price: 4.99, requiredPlan: "STARTER_PLAN" }
-        ]
-      }
-    ]
-  },
-  {
-    category: "Fighting",
-    subcategories: [
-      {
-        name: "Footwork",
-        techniques: [
-          { name: "Distance Control", difficulty: "Intermediate", price: 5.99, requiredPlan: "PRO_PLAN" }
-        ]
-      },
-      {
-        name: "Sparring",
-        techniques: [
-          { name: "Counter Timing", difficulty: "Advanced", price: 8.99, requiredPlan: "ELITE_PLAN" }
-        ]
-      }
-    ]
-  }
-];
+function buildTechniqueCatalog({ techniques, technique_steps, target_angles }) {
+  const stepAngles = target_angles.reduce((items, angle) => {
+    const list = items.get(angle.step_id) || [];
+    list.push({
+      body_part: angle.body_part,
+      min: angle.min_angle,
+      max: angle.max_angle
+    });
+    items.set(angle.step_id, list);
+    return items;
+  }, new Map());
+
+  const techniqueSteps = technique_steps.reduce((items, step) => {
+    const list = items.get(step.technique_id) || [];
+    list.push({
+      id: step.id,
+      step_number: step.step_number,
+      step_name: step.step_name,
+      angles: stepAngles.get(step.id) || []
+    });
+    items.set(step.technique_id, list);
+    return items;
+  }, new Map());
+
+  const categories = new Map();
+
+  techniques.forEach((technique) => {
+    const categoryName = technique.category || "Technique Training";
+    const subcategoryName = technique.subcategory || "General";
+
+    if (!categories.has(categoryName)) {
+      categories.set(categoryName, {
+        category: categoryName,
+        subcategories: new Map()
+      });
+    }
+
+    const category = categories.get(categoryName);
+
+    if (!category.subcategories.has(subcategoryName)) {
+      category.subcategories.set(subcategoryName, {
+        name: subcategoryName,
+        techniques: []
+      });
+    }
+
+    const steps = techniqueSteps.get(technique.id) || [];
+    steps.sort((first, second) => first.step_number - second.step_number);
+
+    category.subcategories.get(subcategoryName).techniques.push({
+      id: technique.id,
+      name: technique.name,
+      category: categoryName,
+      subcategory: subcategoryName,
+      difficulty: technique.difficulty || "Beginner",
+      price: technique.price || 0,
+      requiredPlan: technique.required_plan || "FREE_PLAN",
+      description: technique.description || "",
+      steps
+    });
+  });
+
+  return Array.from(categories.values())
+    .sort((first, second) => {
+      const firstIndex = CATEGORY_ORDER.indexOf(first.category);
+      const secondIndex = CATEGORY_ORDER.indexOf(second.category);
+      return (firstIndex === -1 ? 999 : firstIndex) - (secondIndex === -1 ? 999 : secondIndex);
+    })
+    .map((category) => ({
+      ...category,
+      subcategories: Array.from(category.subcategories.values())
+    }));
+}
+
+export const techniqueCatalog = buildTechniqueCatalog(techniqueTables);
+
+export const MAIN_CATEGORIES = techniqueCatalog.map((category) => category.category);
 
 export function slugify(value) {
   return value

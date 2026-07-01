@@ -27,7 +27,9 @@ const ACTION_LABELS = {
   confirm_start: "Ready check",
   correct: "Correction",
   observe: "Watching",
+  advance_step: "Next step",
   confirm_next: "Step complete",
+  restart_training: "Restarting",
   wait: "Waiting",
   waiting: "Waiting",
   switch_practice: "Practice mode",
@@ -40,6 +42,15 @@ const QUICK_REPLIES = [
   { label: "Continue", message: "continue" },
   { label: "Practice", message: "practice mode" }
 ];
+
+const NATURAL_VOICE_CACHE_LIMIT = 24;
+const NATURAL_VOICE_REQUEST_TIMEOUT_MS = 8000;
+
+const splitVoiceWords = (message) =>
+  message
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
 const formatBodyPart = (bodyPart) =>
   bodyPart
@@ -75,10 +86,21 @@ export default function TrainMode({
   const [coachCommand, setCoachCommand] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [conversation, setConversation] = useState([]);
+  const [voiceState, setVoiceState] = useState("idle");
+  const [voiceWords, setVoiceWords] = useState([]);
+  const [activeVoiceWord, setActiveVoiceWord] = useState(-1);
   const lastSpokenMessageRef = useRef("");
   const currentAudioRef = useRef(null);
   const voiceRequestIdRef = useRef(0);
-  const currentStep = steps[currentStepIndex];
+  const voiceQueueRef = useRef([]);
+  const isSpeakingRef = useRef(false);
+  const wordTimerRef = useRef(null);
+  const voiceWordsRef = useRef([]);
+  const naturalVoiceCacheRef = useRef(new Map());
+  const naturalVoiceRequestsRef = useRef(new Map());
+  const safeStepIndex =
+    steps.length > 0 ? Math.min(currentStepIndex, steps.length - 1) : 0;
+  const currentStep = steps[safeStepIndex];
   const currentStepName = currentStep?.step_name;
   const requiredParts = useMemo(() => currentStep?.angles || [], [currentStep]);
   const masterMessage =
@@ -97,36 +119,121 @@ export default function TrainMode({
     () => ({
       technique_name: currentTechnique?.name || "this technique",
       mode: "train",
-      voice_profile: voiceProfile
+      voice_profile: voiceProfile,
+      step_index: safeStepIndex,
+      total_steps: steps.length
     }),
-    [currentTechnique?.name, voiceProfile]
+    [currentTechnique?.name, safeStepIndex, steps.length, voiceProfile]
   );
+
+  const goToNextStep = useCallback(() => {
+    setCurrentStepIndex((index) => {
+      if (steps.length === 0) return 0;
+      return Math.min(index + 1, steps.length - 1);
+    });
+  }, [steps.length]);
+
+  const handleStepAction = useCallback(() => {
+    if (safeStepIndex + 1 < steps.length) {
+      goToNextStep();
+      return;
+    }
+
+    setCoachCommand({
+      id: `${Date.now()}-complete`,
+      message: "complete",
+      type: "session_complete"
+    });
+  }, [goToNextStep, safeStepIndex, steps.length]);
 
   const handleCoachEvent = useCallback((event) => {
     setCoachEvent(event);
 
+    if (event?.action === "advance_step") {
+      goToNextStep();
+      return;
+    }
+
+    if (event?.action === "restart_training") {
+      setCurrentStepIndex(0);
+      return;
+    }
+
     if (event?.action === "switch_practice" && onModeChange) {
       onModeChange("practice");
     }
-  }, [onModeChange]);
+  }, [goToNextStep, onModeChange]);
 
   const handleAngleUpdate = useCallback((liveAngles) => {
     setAngles(liveAngles);
   }, []);
 
+  const clearVoiceWords = useCallback(() => {
+    if (wordTimerRef.current) {
+      window.clearInterval(wordTimerRef.current);
+      wordTimerRef.current = null;
+    }
+
+    voiceWordsRef.current = [];
+    setVoiceWords([]);
+    setActiveVoiceWord(-1);
+  }, []);
+
+  const prepareVoiceWords = useCallback((message) => {
+    const words = splitVoiceWords(message);
+
+    if (wordTimerRef.current) {
+      window.clearInterval(wordTimerRef.current);
+      wordTimerRef.current = null;
+    }
+
+    voiceWordsRef.current = words;
+    setVoiceWords(words);
+    setActiveVoiceWord(-1);
+  }, []);
+
+  const startVoiceWordProgress = useCallback(() => {
+    const words = voiceWordsRef.current;
+
+    if (wordTimerRef.current) {
+      window.clearInterval(wordTimerRef.current);
+      wordTimerRef.current = null;
+    }
+
+    setActiveVoiceWord(words.length ? 0 : -1);
+
+    if (words.length <= 1) {
+      return;
+    }
+
+    wordTimerRef.current = window.setInterval(() => {
+      setActiveVoiceWord((index) => {
+        if (index + 1 >= words.length) {
+          if (wordTimerRef.current) {
+            window.clearInterval(wordTimerRef.current);
+            wordTimerRef.current = null;
+          }
+          return index;
+        }
+
+        return index + 1;
+      });
+    }, 360);
+  }, []);
+
   const stopCurrentVoice = useCallback(() => {
     voiceRequestIdRef.current += 1;
+    voiceQueueRef.current = [];
+    isSpeakingRef.current = false;
+    setVoiceState("idle");
+    clearVoiceWords();
 
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.src = "";
       currentAudioRef.current = null;
     }
-
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-  }, []);
+  }, [clearVoiceWords]);
 
   const sendCoachMessage = useCallback((message) => {
     const trimmed = message.trim();
@@ -168,94 +275,179 @@ export default function TrainMode({
     recognition.start();
   }, [isListening, sendCoachMessage]);
 
-  const goToNextStep = useCallback(() => {
-    if (currentStepIndex + 1 < steps.length) {
-      setCurrentStepIndex((index) => index + 1);
-      return;
-    }
-
-    setCoachCommand({
-      id: `${Date.now()}-complete`,
-      message: "complete",
-      type: "session_complete"
-    });
-  }, [currentStepIndex, steps.length]);
-
-  const speakWithBrowserVoice = useCallback((message, requestId) => {
-    if (!("speechSynthesis" in window)) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve) => {
-      if (requestId !== voiceRequestIdRef.current) {
-        resolve();
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(message);
-      const profile = VOICE_PROFILES[voiceProfile];
-      utterance.pitch = profile.pitch;
-      utterance.rate = profile.rate;
-      utterance.onend = resolve;
-      utterance.onerror = resolve;
-      window.speechSynthesis.speak(utterance);
-    });
+  const getNaturalVoiceKey = useCallback((message) => {
+    const profile = VOICE_PROFILES[voiceProfile];
+    return `${profile.openAiVoice}:${message}`;
   }, [voiceProfile]);
 
-  const speakWithNaturalVoice = useCallback(async (message, requestId) => {
+  const cacheNaturalVoice = useCallback((key, data) => {
+    const cache = naturalVoiceCacheRef.current;
+
+    if (cache.has(key)) {
+      cache.delete(key);
+    }
+
+    cache.set(key, data);
+
+    while (cache.size > NATURAL_VOICE_CACHE_LIMIT) {
+      const oldestKey = cache.keys().next().value;
+      cache.delete(oldestKey);
+    }
+  }, []);
+
+  const fetchNaturalVoice = useCallback(async (message) => {
     const token = localStorage.getItem("token");
     const profile = VOICE_PROFILES[voiceProfile];
 
     if (!token) {
-      await speakWithBrowserVoice(message, requestId);
+      return null;
+    }
+
+    const cacheKey = getNaturalVoiceKey(message);
+    const cached = naturalVoiceCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    if (naturalVoiceRequestsRef.current.has(cacheKey)) {
+      return naturalVoiceRequestsRef.current.get(cacheKey);
+    }
+
+    const request = (async () => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        NATURAL_VOICE_REQUEST_TIMEOUT_MS
+      );
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/voice/speak`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            text: message,
+            voice: profile.openAiVoice
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("Voice request failed");
+        }
+
+        const data = await response.json();
+        cacheNaturalVoice(cacheKey, data);
+        return data;
+      } catch {
+        return null;
+      } finally {
+        window.clearTimeout(timeoutId);
+        naturalVoiceRequestsRef.current.delete(cacheKey);
+      }
+    })();
+
+    naturalVoiceRequestsRef.current.set(cacheKey, request);
+    return request;
+  }, [cacheNaturalVoice, getNaturalVoiceKey, voiceProfile]);
+
+  const playNaturalAudio = useCallback(async (message, data, requestId) => {
+    if (!data || requestId !== voiceRequestIdRef.current) {
+      return false;
+    }
+
+    const audio = new Audio(`data:audio/${data.format};base64,${data.audio}`);
+    currentAudioRef.current = audio;
+
+    const played = await new Promise((resolve) => {
+      const timeoutMs = Math.max(2200, splitVoiceWords(message).length * 700);
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        if (currentAudioRef.current === audio) {
+          currentAudioRef.current = null;
+        }
+        resolve(ok);
+      };
+
+      audio.onplay = () => {
+        setVoiceState("speaking");
+        startVoiceWordProgress();
+      };
+      audio.onended = () => finish(true);
+      audio.onerror = () => finish(false);
+      audio.play().catch(() => finish(false));
+      window.setTimeout(() => finish(true), timeoutMs);
+    });
+
+    return played;
+  }, [startVoiceWordProgress]);
+
+  const speakWithBestVoice = useCallback(async (message, requestId) => {
+    const cacheKey = getNaturalVoiceKey(message);
+    const cached = naturalVoiceCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      const played = await playNaturalAudio(message, cached, requestId);
+      if (played) return;
+    }
+
+    setVoiceState("loading");
+    const naturalVoice = await fetchNaturalVoice(message);
+
+    if (!naturalVoice || requestId !== voiceRequestIdRef.current) {
+      setVoiceState("idle");
       return;
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/voice/speak`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          text: message,
-          voice: profile.openAiVoice
-        })
-      });
+    await playNaturalAudio(message, naturalVoice, requestId);
+  }, [fetchNaturalVoice, getNaturalVoiceKey, playNaturalAudio]);
 
-      if (!response.ok) {
-        throw new Error("Voice request failed");
-      }
-
-      const data = await response.json();
-
-      if (requestId !== voiceRequestIdRef.current) {
-        return;
-      }
-
-      const audio = new Audio(`data:audio/${data.format};base64,${data.audio}`);
-      currentAudioRef.current = audio;
-
-      await new Promise((resolve) => {
-        audio.onended = () => {
-          if (currentAudioRef.current === audio) {
-            currentAudioRef.current = null;
-          }
-          resolve();
-        };
-        audio.onerror = () => {
-          if (currentAudioRef.current === audio) {
-            currentAudioRef.current = null;
-          }
-          resolve();
-        };
-        audio.play().catch(resolve);
-      });
-    } catch {
-      await speakWithBrowserVoice(message, requestId);
+  const playVoiceQueue = useCallback(async () => {
+    if (isSpeakingRef.current || !voiceEnabled) {
+      return;
     }
-  }, [speakWithBrowserVoice, voiceProfile]);
+
+    const nextMessage = voiceQueueRef.current.shift();
+
+    if (!nextMessage) {
+      setVoiceState("idle");
+      clearVoiceWords();
+      return;
+    }
+
+    isSpeakingRef.current = true;
+    const requestId = voiceRequestIdRef.current;
+    prepareVoiceWords(nextMessage);
+
+    await speakWithBestVoice(nextMessage, requestId);
+
+    if (requestId === voiceRequestIdRef.current) {
+      isSpeakingRef.current = false;
+      if (voiceQueueRef.current.length) {
+        playVoiceQueue();
+      } else {
+        setVoiceState("idle");
+        window.setTimeout(clearVoiceWords, 420);
+      }
+    }
+  }, [clearVoiceWords, prepareVoiceWords, speakWithBestVoice, voiceEnabled]);
+
+  const queueVoiceMessage = useCallback((message) => {
+    const trimmed = message.trim();
+
+    if (!trimmed || trimmed === lastSpokenMessageRef.current) {
+      return;
+    }
+
+    lastSpokenMessageRef.current = trimmed;
+    voiceQueueRef.current = [...voiceQueueRef.current, trimmed];
+    playVoiceQueue();
+  }, [playVoiceQueue]);
 
   useEffect(() => {
     const message = coachEvent?.message || coachEvent?.summary || "";
@@ -269,10 +461,8 @@ export default function TrainMode({
       return;
     }
 
-    lastSpokenMessageRef.current = message;
-    stopCurrentVoice();
-    speakWithNaturalVoice(message, voiceRequestIdRef.current);
-  }, [coachEvent, speakWithNaturalVoice, stopCurrentVoice, voiceEnabled]);
+    queueVoiceMessage(message);
+  }, [coachEvent, queueVoiceMessage, voiceEnabled]);
 
   useEffect(() => {
     if (!voiceEnabled) {
@@ -281,7 +471,12 @@ export default function TrainMode({
   }, [stopCurrentVoice, voiceEnabled]);
 
   useEffect(() => {
-    stopCurrentVoice();
+    if (steps.length > 0 && currentStepIndex >= steps.length) {
+      setCurrentStepIndex(steps.length - 1);
+    }
+  }, [currentStepIndex, steps.length]);
+
+  useEffect(() => {
     lastSpokenMessageRef.current = "";
     setAngles({});
     setAccuracy(0);
@@ -292,7 +487,7 @@ export default function TrainMode({
         : "Choose a step to begin.",
       speak: false
     });
-  }, [currentStep?.id, currentStepName, stopCurrentVoice]);
+  }, [currentStep?.id, currentStepName]);
 
   if (!currentTechnique) {
     return (
@@ -362,7 +557,7 @@ export default function TrainMode({
           <div className="panel-heading">
             <p className="eyebrow">Steps</p>
             <span>
-              {steps.length > 0 ? `${currentStepIndex + 1}/${steps.length}` : "0/0"}
+              {steps.length > 0 ? `${safeStepIndex + 1}/${steps.length}` : "0/0"}
             </span>
           </div>
 
@@ -370,7 +565,7 @@ export default function TrainMode({
             {steps.map((step, index) => (
               <button
                 className={`step-button ${
-                  index === currentStepIndex ? "step-button--active" : ""
+                  index === safeStepIndex ? "step-button--active" : ""
                 }`}
                 key={step.id}
                 onClick={() => setCurrentStepIndex(index)}
@@ -392,6 +587,18 @@ export default function TrainMode({
             {focusLabel ? <span className="master-focus">Focus: {focusLabel}</span> : null}
           </div>
           <span>{masterMessage}</span>
+          {voiceWords.length > 0 ? (
+            <div className={`voice-word-strip voice-word-strip--${voiceState}`}>
+              {voiceWords.map((word, index) => (
+                <span
+                  className={index === activeVoiceWord ? "is-active" : ""}
+                  key={`${word}-${index}`}
+                >
+                  {word}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -478,8 +685,8 @@ export default function TrainMode({
           <button onClick={startVoiceInput} type="button">
             {isListening ? "Listening" : "Mic"}
           </button>
-          <button onClick={goToNextStep} type="button">
-            {currentStepIndex + 1 < steps.length ? "Next" : "Finish"}
+          <button onClick={handleStepAction} type="button">
+            {safeStepIndex + 1 < steps.length ? "Next" : "Finish"}
           </button>
         </div>
       </aside>
@@ -487,7 +694,7 @@ export default function TrainMode({
       <aside className="training-panel training-panel--right">
         <MetricsPanel
           steps={steps}
-          currentStepIndex={currentStepIndex}
+          currentStepIndex={safeStepIndex}
           accuracy={accuracy}
           angles={angles}
           requiredParts={requiredParts}

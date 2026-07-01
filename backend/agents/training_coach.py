@@ -13,12 +13,14 @@ class CoachSession:
     mode: str = "train"
     current_step_key: str | None = None
     current_step_name: str = "selected step"
+    current_step_index: int = 0
+    total_steps: int = 0
     state: str = "confirm_start"
     last_feedback: str = ""
     last_spoken_message: str = ""
     active_body_part: str | None = None
     active_issue: str | None = None
-    is_ready: bool = False
+    is_ready: bool = True
     is_paused: bool = False
     attention_score: int = 100
     correction_frames: int = 0
@@ -37,7 +39,7 @@ class CoachSession:
         text = (message or "").strip()
         if not text:
             return self.panel_event(
-                "I am listening. Say start, next, practice, or again.",
+                "Say ready or practice.",
                 action="listening"
             )
 
@@ -49,23 +51,42 @@ class CoachSession:
             intent = self._classify_user_intent(normalized)
         self.last_user_intent = intent
 
+        if self.state == "confirm_session_complete" and intent in {"ready", "next", "train", "repeat"}:
+            self.completed_steps.clear()
+            self._reset_temporal_focus()
+            self.state = "restart_training"
+            return self.panel_event(
+                "Good. Start again.",
+                action="restart_training"
+            )
+
+        if self.state == "confirm_step_complete" and intent in {"ready", "next", "train"}:
+            self.is_ready = True
+            self.is_paused = False
+            self.pending_question = None
+            self.state = "advance_step"
+            return self.panel_event(
+                "Good. Next step.",
+                action="advance_step"
+            )
+
         if intent == "practice":
             self.mode = "practice"
             self.state = "practice"
             self.is_paused = False
             self._reset_temporal_focus(keep_ready=False)
             return self.panel_event(
-                "Practice mode is ready. Move freely and I will keep the guidance light.",
+                "Practice mode ready.",
                 action="switch_practice"
             )
 
         if intent == "repeat":
             self.completed_steps.clear()
             self._reset_temporal_focus()
-            self.is_ready = False
+            self.is_ready = True
             self.state = "explain_step"
             return self.panel_event(
-                f"Good. We will train {self.technique_name} again. Take a breath. Are you ready?",
+                "Good. Start again.",
                 action="restart"
             )
 
@@ -75,7 +96,7 @@ class CoachSession:
             self.pending_question = None
             self.state = "observe_pose"
             return self.panel_event(
-                f"Good. We keep training. Stay with your {self._active_label()} only.",
+                f"Good. Focus {self._active_label()}.",
                 action="observe"
             )
 
@@ -87,12 +108,12 @@ class CoachSession:
             self.state = "observe_pose"
             if self.active_body_part:
                 return self.panel_event(
-                    f"Good. We keep training. Stay with your {self._active_label()} only.",
+                    f"Good. Focus {self._active_label()}.",
                     action="observe"
                 )
 
             return self.panel_event(
-                f"Good. We start with {self.current_step_name}. Take your position and hold still.",
+                f"Good. Start {self.current_step_name}.",
                 action="observe"
             )
 
@@ -102,7 +123,7 @@ class CoachSession:
             self.pending_question = "ready"
             self.state = "waiting"
             return self.panel_event(
-                "No rush. I will wait. Tell me when you are ready.",
+                "No rush. I wait.",
                 action="wait"
             )
 
@@ -112,19 +133,31 @@ class CoachSession:
             self.pending_question = None
             self.state = "observe_pose"
             return self.panel_event(
-                f"Settle into {self.current_step_name}. I will watch one detail at a time.",
+                f"Settle {self.current_step_name}.",
                 action="observe"
             )
 
         if intent == "focus_help":
             self.attention_score = max(30, self.attention_score - 10)
             return self.panel_event(
-                "Stay with one point only. Listen for the body part I name, fix that, then freeze.",
+                "One point only.",
                 action="focus_prompt"
             )
 
+        if intent == "check_correct":
+            if self.last_accuracy >= ACCURACY_TO_ADVANCE:
+                return self.panel_event(
+                    "Yes. Correct.",
+                    action="confirm_correct"
+                )
+
+            return self.panel_event(
+                "Not yet. Keep correcting.",
+                action="confirm_incorrect"
+            )
+
         return self.panel_event(
-            "I hear you. Are you ready to continue, or do you want practice mode?",
+            "Ready or practice?",
             action="acknowledge"
         )
 
@@ -159,45 +192,53 @@ class CoachSession:
                 self.practice_suggested = False
                 self.active_body_part = None
                 self.active_issue = None
-                self.completed_steps.add(str(step_key))
-                self.state = "confirm_step_complete"
                 self.last_accuracy = accuracy
-                message = f"Good. {self.current_step_name} is clean now. Can we move to the next step?"
-                return self.panel_event(
-                    message,
-                    accuracy=accuracy,
-                    action="confirm_next",
-                    analysis=analysis,
-                    issue="complete",
-                    speak=self._should_speak(message)
-                )
+                return self._complete_step_event(step_key, accuracy, analysis)
+
+            focus = issues[0] if issues else None
+            message = "Practice or continue?"
+            body_part = None
+            issue_name = "waiting"
+            if focus:
+                self.active_body_part = focus["body_part"]
+                self.active_issue = focus["issue"]
+                message = self._focused_cue(focus)
+                body_part = focus["body_part"]
+                issue_name = focus["issue"]
 
             return self.panel_event(
-                "I am waiting. Say practice to switch mode, or continue to keep training.",
+                message,
                 accuracy=accuracy,
                 action="waiting",
                 analysis=analysis,
+                body_part=body_part,
+                issue=issue_name,
                 speak=False
             )
 
-        if self.is_paused or not self.is_ready:
+        if self.is_paused:
             if not self.readiness_prompted:
                 self.readiness_prompted = True
                 self.pending_question = "ready"
                 return self.panel_event(
-                    f"Before we move, are you ready to train {self.current_step_name}?",
+                    "Ready?",
                     accuracy=accuracy,
                     action="ask_ready",
                     analysis=analysis
                 )
 
             return self.panel_event(
-                "I am waiting for your ready signal.",
+                "Waiting for ready.",
                 accuracy=accuracy,
                 action="waiting",
                 analysis=analysis,
                 speak=False
             )
+
+        if not self.is_ready:
+            self.is_ready = True
+            self.is_paused = False
+            self.pending_question = None
 
         self._update_attention_memory(analysis)
         self._update_plateau_memory(accuracy)
@@ -206,17 +247,7 @@ class CoachSession:
             self.active_body_part = None
             self.active_issue = None
             self._reset_temporal_focus(keep_ready=True)
-            self.completed_steps.add(str(step_key))
-            self.state = "confirm_step_complete"
-            message = f"Good. {self.current_step_name} is clean now. Can we move to the next step?"
-            return self.panel_event(
-                message,
-                accuracy=accuracy,
-                action="confirm_next",
-                analysis=analysis,
-                issue="complete",
-                speak=self._should_speak(message)
-            )
+            return self._complete_step_event(step_key, accuracy, analysis)
 
         active_item = self._active_issue_item(analysis)
 
@@ -241,13 +272,11 @@ class CoachSession:
                 self.active_body_part = next_issue["body_part"]
                 self.active_issue = next_issue["issue"]
                 self.correction_frames = 0
-                message = (
-                    f"Good. {corrected_label} is fixed. Now {self._focused_cue(next_issue)}"
-                )
+                message = self._focused_cue(next_issue)
                 body_part = next_issue["body_part"]
                 issue_name = next_issue["issue"]
             else:
-                message = "Good. Hold the shape. Breathe and keep the guard alive."
+                message = "Good. Hold shape."
                 body_part = None
                 issue_name = "good"
         else:
@@ -265,16 +294,11 @@ class CoachSession:
                     self.practice_suggested = True
                     self.pending_question = "practice"
                     self.is_paused = True
-                    message = (
-                        f"This part needs slower work. Do you want to switch to practice mode "
-                        f"and drill your {focus['label']} without step pressure?"
-                    )
+                    message = f"{self._focused_cue(focus)} Practice mode?"
                     body_part = focus["body_part"]
                     issue_name = "practice_suggested"
                 elif self.correction_frames in {4, 8}:
-                    message = (
-                        f"Pause. Can you focus only on your {focus['label']} for three seconds?"
-                    )
+                    message = f"Focus {focus['label']}."
                     body_part = focus["body_part"]
                     issue_name = "focus_check"
                 else:
@@ -282,7 +306,7 @@ class CoachSession:
                     body_part = focus["body_part"]
                     issue_name = focus["issue"]
             else:
-                message = "Good. Hold this position. Do not rush the next movement."
+                message = "Good. Hold position."
                 body_part = None
                 issue_name = "good"
 
@@ -304,7 +328,7 @@ class CoachSession:
     def complete_session(self):
         self.state = "session_complete"
         return self.panel_event(
-            f"{self.technique_name} training is complete. Would you like to train again or switch to practice?",
+            "Practice or train again?",
             action="complete"
         )
 
@@ -346,6 +370,75 @@ class CoachSession:
             }
         }
 
+    def to_memory(self):
+        return {
+            "technique_name": self.technique_name,
+            "mode": self.mode,
+            "current_step_key": self.current_step_key,
+            "current_step_name": self.current_step_name,
+            "current_step_index": self.current_step_index,
+            "total_steps": self.total_steps,
+            "state": self.state,
+            "last_feedback": self.last_feedback,
+            "last_spoken_message": self.last_spoken_message,
+            "active_body_part": self.active_body_part,
+            "active_issue": self.active_issue,
+            "is_ready": self.is_ready,
+            "is_paused": self.is_paused,
+            "attention_score": self.attention_score,
+            "correction_frames": self.correction_frames,
+            "missing_pose_frames": self.missing_pose_frames,
+            "plateau_frames": self.plateau_frames,
+            "last_accuracy": self.last_accuracy,
+            "readiness_prompted": self.readiness_prompted,
+            "practice_suggested": self.practice_suggested,
+            "pending_question": self.pending_question,
+            "last_user_intent": self.last_user_intent,
+            "completed_steps": list(self.completed_steps),
+            "recent_user_messages": self.recent_user_messages,
+            "recent_feedback": self.recent_feedback,
+        }
+
+    def restore_memory(self, memory):
+        if not isinstance(memory, dict):
+            return
+
+        for key, value in memory.items():
+            if key == "completed_steps":
+                self.completed_steps = set(value or [])
+            elif hasattr(self, key):
+                setattr(self, key, value)
+
+    def _complete_step_event(self, step_key, accuracy, analysis):
+        self.completed_steps.add(str(step_key))
+        self.state = "confirm_step_complete"
+
+        if self._is_final_step():
+            self.pending_question = "session_complete"
+            self.state = "confirm_session_complete"
+            message = "Practice or train again?"
+            return self.panel_event(
+                message,
+                accuracy=accuracy,
+                action="session_complete_prompt",
+                analysis=analysis,
+                issue="complete",
+                speak=self._should_speak(message)
+            )
+
+        message = "Good. Next step."
+        return self.panel_event(
+            message,
+            accuracy=accuracy,
+            action="advance_step",
+            analysis=analysis,
+            issue="complete",
+            speak=self._should_speak(message)
+        )
+
+    def _is_final_step(self):
+        return self.total_steps > 0 and self.current_step_index >= self.total_steps - 1
+
     def _classify_user_intent(self, text):
         if any(word in text for word in ["practice", "free mode", "free practice"]):
             return "practice"
@@ -367,6 +460,9 @@ class CoachSession:
 
         if any(word in text for word in ["focus", "confused", "hard", "can't", "cannot", "help"]):
             return "focus_help"
+
+        if any(word in text for word in ["correct", "right", "good", "ok now"]):
+            return "check_correct"
 
         return "unknown"
 
@@ -404,7 +500,7 @@ class CoachSession:
         self.practice_suggested = False
         self.pending_question = None
         if not keep_ready:
-            self.is_ready = False
+            self.is_ready = True
             self.readiness_prompted = False
 
     def _active_issue_item(self, analysis):
@@ -427,17 +523,15 @@ class CoachSession:
 
     def _focused_cue(self, item):
         label = item["label"]
+        cue = item.get("cue")
 
         if item["issue"] == "missing":
-            return f"I need to see your {label}. Bring it into the camera and hold still."
+            return item.get("cue") or f"Show your {label}."
 
-        if item["issue"] == "too_closed":
-            return f"focus only on your {label}. Open it slowly, just a little, then hold."
+        if item["issue"] in {"too_closed", "too_open"} and cue:
+            return cue
 
-        if item["issue"] == "too_open":
-            return f"focus only on your {label}. Close it slowly, keep the rest quiet."
-
-        return f"keep your {label} exactly there."
+        return cue or f"Hold {label}."
 
     def _should_speak(self, message):
         if message == self.last_spoken_message:

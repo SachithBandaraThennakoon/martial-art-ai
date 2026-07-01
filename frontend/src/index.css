@@ -1180,25 +1180,74 @@ select:focus {
   background: rgba(106, 168, 255, 0.12);
 }
 
+.voice-word-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  min-height: 28px;
+}
+
+.feedback-banner .voice-word-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.06);
+  text-shadow: none;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.feedback-banner .voice-word-strip span.is-active {
+  border-color: rgba(96, 211, 148, 0.72);
+  color: #050505;
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+
+.voice-word-strip--loading span:first-child {
+  animation: voicePulse 900ms ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 .conversation-crate {
   position: fixed;
-  left: 50%;
-  bottom: 20px;
+  left: 24px;
+  bottom: 24px;
   z-index: 7;
   display: grid;
   gap: 10px;
-  width: clamp(560px, 44vw, 780px);
+  width: min(410px, calc(100vw - 48px));
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   background: rgba(22, 22, 22, 0.9);
   box-shadow: 0 18px 70px rgba(0, 0, 0, 0.46);
   backdrop-filter: blur(18px);
-  transform: translateX(-50%);
 }
 
 .app-shell--studio .conversation-crate {
-  left: calc(50% + 118px);
+  left: 260px;
   background: rgba(18, 18, 18, 0.58);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
@@ -1318,7 +1367,7 @@ select:focus {
 
 .coach-actions {
   display: grid;
-  grid-template-columns: 154px minmax(0, 1fr) auto auto;
+  grid-template-columns: 1fr;
   flex-wrap: nowrap;
 }
 
@@ -1459,53 +1508,6 @@ select:focus {
 
 .app-shell--studio .metric-card--bad {
   background: rgba(255, 107, 107, 0.07);
-}
-
-.app-shell--studio .skeleton-canvas__overlay,
-.app-shell--studio .studio-mode-switch,
-.app-shell--studio .panel-block,
-.app-shell--studio .feedback-banner,
-.app-shell--studio .conversation-crate,
-.app-shell--studio .student-state,
-.app-shell--studio .conversation-line,
-.app-shell--studio .accuracy-card,
-.app-shell--studio .metric-card,
-.app-shell--studio .step-button,
-.app-shell--studio .quick-replies button,
-.app-shell--studio .mode-tile,
-.app-shell--studio .coach-actions select,
-.app-shell--studio .coach-command input,
-.app-shell--studio .coach-command button,
-.app-shell--studio .coach-actions > button {
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.app-shell--studio .studio-mode-switch,
-.app-shell--studio .panel-block,
-.app-shell--studio .feedback-banner,
-.app-shell--studio .conversation-crate,
-.app-shell--studio .accuracy-card,
-.app-shell--studio .metric-card {
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-.app-shell--studio .step-button--active,
-.app-shell--studio .mode-tile--active {
-  color: var(--text);
-  border-color: rgba(255, 255, 255, 0.82);
-  background: transparent;
-  box-shadow: none;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.92);
-}
-
-.app-shell--studio .step-button--active span {
-  color: var(--text);
-}
-
-.app-shell--studio .coach-command button {
-  color: var(--text);
 }
 
 .empty-state,

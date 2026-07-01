@@ -98,6 +98,15 @@
       "difficulty": "Intermediate",
       "price": 5.99,
       "required_plan": "PRO_PLAN"
+    },
+    {
+      "id": 12,
+      "name": "Hand Up Test",
+      "category": "Technique Training",
+      "subcategory": "Punching",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN"
     }
   ],
   "technique_steps": [
@@ -118,7 +127,9 @@
     { "id": 15, "technique_id": 8, "step_number": 1, "step_name": "Ready position" },
     { "id": 16, "technique_id": 9, "step_number": 1, "step_name": "Staff guard" },
     { "id": 17, "technique_id": 10, "step_number": 1, "step_name": "Anchor elbow" },
-    { "id": 18, "technique_id": 11, "step_number": 1, "step_name": "Outside step" }
+    { "id": 18, "technique_id": 11, "step_number": 1, "step_name": "Outside step" },
+    { "id": 19, "technique_id": 12, "step_number": 1, "step_name": "Hands up shoulders" },
+    { "id": 20, "technique_id": 12, "step_number": 2, "step_name": "Half hand up right elbow" }
   ],
   "target_angles": [
     { "id": 1, "step_id": 1, "body_part": "elbow_left", "min_angle": 70, "max_angle": 105 },
@@ -141,6 +152,9 @@
     { "id": 18, "step_id": 15, "body_part": "elbow_right", "min_angle": 85, "max_angle": 125 },
     { "id": 19, "step_id": 16, "body_part": "wrist_right", "min_angle": 155, "max_angle": 180 },
     { "id": 20, "step_id": 17, "body_part": "elbow_left", "min_angle": 55, "max_angle": 95 },
-    { "id": 21, "step_id": 18, "body_part": "ankle_left", "min_angle": 85, "max_angle": 125 }
+    { "id": 21, "step_id": 18, "body_part": "ankle_left", "min_angle": 85, "max_angle": 125 },
+    { "id": 22, "step_id": 19, "body_part": "shoulder_left", "min_angle": 15, "max_angle": 40 },
+    { "id": 23, "step_id": 19, "body_part": "shoulder_right", "min_angle": 10, "max_angle": 40 },
+    { "id": 24, "step_id": 20, "body_part": "elbow_right", "min_angle": 20, "max_angle": 25 }
   ]
 }
