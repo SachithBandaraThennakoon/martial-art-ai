@@ -51,3 +51,39 @@ class UserTrainingMemory(Base):
     memory_key = Column(String, index=True)
     memory_value = Column(Text)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class PracticeSession(Base):
+    __tablename__ = "practice_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    technique_name = Column(String, index=True)
+    step_key = Column(String, nullable=True, index=True)
+    step_name = Column(String, nullable=True)
+    target_reps = Column(Integer, default=5)
+    completed_reps = Column(Integer, default=0)
+    clean_reps = Column(Integer, default=0)
+    average_accuracy = Column(Float, default=0)
+    best_accuracy = Column(Float, default=0)
+    average_rep_seconds = Column(Float, default=0)
+    consistency_score = Column(Float, default=0)
+    status = Column(String, default="active", index=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class PracticeRep(Base):
+    __tablename__ = "practice_reps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    practice_session_id = Column(Integer, ForeignKey("practice_sessions.id"), index=True)
+    rep_number = Column(Integer)
+    accuracy = Column(Float, default=0)
+    duration_ms = Column(Integer, default=0)
+    speed_label = Column(String, nullable=True)
+    quality_label = Column(String, nullable=True)
+    focus_body_part = Column(String, nullable=True)
+    issue = Column(String, nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), server_default=func.now())

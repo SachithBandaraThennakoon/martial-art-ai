@@ -18,6 +18,8 @@ from database import get_db, init_db, SessionLocal
 from models import user, technique, technique_step, target_angle, training_memory
 from models.target_angle import TargetAngle
 from models.training_memory import (
+    PracticeRep,
+    PracticeSession,
     TrainingFeedbackEvent,
     TrainingSession,
     TrainingStepAttempt,
@@ -83,6 +85,27 @@ class VoiceRequest(BaseModel):
     voice: str = "cedar"
 
 
+class PracticeSessionRequest(BaseModel):
+    technique_name: str
+    step_key: str | None = None
+    step_name: str | None = None
+    target_reps: int = 5
+
+
+class PracticeRepRequest(BaseModel):
+    rep_number: int
+    accuracy: float = 0
+    duration_ms: int = 0
+    speed_label: str | None = None
+    quality_label: str | None = None
+    focus_body_part: str | None = None
+    issue: str | None = None
+
+
+class PracticeCompleteRequest(BaseModel):
+    status: str = "completed"
+
+
 # -----------------------------
 # ROOT
 # -----------------------------
@@ -137,6 +160,111 @@ def speak(request: VoiceRequest, token: str = Depends(oauth2_scheme)):
     }
 
 
+@app.post("/practice/sessions")
+def create_practice_session(
+    request: PracticeSessionRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    target_reps = max(1, min(request.target_reps, 50))
+    session = PracticeSession(
+        user_id=user_record.id,
+        technique_name=request.technique_name.strip()[:160] or "Practice",
+        step_key=str(request.step_key) if request.step_key is not None else None,
+        step_name=(request.step_name or "").strip()[:160] or None,
+        target_reps=target_reps,
+        status="active"
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return _practice_session_payload(session)
+
+
+@app.post("/practice/sessions/{session_id}/reps")
+def record_practice_rep(
+    session_id: int,
+    request: PracticeRepRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    session = _get_user_practice_session(db, user_record.id, session_id)
+    rep = PracticeRep(
+        practice_session_id=session.id,
+        rep_number=max(1, request.rep_number),
+        accuracy=max(0, min(request.accuracy, 100)),
+        duration_ms=max(0, request.duration_ms),
+        speed_label=(request.speed_label or "").strip()[:40] or None,
+        quality_label=(request.quality_label or "").strip()[:40] or None,
+        focus_body_part=(request.focus_body_part or "").strip()[:80] or None,
+        issue=(request.issue or "").strip()[:80] or None
+    )
+    db.add(rep)
+    db.commit()
+    _refresh_practice_session_summary(db, session)
+    db.refresh(rep)
+    return {
+        "rep": _practice_rep_payload(rep),
+        "session": _practice_session_payload(session)
+    }
+
+
+@app.patch("/practice/sessions/{session_id}/complete")
+def complete_practice_session(
+    session_id: int,
+    request: PracticeCompleteRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    session = _get_user_practice_session(db, user_record.id, session_id)
+    session.status = "completed" if request.status != "cancelled" else "cancelled"
+    session.ended_at = func.now()
+    _refresh_practice_session_summary(db, session)
+    return _practice_session_payload(session)
+
+
+@app.get("/practice/analysis")
+def get_practice_analysis(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    sessions = db.query(PracticeSession).filter(
+        PracticeSession.user_id == user_record.id
+    ).order_by(PracticeSession.started_at.desc()).limit(12).all()
+
+    total_sessions = len(sessions)
+    total_reps = sum(session.completed_reps or 0 for session in sessions)
+    best_accuracy = max([session.best_accuracy or 0 for session in sessions] or [0])
+    average_accuracy = (
+        sum((session.average_accuracy or 0) for session in sessions) / total_sessions
+        if total_sessions else 0
+    )
+    latest = sessions[0] if sessions else None
+    recommendation = "Start a fixed-count practice set."
+    if latest:
+        if (latest.average_accuracy or 0) >= 85 and latest.completed_reps >= latest.target_reps:
+            recommendation = "Strong set. Return to Train or raise the count."
+        elif latest.completed_reps < latest.target_reps:
+            recommendation = "Finish the target count before increasing reps."
+        else:
+            recommendation = "Repeat the same count slowly for cleaner reps."
+
+    return {
+        "summary": {
+            "total_sessions": total_sessions,
+            "total_reps": total_reps,
+            "average_accuracy": round(average_accuracy, 1),
+            "best_accuracy": round(best_accuracy, 1),
+            "recommendation": recommendation
+        },
+        "sessions": [_practice_session_payload(session) for session in sessions]
+    }
+
+
 # -----------------------------
 # WEBSOCKET (JWT PROTECTED)
 # -----------------------------
@@ -168,6 +296,7 @@ async def train(websocket: WebSocket):
     user_record = None
     training_session = None
     last_memory_save_time = 0
+    sent_initial_greeting = False
 
     try:
         db = SessionLocal()
@@ -182,6 +311,7 @@ async def train(websocket: WebSocket):
     coach = MasterOrchestrator()
     if db_ready and user_record:
         _restore_coach_memory(db, user_record.id, coach)
+        coach.student_name = _display_student_name(user_record)
 
     if db_ready:
         training_session = TrainingSession(
@@ -237,10 +367,13 @@ async def train(websocket: WebSocket):
                     training_session.mode = coach.mode
                     db.commit()
 
-                if previous_step_key and previous_step_key == coach.current_step_key:
+                if not sent_initial_greeting:
+                    message = coach.initial_greeting()
+                    action = "confirm_start"
+                    sent_initial_greeting = True
+                elif previous_step_key and previous_step_key == coach.current_step_key:
                     continue
-
-                if previous_step_key and previous_step_key != coach.current_step_key:
+                elif previous_step_key and previous_step_key != coach.current_step_key:
                     coach._reset_temporal_focus(keep_ready=True)
                     coach.is_paused = False
                     coach.readiness_prompted = False
@@ -428,6 +561,117 @@ def _record_training_feedback(db, session_id, step_key, step_name, coach_event):
         accuracy=coach_event.get("accuracy") or 0
     ))
     db.commit()
+
+
+def _display_student_name(user_record):
+    if not user_record or not user_record.name:
+        return None
+
+    name = " ".join(str(user_record.name).strip().split())
+    if not name:
+        return None
+
+    return name.split(" ")[0][:32]
+
+
+def _get_user_from_token(db, token):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    email = payload.get("sub")
+    user_record = db.query(user.User).filter(user.User.email == email).first()
+    if not user_record:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user_record
+
+
+def _get_user_practice_session(db, user_id, session_id):
+    session = db.query(PracticeSession).filter(
+        PracticeSession.id == session_id,
+        PracticeSession.user_id == user_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+
+    return session
+
+
+def _refresh_practice_session_summary(db, session):
+    reps = db.query(PracticeRep).filter(
+        PracticeRep.practice_session_id == session.id
+    ).order_by(PracticeRep.rep_number).all()
+
+    completed_reps = len(reps)
+    clean_reps = sum(1 for rep in reps if (rep.accuracy or 0) >= 80)
+    average_accuracy = (
+        sum((rep.accuracy or 0) for rep in reps) / completed_reps
+        if completed_reps else 0
+    )
+    best_accuracy = max([(rep.accuracy or 0) for rep in reps] or [0])
+    average_rep_seconds = (
+        sum((rep.duration_ms or 0) for rep in reps) / completed_reps / 1000
+        if completed_reps else 0
+    )
+
+    session.completed_reps = completed_reps
+    session.clean_reps = clean_reps
+    session.average_accuracy = average_accuracy
+    session.best_accuracy = best_accuracy
+    session.average_rep_seconds = average_rep_seconds
+    session.consistency_score = _practice_consistency_score(reps)
+    if session.status == "active" and completed_reps >= (session.target_reps or 0):
+        session.status = "completed"
+        session.ended_at = func.now()
+
+    db.commit()
+    db.refresh(session)
+
+
+def _practice_consistency_score(reps):
+    if len(reps) < 2:
+        return 100 if reps else 0
+
+    values = [rep.accuracy or 0 for rep in reps]
+    average = sum(values) / len(values)
+    variance = sum((value - average) ** 2 for value in values) / len(values)
+    return max(0, min(100, 100 - (variance ** 0.5)))
+
+
+def _practice_session_payload(session):
+    return {
+        "id": session.id,
+        "technique_name": session.technique_name,
+        "step_key": session.step_key,
+        "step_name": session.step_name,
+        "target_reps": session.target_reps,
+        "completed_reps": session.completed_reps,
+        "clean_reps": session.clean_reps,
+        "average_accuracy": round(session.average_accuracy or 0, 1),
+        "best_accuracy": round(session.best_accuracy or 0, 1),
+        "average_rep_seconds": round(session.average_rep_seconds or 0, 2),
+        "consistency_score": round(session.consistency_score or 0, 1),
+        "status": session.status,
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+    }
+
+
+def _practice_rep_payload(rep):
+    return {
+        "id": rep.id,
+        "practice_session_id": rep.practice_session_id,
+        "rep_number": rep.rep_number,
+        "accuracy": round(rep.accuracy or 0, 1),
+        "duration_ms": rep.duration_ms,
+        "speed_label": rep.speed_label,
+        "quality_label": rep.quality_label,
+        "focus_body_part": rep.focus_body_part,
+        "issue": rep.issue,
+        "ended_at": rep.ended_at.isoformat() if rep.ended_at else None,
+    }
 
 
 def _record_step_attempt(db, session_id, step_key, step_name, accuracy):

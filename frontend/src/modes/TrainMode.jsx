@@ -97,6 +97,7 @@ export default function TrainMode({
   const lastCoachChatRef = useRef("");
   const lastCoachChatPatternRef = useRef("");
   const lastSpokenMessageRef = useRef("");
+  const announcedEntryRef = useRef(false);
   const currentAudioRef = useRef(null);
   const voiceRequestIdRef = useRef(0);
   const voiceQueueRef = useRef([]);
@@ -139,6 +140,15 @@ export default function TrainMode({
     });
   }, [steps.length]);
 
+  const goToStepIndex = useCallback((nextIndex) => {
+    setCurrentStepIndex((index) => {
+      if (steps.length === 0) return 0;
+      if (!Number.isInteger(nextIndex)) return index;
+
+      return Math.max(0, Math.min(nextIndex, steps.length - 1));
+    });
+  }, [steps.length]);
+
   const appendConversation = useCallback((item) => {
     setConversation((items) => [...items.slice(-7), item]);
   }, []);
@@ -164,7 +174,11 @@ export default function TrainMode({
     }
 
     if (event?.action === "advance_step") {
-      goToNextStep();
+      if (Number.isInteger(event.next_step_index)) {
+        goToStepIndex(event.next_step_index);
+      } else {
+        goToNextStep();
+      }
       return;
     }
 
@@ -176,7 +190,7 @@ export default function TrainMode({
     if (event?.action === "switch_practice" && onModeChange) {
       onModeChange("practice");
     }
-  }, [appendConversation, goToNextStep, onModeChange]);
+  }, [appendConversation, goToNextStep, goToStepIndex, onModeChange]);
 
   const handleAngleUpdate = useCallback((liveAngles) => {
     setAngles(liveAngles);
@@ -592,8 +606,9 @@ export default function TrainMode({
   useEffect(
     () => () => {
       stopVoiceInput();
+      stopCurrentVoice();
     },
-    [stopVoiceInput]
+    [stopCurrentVoice, stopVoiceInput]
   );
 
   useEffect(() => {
@@ -615,9 +630,12 @@ export default function TrainMode({
       ? `Settle into ${currentStepName}. I am syncing the live angles.`
       : "Choose a step to begin.";
 
+    const shouldSpeakEntry = Boolean(currentStepName && !announcedEntryRef.current);
+    announcedEntryRef.current = announcedEntryRef.current || shouldSpeakEntry;
+
     setCoachEvent({
       message,
-      speak: false
+      speak: shouldSpeakEntry
     });
 
     if (currentStepName) {

@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
+import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
 
 const MODES = {
   train: {
@@ -10,22 +10,23 @@ const MODES = {
   },
   practice: {
     label: "Practice",
-    title: "Free movement with live skeleton only."
+    title: "Fixed-count reps, pace, and quality tracking."
+  },
+  analysis: {
+    label: "Analysis",
+    title: "Recent practice sets and next recommendation."
   }
 };
 
 export default function TrainingStudio() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedMode = searchParams.get("mode");
-  const [mode, setMode] = useState(
-    requestedMode === "practice" ? "practice" : "train"
-  );
+  const mode = MODES[requestedMode] ? requestedMode : "train";
   const selectedTechniqueName = searchParams.get("technique");
   const categorySlug = searchParams.get("category");
   const subcategorySlug = searchParams.get("subcategory");
 
   const updateMode = (nextMode) => {
-    setMode(nextMode);
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
       nextParams.set("mode", nextMode);
@@ -65,8 +66,16 @@ export default function TrainingStudio() {
           selectedTechniqueName={selectedTechniqueName}
           subcategorySlug={subcategorySlug}
         />
+      ) : mode === "practice" ? (
+        <PracticeMode
+          categorySlug={categorySlug}
+          key={`practice-${categorySlug}-${subcategorySlug}-${selectedTechniqueName}`}
+          onModeChange={updateMode}
+          selectedTechniqueName={selectedTechniqueName}
+          subcategorySlug={subcategorySlug}
+        />
       ) : (
-        <PracticeMode />
+        <PracticeAnalysisMode onModeChange={updateMode} />
       )}
     </main>
   );

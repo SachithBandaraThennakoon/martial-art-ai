@@ -108,6 +108,7 @@ export function getTechniqueFromCatalog({
   subcategorySlug,
   techniqueName
 }) {
+  const normalizedTechniqueName = techniqueName?.toLowerCase();
   const categories = categorySlug
     ? techniqueCatalog.filter((category) => slugify(category.category) === categorySlug)
     : techniqueCatalog;
@@ -121,7 +122,7 @@ export function getTechniqueFromCatalog({
 
     for (const subcategory of subcategories) {
       const technique = subcategory.techniques.find(
-        (item) => item.name.toLowerCase() === techniqueName?.toLowerCase()
+        (item) => item.name.toLowerCase() === normalizedTechniqueName
       );
 
       if (technique) {
@@ -131,6 +132,25 @@ export function getTechniqueFromCatalog({
           subcategory: subcategory.name,
           steps: technique.steps || []
         };
+      }
+    }
+  }
+
+  if (normalizedTechniqueName) {
+    for (const category of techniqueCatalog) {
+      for (const subcategory of category.subcategories) {
+        const technique = subcategory.techniques.find(
+          (item) => item.name.toLowerCase() === normalizedTechniqueName
+        );
+
+        if (technique) {
+          return {
+            ...technique,
+            category: category.category,
+            subcategory: subcategory.name,
+            steps: technique.steps || []
+          };
+        }
       }
     }
   }

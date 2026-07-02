@@ -910,7 +910,7 @@ select:focus {
 
 .mode-tiles {
   display: grid;
-  grid-template-columns: repeat(2, minmax(92px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   flex: 0 0 auto;
 }
@@ -1215,6 +1215,10 @@ select:focus {
   transform: translateY(-1px);
 }
 
+.app-shell--studio .feedback-banner--practice {
+  left: calc(50% + 150px);
+}
+
 .voice-word-strip--loading span:first-child {
   animation: voicePulse 900ms ease-in-out infinite;
 }
@@ -1256,6 +1260,11 @@ select:focus {
   backdrop-filter: none;
 }
 
+.app-shell--studio .conversation-crate--practice {
+  left: 704px;
+  right: 380px;
+}
+
 .conversation-crate__header {
   display: flex;
   align-items: center;
@@ -1272,6 +1281,20 @@ select:focus {
   display: block;
   color: var(--text);
   font-size: 13px;
+}
+
+.conversation-listen {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  pointer-events: auto;
 }
 
 .quick-replies {
@@ -1518,6 +1541,13 @@ select:focus {
   left: 24px;
   z-index: 3;
   width: min(420px, 34vw);
+  max-height: calc(100dvh - 128px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.app-shell--studio .practice-panel {
+  left: 260px;
 }
 
 .practice-panel h1 {
@@ -1558,6 +1588,88 @@ select:focus {
   display: block;
   margin-top: 8px;
   font-size: 24px;
+}
+
+.practice-controls,
+.app-shell--studio .practice-controls {
+  display: grid;
+  gap: 12px;
+}
+
+.rep-count-options,
+.practice-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rep-count-options button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.rep-count-options button.is-active {
+  border-color: rgba(96, 211, 148, 0.86);
+  background: var(--text);
+  color: #050505;
+}
+
+.practice-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.practice-panel .coach-card,
+.analysis-panel .coach-card {
+  display: grid;
+  gap: 14px;
+}
+
+.analysis-panel {
+  position: fixed;
+  top: 216px;
+  right: 24px;
+  z-index: 3;
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100dvh - 240px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.analysis-summary {
+  margin-bottom: 14px;
+}
+
+.analysis-list {
+  display: grid;
+  gap: 8px;
+}
+
+.analysis-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.analysis-row strong,
+.analysis-row span {
+  display: block;
+}
+
+.analysis-row span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .locked-access-card {
@@ -1630,6 +1742,7 @@ select:focus {
   .training-panel--left,
   .training-panel--right,
   .practice-panel,
+  .analysis-panel,
   .conversation-crate {
     position: relative;
     top: auto;
@@ -1641,6 +1754,7 @@ select:focus {
   }
 
   .app-shell--studio .training-panel--left,
+  .app-shell--studio .practice-panel,
   .app-shell--studio .conversation-crate {
     left: auto;
   }

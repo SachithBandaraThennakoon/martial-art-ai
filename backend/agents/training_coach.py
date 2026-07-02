@@ -11,6 +11,7 @@ TREND_SPEAK_DELTA = 3
 @dataclass
 class CoachSession:
     technique_name: str = "this technique"
+    student_name: str | None = None
     mode: str = "train"
     current_step_key: str | None = None
     current_step_name: str = "selected step"
@@ -70,7 +71,8 @@ class CoachSession:
             self.pending_question = None
             return self.panel_event(
                 "Good. Next step.",
-                action="advance_step"
+                action="advance_step",
+                next_step_index=self._next_step_index()
             )
 
         if intent == "practice":
@@ -145,7 +147,8 @@ class CoachSession:
             self.state = "confirm_step_complete"
             return self.panel_event(
                 "Good. Next step.",
-                action="advance_step"
+                action="advance_step",
+                next_step_index=self._next_step_index()
             )
 
         if intent == "focus_help":
@@ -361,6 +364,13 @@ class CoachSession:
             action="complete"
         )
 
+    def initial_greeting(self):
+        name_prefix = f"Hello {self.student_name}. " if self.student_name else ""
+        return (
+            f"{name_prefix}I will guide one step at a time. "
+            "I will keep corrections short and use angles only when needed."
+        )
+
     def panel_event(
         self,
         message,
@@ -369,9 +379,10 @@ class CoachSession:
         analysis=None,
         body_part=None,
         issue=None,
-        speak=True
+        speak=True,
+        next_step_index=None
     ):
-        return {
+        event = {
             "type": "coach",
             "mode": self.mode,
             "state": self.state,
@@ -399,9 +410,15 @@ class CoachSession:
             }
         }
 
+        if next_step_index is not None:
+            event["next_step_index"] = next_step_index
+
+        return event
+
     def to_memory(self):
         return {
             "technique_name": self.technique_name,
+            "student_name": self.student_name,
             "mode": self.mode,
             "current_step_key": self.current_step_key,
             "current_step_name": self.current_step_name,
@@ -464,11 +481,18 @@ class CoachSession:
             action="advance_step",
             analysis=analysis,
             issue="complete",
-            speak=self._should_speak(message)
+            speak=self._should_speak(message),
+            next_step_index=self._next_step_index()
         )
 
     def _is_final_step(self):
         return self.total_steps > 0 and self.current_step_index >= self.total_steps - 1
+
+    def _next_step_index(self):
+        if self.total_steps <= 0:
+            return self.current_step_index + 1
+
+        return min(self.current_step_index + 1, self.total_steps - 1)
 
     def _classify_user_intent(self, text):
         if any(word in text for word in ["practice", "practice mode", "free mode", "free practice"]):
