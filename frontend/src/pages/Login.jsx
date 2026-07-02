@@ -10,26 +10,37 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async (event) => {
     event.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: new URLSearchParams({ email, password })
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({ email, password })
+      });
 
-    const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-    if (data.access_token) {
+      if (!response.ok || !data.access_token) {
+        setError(
+          data.detail || "Login failed. Please check your details and try again."
+        );
+        return;
+      }
+
       login(data.access_token, data.plan || "FREE_PLAN");
       navigate("/training");
-    } else {
-      setError("Login failed. Please check your details and try again.");
+    } catch {
+      setError("Could not reach the server. Please check backend is running.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -66,8 +77,8 @@ export default function Login() {
 
         {error && <p className="form-error">{error}</p>}
 
-        <button className="btn btn--light btn--full" type="submit">
-          Login
+        <button className="btn btn--light btn--full" disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Logging in..." : "Login"}
         </button>
 
         <p className="auth-card__footer">

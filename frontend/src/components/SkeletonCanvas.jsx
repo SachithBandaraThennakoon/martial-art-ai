@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   PoseLandmarker,
   HandLandmarker,
@@ -22,6 +22,10 @@ const BODY_PART_MAP = {
   wrist_right: [14, 16, 20],
   wrist_left: [13, 15, 19]
 };
+
+const POSE_FPS = 18;
+const HAND_INTERVAL_MS = 180;
+const COACH_SEND_INTERVAL_MS = 180;
 
 function calculateAngle(a, b, c) {
   const radians =
@@ -55,11 +59,31 @@ export default function SkeletonCanvas({
   const previousPoseRef = useRef(null);
   const previousHandsRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
+  const lastHandTimeRef = useRef(0);
+  const lastCoachSendTimeRef = useRef(0);
+  const lastAnglePayloadRef = useRef({});
   const lastCommandIdRef = useRef(null);
+  const pendingCommandRef = useRef(null);
   const currentStepIdRef = useRef(currentStepId);
   const currentStepNameRef = useRef(currentStepName);
   const requiredPartsRef = useRef(requiredParts);
   const sessionConfigRef = useRef(sessionConfig);
+
+  const sendCoachCommand = useCallback((command) => {
+    if (!command || wsRef.current?.readyState !== WebSocket.OPEN) {
+      pendingCommandRef.current = command;
+      return;
+    }
+
+    lastCommandIdRef.current = command.id;
+    wsRef.current.send(
+      JSON.stringify({
+        type: command.type || "user_message",
+        message: command.message
+      })
+    );
+    pendingCommandRef.current = null;
+  }, []);
 
   useEffect(() => {
     currentStepIdRef.current = currentStepId;
@@ -96,6 +120,10 @@ export default function SkeletonCanvas({
           step_name: currentStepNameRef.current
         })
       );
+
+      if (pendingCommandRef.current) {
+        sendCoachCommand(pendingCommandRef.current);
+      }
     };
 
     wsRef.current.onmessage = (event) => {
@@ -122,15 +150,16 @@ export default function SkeletonCanvas({
     onAccuracyUpdate,
     onCoachEvent,
     onFeedbackUpdate,
-    onSummaryUpdate
+    onSummaryUpdate,
+    sendCoachCommand
   ]);
 
   useEffect(() => {
     let animationFrameId;
     let cameraStream;
+    let isDisposed = false;
 
     const smoothing = 0.6;
-    const fpsLimit = 25;
 
     const smoothLandmarks = (current, previous) => {
       if (!previous) return current;
@@ -142,8 +171,51 @@ export default function SkeletonCanvas({
       }));
     };
 
+    const sendCoachFrame = (anglesPayload) => {
+      const now = performance.now();
+
+      if (
+        wsRef.current?.readyState !== WebSocket.OPEN ||
+        !currentStepIdRef.current ||
+        now - lastCoachSendTimeRef.current < COACH_SEND_INTERVAL_MS
+      ) {
+        return;
+      }
+
+      lastCoachSendTimeRef.current = now;
+      wsRef.current.send(
+        JSON.stringify({
+          step_id: currentStepIdRef.current,
+          step_name: currentStepNameRef.current,
+          required_parts: requiredPartsRef.current,
+          angles: anglesPayload
+        })
+      );
+    };
+
+    const emitAngleUpdate = (anglesPayload) => {
+      const previousAngles = lastAnglePayloadRef.current;
+      const hasMeaningfulChange = Object.entries(anglesPayload).some(
+        ([bodyPart, value]) =>
+          !Number.isFinite(previousAngles[bodyPart]) ||
+          Math.abs(previousAngles[bodyPart] - value) >= 1
+      );
+
+      if (!hasMeaningfulChange) {
+        return;
+      }
+
+      lastAnglePayloadRef.current = anglesPayload;
+      onAngleUpdate(anglesPayload);
+    };
+
     const detect = () => {
       const now = performance.now();
+
+      if (isDisposed || document.hidden) {
+        animationFrameId = requestAnimationFrame(detect);
+        return;
+      }
 
       if (
         !videoRef.current ||
@@ -154,7 +226,7 @@ export default function SkeletonCanvas({
         return;
       }
 
-      if (now - lastFrameTimeRef.current < 1000 / fpsLimit) {
+      if (now - lastFrameTimeRef.current < 1000 / POSE_FPS) {
         animationFrameId = requestAnimationFrame(detect);
         return;
       }
@@ -177,7 +249,8 @@ export default function SkeletonCanvas({
         }
       }
 
-      if (handRef.current && Math.random() > 0.6) {
+      if (handRef.current && now - lastHandTimeRef.current > HAND_INTERVAL_MS) {
+        lastHandTimeRef.current = now;
         const result = handRef.current.detectForVideo(videoRef.current, now);
 
         if (result.landmarks.length > 0) {
@@ -207,18 +280,8 @@ export default function SkeletonCanvas({
           }
         });
 
-        onAngleUpdate(anglesPayload);
-
-        if (wsRef.current?.readyState === WebSocket.OPEN && currentStepIdRef.current) {
-          wsRef.current.send(
-            JSON.stringify({
-              step_id: currentStepIdRef.current,
-              step_name: currentStepNameRef.current,
-              required_parts: requiredPartsRef.current,
-              angles: anglesPayload
-            })
-          );
-        }
+        emitAngleUpdate(anglesPayload);
+        sendCoachFrame(anglesPayload);
       }
 
       animationFrameId = requestAnimationFrame(detect);
@@ -226,7 +289,11 @@ export default function SkeletonCanvas({
 
     const startCamera = async () => {
       cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 960, height: 720 }
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 24, max: 30 }
+        }
       });
 
       videoRef.current.srcObject = cameraStream;
@@ -237,8 +304,8 @@ export default function SkeletonCanvas({
 
       await videoRef.current.play();
 
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
+      canvasRef.current.width = videoRef.current.videoWidth || 640;
+      canvasRef.current.height = videoRef.current.videoHeight || 480;
 
       detect();
     };
@@ -272,8 +339,13 @@ export default function SkeletonCanvas({
     init();
 
     return () => {
+      isDisposed = true;
       cancelAnimationFrame(animationFrameId);
       cameraStream?.getTracks().forEach((track) => track.stop());
+      poseRef.current?.close?.();
+      handRef.current?.close?.();
+      poseRef.current = null;
+      handRef.current = null;
     };
   }, [
     onAngleUpdate
@@ -283,20 +355,13 @@ export default function SkeletonCanvas({
     if (
       !enableCoach ||
       !coachCommand ||
-      coachCommand.id === lastCommandIdRef.current ||
-      wsRef.current?.readyState !== WebSocket.OPEN
+      coachCommand.id === lastCommandIdRef.current
     ) {
       return;
     }
 
-    lastCommandIdRef.current = coachCommand.id;
-    wsRef.current.send(
-      JSON.stringify({
-        type: coachCommand.type || "user_message",
-        message: coachCommand.message
-      })
-    );
-  }, [coachCommand, enableCoach]);
+    sendCoachCommand(coachCommand);
+  }, [coachCommand, enableCoach, sendCoachCommand]);
 
   return (
     <div className="skeleton-canvas">

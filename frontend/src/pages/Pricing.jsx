@@ -25,27 +25,40 @@ export default function Pricing() {
 
   const activatePlan = useCallback(
     async ({ planCode, subscriptionId }) => {
-      localStorage.setItem("userPlan", planCode);
-      setUserPlan?.(planCode);
-      setActivationMessage(`${planCode.replace("_PLAN", "")} package activated.`);
-
-      if (!token) return;
-
-      const response = await fetch(`${API_BASE_URL}/subscription/activate`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          plan: planCode,
-          paypal_subscription_id: subscriptionId
-        })
-      });
-
-      if (!response.ok) {
+      if (!token) {
         setActivationMessage(
-          "Payment approved, but profile update failed. Please contact support."
+          "Payment approved, but login expired. Please login again."
+        );
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/subscription/activate`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            plan: planCode,
+            paypal_subscription_id: subscriptionId
+          })
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.detail || "Profile update failed");
+        }
+
+        localStorage.setItem("userPlan", planCode);
+        setUserPlan?.(planCode);
+        setActivationMessage(
+          `${planCode.replace("_PLAN", "")} package activated.`
+        );
+      } catch (error) {
+        setActivationMessage(
+          error.message ||
+            "Payment approved, but profile update failed. Please contact support."
         );
       }
     },

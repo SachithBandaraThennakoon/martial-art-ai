@@ -1,3 +1,53 @@
+const BODY_CONNECTIONS = [
+  [11, 12],
+  [11, 13],
+  [13, 15],
+  [12, 14],
+  [14, 16],
+  [11, 23],
+  [12, 24],
+  [23, 24],
+  [23, 25],
+  [25, 27],
+  [24, 26],
+  [26, 28],
+  [28, 32],
+  [27, 31],
+  [28, 30],
+  [30, 32],
+  [27, 29],
+  [29, 31],
+  [15, 17],
+  [17, 19],
+  [19, 15],
+  [16, 18],
+  [18, 20],
+  [20, 16]
+];
+
+const HAND_CONNECTIONS = [
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [0, 5],
+  [5, 6],
+  [6, 7],
+  [7, 8],
+  [0, 9],
+  [9, 10],
+  [10, 11],
+  [11, 12],
+  [0, 13],
+  [13, 14],
+  [14, 15],
+  [15, 16],
+  [0, 17],
+  [17, 18],
+  [18, 19],
+  [19, 20]
+];
+
 export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
   if (!canvas || !poseLandmarks) return;
 
@@ -10,8 +60,8 @@ export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
   ctx.strokeStyle = "#ffffff";
   ctx.fillStyle = "#ffffff";
   ctx.lineCap = "round";
-  ctx.shadowColor = "rgba(255, 255, 255, 0.45)";
-  ctx.shadowBlur = 10;
+  ctx.shadowColor = "rgba(255, 255, 255, 0.32)";
+  ctx.shadowBlur = 5;
 
   const fitLivePoint = (point) => ({
     ...point,
@@ -35,37 +85,7 @@ export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
     ctx.fill();
   };
 
-  // =========================
-  // BODY
-  // =========================
-  const bodyConnections = [
-    [11, 12],
-    [11, 13],
-    [13, 15],
-    [12, 14],
-    [14, 16],
-    [11, 23],
-    [12, 24],
-    [23, 24],
-    [23, 25],
-    [25, 27],
-    [24, 26],
-    [26, 28],
-    [28, 32],
-    [27, 31],
-    [28, 30],
-    [30, 32],
-    [27, 29],
-    [29, 31],
-    [15, 17],
-    [17, 19],
-    [19, 15],
-    [16, 18],
-    [18, 20],
-    [20, 16]
-  ];
-
-  bodyConnections.forEach(([a, b]) => {
+  BODY_CONNECTIONS.forEach(([a, b]) => {
     drawBone(fittedPoseLandmarks[a], fittedPoseLandmarks[b], 6);
   });
 
@@ -98,30 +118,7 @@ export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
         z: p.z
       }));
 
-      const handConnections = [
-        [0, 1],
-        [1, 2],
-        [2, 3],
-        [3, 4],
-        [0, 5],
-        [5, 6],
-        [6, 7],
-        [7, 8],
-        [0, 9],
-        [9, 10],
-        [10, 11],
-        [11, 12],
-        [0, 13],
-        [13, 14],
-        [14, 15],
-        [15, 16],
-        [0, 17],
-        [17, 18],
-        [18, 19],
-        [19, 20]
-      ];
-
-      handConnections.forEach(([a, b]) => {
+      HAND_CONNECTIONS.forEach(([a, b]) => {
         drawBone(adjustedHand[a], adjustedHand[b], 3);
       });
 

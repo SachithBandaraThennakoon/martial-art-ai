@@ -40,17 +40,23 @@ def activate_subscription(
     email: str = Depends(get_current_email),
     db: Session = Depends(get_db)
 ):
-    if data.plan not in VALID_PLANS:
+    plan = data.plan.strip().upper()
+    paypal_subscription_id = data.paypal_subscription_id.strip()
+
+    if plan not in VALID_PLANS:
         raise HTTPException(status_code=400, detail="Invalid subscription plan")
+
+    if not paypal_subscription_id:
+        raise HTTPException(status_code=400, detail="PayPal subscription ID is required")
 
     user = db.query(User).filter(User.email == email).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.plan = data.plan
+    user.plan = plan
     user.subscription_status = "active"
-    user.paypal_subscription_id = data.paypal_subscription_id
+    user.paypal_subscription_id = paypal_subscription_id
     user.subscription_ends_at = None
     user.trial_ends_at = None
 

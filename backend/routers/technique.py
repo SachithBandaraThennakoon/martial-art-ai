@@ -1,12 +1,37 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models.technique import Technique
 from models.technique_step import TechniqueStep
 from models.target_angle import TargetAngle
+from models.user import User
+from utils.security import ALGORITHM, SECRET_KEY
 
 router = APIRouter(prefix="/techniques", tags=["Techniques"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+
+def require_admin(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    return user
 
 
 # -------------------------
@@ -21,7 +46,8 @@ def create_technique(
     difficulty: str = "Beginner",
     price: float = 0,
     required_plan: str = "FREE_PLAN",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin)
 ):
     technique = Technique(
         name=name,
@@ -47,7 +73,8 @@ def create_step(
     technique_id: int,
     step_number: int,
     step_name: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin)
 ):
     step = TechniqueStep(
         technique_id=technique_id,
@@ -71,7 +98,8 @@ def add_target_angle(
     body_part: str,
     min_angle: float,
     max_angle: float,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin)
 ):
     angle = TargetAngle(
         step_id=step_id,
@@ -131,7 +159,11 @@ def get_steps(technique_id: int, db: Session = Depends(get_db)):
 # FULL TECHNIQUE CREATION (BEST)
 # -------------------------
 @router.post("/full")
-def create_full_technique(data: dict, db: Session = Depends(get_db)):
+def create_full_technique(
+    data: dict,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin)
+):
     technique = Technique(
         name=data["name"],
         description=data.get("description", ""),

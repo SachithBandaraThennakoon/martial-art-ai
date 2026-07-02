@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 
 let paypalSdkPromise;
+let paypalSdkClientId;
 
 function loadPayPalSdk(clientId) {
-  if (window.paypal) {
+  if (window.paypal && paypalSdkClientId === clientId) {
     return Promise.resolve(window.paypal);
+  }
+
+  if (paypalSdkClientId !== clientId) {
+    delete window.paypal;
+    paypalSdkPromise = null;
+    paypalSdkClientId = clientId;
+
+    document
+      .querySelectorAll("script[data-paypal-sdk='subscription']")
+      .forEach((script) => script.remove());
   }
 
   if (!paypalSdkPromise) {
@@ -12,6 +23,7 @@ function loadPayPalSdk(clientId) {
       const script = document.createElement("script");
       script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&vault=true&intent=subscription`;
       script.async = true;
+      script.dataset.paypalSdk = "subscription";
       script.onload = () => resolve(window.paypal);
       script.onerror = () => reject(new Error("PayPal SDK failed to load"));
       document.body.appendChild(script);

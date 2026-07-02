@@ -36,13 +36,6 @@ const ACTION_LABELS = {
   repeat: "Repeat step"
 };
 
-const QUICK_REPLIES = [
-  { label: "Ready", message: "yes ready" },
-  { label: "Wait", message: "wait please" },
-  { label: "Continue", message: "continue" },
-  { label: "Practice", message: "practice mode" }
-];
-
 const NATURAL_VOICE_CACHE_LIMIT = 24;
 const NATURAL_VOICE_REQUEST_TIMEOUT_MS = 8000;
 
@@ -56,6 +49,9 @@ const formatBodyPart = (bodyPart) =>
   bodyPart
     ? bodyPart.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "";
+
+const normalizeCoachMessage = (message) =>
+  message.toLowerCase().replace(/\d+/g, "#");
 
 export default function TrainMode({
   categorySlug,
@@ -80,15 +76,26 @@ export default function TrainMode({
   const [accuracy, setAccuracy] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [coachEvent, setCoachEvent] = useState(null);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [voiceProfile, setVoiceProfile] = useState("calmMale");
+  const [voiceEnabled] = useState(true);
+  const voiceProfile = "calmMale";
   const [coachInput, setCoachInput] = useState("");
   const [coachCommand, setCoachCommand] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [handsFreeEnabled, setHandsFreeEnabled] = useState(true);
+  const [voiceInputStatus, setVoiceInputStatus] = useState(
+    "Hands-free listening is starting."
+  );
   const [conversation, setConversation] = useState([]);
   const [voiceState, setVoiceState] = useState("idle");
   const [voiceWords, setVoiceWords] = useState([]);
   const [activeVoiceWord, setActiveVoiceWord] = useState(-1);
+  const recognitionRef = useRef(null);
+  const shouldListenRef = useRef(true);
+  const listeningRef = useRef(false);
+  const restartListenTimerRef = useRef(null);
+  const lastTechniqueIdRef = useRef(null);
+  const lastCoachChatRef = useRef("");
+  const lastCoachChatPatternRef = useRef("");
   const lastSpokenMessageRef = useRef("");
   const currentAudioRef = useRef(null);
   const voiceRequestIdRef = useRef(0);
@@ -114,7 +121,6 @@ export default function TrainMode({
   const focusLabel = formatBodyPart(
     coachEvent?.focus_body_part || coachEvent?.body_part
   );
-  const lastStudentReply = conversation[conversation.length - 1]?.text;
   const sessionConfig = useMemo(
     () => ({
       technique_name: currentTechnique?.name || "this technique",
@@ -133,21 +139,29 @@ export default function TrainMode({
     });
   }, [steps.length]);
 
-  const handleStepAction = useCallback(() => {
-    if (safeStepIndex + 1 < steps.length) {
-      goToNextStep();
-      return;
-    }
-
-    setCoachCommand({
-      id: `${Date.now()}-complete`,
-      message: "complete",
-      type: "session_complete"
-    });
-  }, [goToNextStep, safeStepIndex, steps.length]);
+  const appendConversation = useCallback((item) => {
+    setConversation((items) => [...items.slice(-7), item]);
+  }, []);
 
   const handleCoachEvent = useCallback((event) => {
     setCoachEvent(event);
+
+    const message = event?.message || event?.summary || "";
+    const messagePattern = normalizeCoachMessage(message);
+    const shouldAddCoachMessage =
+      message &&
+      message !== lastCoachChatRef.current &&
+      (
+        messagePattern !== lastCoachChatPatternRef.current ||
+        event?.speak ||
+        event?.action !== "correct"
+      );
+
+    if (shouldAddCoachMessage) {
+      lastCoachChatRef.current = message;
+      lastCoachChatPatternRef.current = messagePattern;
+      appendConversation({ role: "ai", text: message });
+    }
 
     if (event?.action === "advance_step") {
       goToNextStep();
@@ -162,7 +176,7 @@ export default function TrainMode({
     if (event?.action === "switch_practice" && onModeChange) {
       onModeChange("practice");
     }
-  }, [goToNextStep, onModeChange]);
+  }, [appendConversation, goToNextStep, onModeChange]);
 
   const handleAngleUpdate = useCallback((liveAngles) => {
     setAngles(liveAngles);
@@ -244,36 +258,124 @@ export default function TrainMode({
       id: `${Date.now()}-${trimmed}`,
       message: trimmed
     });
-    setConversation((items) => [
-      ...items.slice(-5),
-      { role: "user", text: trimmed }
-    ]);
+    appendConversation({ role: "user", text: trimmed });
     setCoachInput("");
+  }, [appendConversation]);
+
+  const stopVoiceInput = useCallback((status = "Hands-free listening is off.") => {
+    shouldListenRef.current = false;
+    listeningRef.current = false;
+    setIsListening(false);
+    setVoiceInputStatus(status);
+
+    if (restartListenTimerRef.current) {
+      window.clearTimeout(restartListenTimerRef.current);
+      restartListenTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
   }, []);
 
-  const startVoiceInput = useCallback(() => {
+  const startVoiceInput = useCallback((manualStart = false) => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition || isListening) {
+    if (!SpeechRecognition) {
+      setHandsFreeEnabled(false);
+      setVoiceInputStatus("Speech recognition is not supported in this browser.");
       return;
     }
 
+    if (listeningRef.current || recognitionRef.current) {
+      return;
+    }
+
+    if (voiceState === "speaking" || voiceState === "loading") {
+      setVoiceInputStatus("Listening resumes after the coach speaks.");
+      return;
+    }
+
+    shouldListenRef.current = handsFreeEnabled || manualStart;
+
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
     recognition.lang = "en-US";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+    let finalTranscript = "";
+
+    recognition.onstart = () => {
+      listeningRef.current = true;
+      setIsListening(true);
+      setVoiceInputStatus("Listening. Say ready, next, wait, practice, or start again.");
+    };
+    recognition.onend = () => {
+      listeningRef.current = false;
+      recognitionRef.current = null;
+      setIsListening(false);
+
+      if (shouldListenRef.current && handsFreeEnabled) {
+        setVoiceInputStatus("Listening again in a moment.");
+        restartListenTimerRef.current = window.setTimeout(() => {
+          startVoiceInput(false);
+        }, 450);
+      }
+    };
+    recognition.onerror = (event) => {
+      listeningRef.current = false;
+      recognitionRef.current = null;
+      setIsListening(false);
+
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        shouldListenRef.current = false;
+        setHandsFreeEnabled(false);
+        setVoiceInputStatus("Microphone permission is blocked. Allow mic access to use hands-free control.");
+        return;
+      }
+
+      setVoiceInputStatus(
+        event.error === "no-speech"
+          ? "I did not hear a command. Listening again."
+          : "Voice input paused. Tap listen to restart."
+      );
+    };
     recognition.onresult = (event) => {
-      const transcript = event.results?.[0]?.[0]?.transcript || "";
-      sendCoachMessage(transcript);
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result?.[0]?.transcript || "";
+
+        if (result?.isFinal) {
+          finalTranscript += ` ${transcript}`;
+        } else if (transcript.trim()) {
+          setVoiceInputStatus(`Hearing: ${transcript.trim()}`);
+        }
+      }
+
+      const command = finalTranscript.trim();
+      if (command) {
+        sendCoachMessage(command);
+        setVoiceInputStatus(`Command heard: ${command}`);
+        finalTranscript = "";
+        recognition.stop();
+      }
     };
 
-    recognition.start();
-  }, [isListening, sendCoachMessage]);
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      listeningRef.current = false;
+      setIsListening(false);
+      setVoiceInputStatus("Voice input could not start. Tap listen again.");
+    }
+  }, [handsFreeEnabled, sendCoachMessage, voiceState]);
 
   const getNaturalVoiceKey = useCallback((message) => {
     const profile = VOICE_PROFILES[voiceProfile];
@@ -471,23 +573,62 @@ export default function TrainMode({
   }, [stopCurrentVoice, voiceEnabled]);
 
   useEffect(() => {
+    shouldListenRef.current = handsFreeEnabled;
+
+    if (!handsFreeEnabled) {
+      stopVoiceInput();
+      return;
+    }
+
+    if (voiceState === "speaking" || voiceState === "loading") {
+      stopVoiceInput("Listening resumes after the coach speaks.");
+      shouldListenRef.current = true;
+      return;
+    }
+
+    startVoiceInput(false);
+  }, [handsFreeEnabled, startVoiceInput, stopVoiceInput, voiceState]);
+
+  useEffect(
+    () => () => {
+      stopVoiceInput();
+    },
+    [stopVoiceInput]
+  );
+
+  useEffect(() => {
     if (steps.length > 0 && currentStepIndex >= steps.length) {
       setCurrentStepIndex(steps.length - 1);
     }
   }, [currentStepIndex, steps.length]);
 
   useEffect(() => {
+    const techniqueChanged = lastTechniqueIdRef.current !== currentTechnique?.id;
+    lastTechniqueIdRef.current = currentTechnique?.id;
     lastSpokenMessageRef.current = "";
+    lastCoachChatRef.current = "";
+    lastCoachChatPatternRef.current = "";
     setAngles({});
     setAccuracy(0);
     setFeedback("");
+    const message = currentStepName
+      ? `Settle into ${currentStepName}. I am syncing the live angles.`
+      : "Choose a step to begin.";
+
     setCoachEvent({
-      message: currentStepName
-        ? `Settle into ${currentStepName}. I am syncing the live angles.`
-        : "Choose a step to begin.",
+      message,
       speak: false
     });
-  }, [currentStep?.id, currentStepName]);
+
+    if (currentStepName) {
+      setConversation((items) => {
+        const baseItems = techniqueChanged ? [] : items;
+        return [...baseItems.slice(-7), { role: "ai", text: message }];
+      });
+      lastCoachChatRef.current = message;
+      lastCoachChatPatternRef.current = normalizeCoachMessage(message);
+    }
+  }, [currentStep?.id, currentStepName, currentTechnique?.id]);
 
   if (!currentTechnique) {
     return (
@@ -606,49 +747,22 @@ export default function TrainMode({
         <div className="conversation-crate__header">
           <div>
             <p className="eyebrow">Student Reply</p>
-            <strong>{currentStep?.step_name || "No step selected"}</strong>
+            <strong>
+              {isListening ? "Listening" : voiceInputStatus}
+            </strong>
           </div>
-          <label className="coach-toggle">
-            <input
-              checked={voiceEnabled}
-              onChange={(event) => setVoiceEnabled(event.target.checked)}
-              type="checkbox"
-            />
-            Voice
-          </label>
-        </div>
-
-        <div className="student-state">
-          <span>Master is {coachStateLabel.toLowerCase()}</span>
-          <strong>
-            {lastStudentReply
-              ? `You said: ${lastStudentReply}`
-              : "Answer when you are ready."}
-          </strong>
-        </div>
-
-        <div className="quick-replies" aria-label="Quick replies">
-          {QUICK_REPLIES.map((reply) => (
-            <button
-              key={reply.message}
-              onClick={() => sendCoachMessage(reply.message)}
-              type="button"
-            >
-              {reply.label}
-            </button>
-          ))}
         </div>
 
         <div className="conversation-log">
           {conversation.length === 0 ? (
-            <p className="conversation-empty">No replies yet.</p>
+            <p className="conversation-empty">Ask or answer the master.</p>
           ) : (
-            conversation.slice(-3).map((item, index) => (
+            conversation.slice(-6).map((item, index) => (
               <p
-                className="conversation-line conversation-line--user"
+                className={`conversation-line conversation-line--${item.role}`}
                 key={`${item.role}-${index}-${item.text}`}
               >
-                <span>You</span>
+                <span>{item.role === "ai" ? "AI Coach" : "You"}</span>
                 {item.text}
               </p>
             ))
@@ -656,17 +770,6 @@ export default function TrainMode({
         </div>
 
         <div className="coach-actions">
-          <select
-            aria-label="Coach voice"
-            onChange={(event) => setVoiceProfile(event.target.value)}
-            value={voiceProfile}
-          >
-            {Object.entries(VOICE_PROFILES).map(([key, profile]) => (
-              <option key={key} value={key}>
-                {profile.label}
-              </option>
-            ))}
-          </select>
           <form
             className="coach-command"
             onSubmit={(event) => {
@@ -682,12 +785,6 @@ export default function TrainMode({
             />
             <button type="submit">Send</button>
           </form>
-          <button onClick={startVoiceInput} type="button">
-            {isListening ? "Listening" : "Mic"}
-          </button>
-          <button onClick={handleStepAction} type="button">
-            {safeStepIndex + 1 < steps.length ? "Next" : "Finish"}
-          </button>
         </div>
       </aside>
 

@@ -154,10 +154,10 @@ async def train(websocket: WebSocket):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
-        print("✅ TOKEN OK:", email)
+        print("WebSocket token accepted:", email)
 
     except JWTError as e:
-        print("❌ TOKEN ERROR:", str(e))
+        print("WebSocket token error:", str(e))
         await websocket.close()
         return
 
@@ -244,6 +244,8 @@ async def train(websocket: WebSocket):
                     coach._reset_temporal_focus(keep_ready=True)
                     coach.is_paused = False
                     coach.readiness_prompted = False
+                    coach.pending_question = None
+                    coach.state = "observe_pose"
                     coach.last_accuracy = 0
                     coach.last_spoken_message = ""
                     last_feedback = ""

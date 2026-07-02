@@ -9,25 +9,34 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRegister = async (event) => {
     event.preventDefault();
     setError("");
+    setIsSubmitting(true);
 
-    const response = await fetch(`${API_BASE_URL}/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: new URLSearchParams({ name, email, password })
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({ name, email, password })
+      });
 
-    const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-    if (data.message) {
+      if (!response.ok || !data.message) {
+        setError(data.detail || "Registration failed. Please try again.");
+        return;
+      }
+
       navigate("/login");
-    } else {
-      setError("Registration failed. Please try again.");
+    } catch {
+      setError("Could not reach the server. Please check backend is running.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -74,8 +83,8 @@ export default function Register() {
 
         {error && <p className="form-error">{error}</p>}
 
-        <button className="btn btn--light btn--full" type="submit">
-          Register
+        <button className="btn btn--light btn--full" disabled={isSubmitting} type="submit">
+          {isSubmitting ? "Creating account..." : "Register"}
         </button>
 
         <p className="auth-card__footer">
