@@ -118,12 +118,12 @@ export default function Pricing() {
                       ? "Free training access is active on this account."
                       : "Payment is connected and this package is unlocked."}
                   </span>
-                  <Link className="btn btn--light btn--full" to="/training">
+                  <Link className="btn btn--light btn--full" to="/studio">
                     Open Studio
                   </Link>
                 </div>
               ) : plan.price === 0 ? (
-                <Link className="btn btn--light btn--full" to="/training">
+                <Link className="btn btn--light btn--full" to="/studio">
                   {plan.cta}
                 </Link>
               ) : !token ? (

@@ -101,6 +101,7 @@ export default function PracticeMode({
   const [session, setSession] = useState(null);
   const [repCount, setRepCount] = useState(0);
   const [cleanReps, setCleanReps] = useState(0);
+  const [completedStepCount, setCompletedStepCount] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [focusBodyPart, setFocusBodyPart] = useState(null);
   const [assistantMessage, setAssistantMessage] = useState(
@@ -113,6 +114,7 @@ export default function PracticeMode({
   const [voiceInputStatus, setVoiceInputStatus] = useState("Say start to begin.");
   const [isListening, setIsListening] = useState(false);
   const [isReadyForRep, setIsReadyForRep] = useState(true);
+  const isPracticeActive = session?.status === "active";
   const repStartedAtRef = useRef(null);
   const sessionRef = useRef(null);
   const repCountRef = useRef(0);
@@ -342,6 +344,7 @@ export default function PracticeMode({
     setSelectedStepIndex(startIndex);
     setRepCount(0);
     setCleanReps(0);
+    setCompletedStepCount(0);
     repCountRef.current = 0;
     cycleStepResultsRef.current = [];
     repStartedAtRef.current = performance.now();
@@ -414,6 +417,7 @@ export default function PracticeMode({
     sessionRef.current = null;
     setRepCount(0);
     setCleanReps(0);
+    setCompletedStepCount(0);
     repCountRef.current = 0;
     cycleStepResultsRef.current = [];
     numberAudioRef.current = [];
@@ -438,6 +442,7 @@ export default function PracticeMode({
     setSelectedStepIndex(nextIndex);
     setRepCount(0);
     setCleanReps(0);
+    setCompletedStepCount(0);
     repCountRef.current = 0;
     cycleStepResultsRef.current = [];
     setIsReadyForRep(true);
@@ -531,6 +536,7 @@ export default function PracticeMode({
 
     const stepIndex = selectedStepIndex;
     cycleStepResultsRef.current[stepIndex] = result;
+    setCompletedStepCount(Math.min(stepIndex + 1, steps.length));
     setIsReadyForRep(false);
     isReadyForRepRef.current = false;
 
@@ -592,6 +598,7 @@ export default function PracticeMode({
 
     const timerId = window.setTimeout(() => {
       cycleStepResultsRef.current = [];
+      setCompletedStepCount(0);
       setSelectedStepIndex(0);
       setIsReadyForRep(true);
       isReadyForRepRef.current = true;
@@ -786,7 +793,10 @@ export default function PracticeMode({
           <div className="step-list">
             {steps.map((step, index) => (
               <button
-                className={`step-button ${index === selectedStepIndex ? "step-button--active" : ""}`}
+                className={`step-button ${
+                  index === selectedStepIndex ? "step-button--active" : ""
+                } ${index < completedStepCount ? "step-button--complete" : ""}`}
+                disabled={isPracticeActive}
                 key={step.id}
                 onClick={() => {
                   if (index !== selectedStepIndex) {
@@ -802,12 +812,27 @@ export default function PracticeMode({
           </div>
         </div>
 
+        <div className="panel-block practice-sequence">
+          <div>
+            <p className="eyebrow">Sequence</p>
+            <strong>{completedStepCount}/{steps.length}</strong>
+          </div>
+          <div>
+            <p className="eyebrow">Current rep</p>
+            <strong>{Math.min(repCount + 1, targetReps)}/{targetReps}</strong>
+          </div>
+          <div className="practice-progress" aria-hidden="true">
+            <span style={{ width: `${steps.length ? (completedStepCount / steps.length) * 100 : 0}%` }} />
+          </div>
+        </div>
+
         <div className="panel-block practice-controls">
           <p className="eyebrow">Count</p>
           <div className="rep-count-options">
             {COUNT_OPTIONS.map((count) => (
               <button
                 className={count === targetReps ? "is-active" : ""}
+                disabled={isPracticeActive}
                 key={count}
                 onClick={() => setTargetReps(count)}
                 type="button"
@@ -821,6 +846,7 @@ export default function PracticeMode({
             {GAP_OPTIONS.map((gap) => (
               <button
                 className={gap.value === countGapMs ? "is-active" : ""}
+                disabled={isPracticeActive}
                 key={gap.value}
                 onClick={() => setCountGapMs(gap.value)}
                 type="button"
@@ -858,14 +884,13 @@ export default function PracticeMode({
           </div>
           <div>
             <span>Gate</span>
-            <strong>{isReadyForRep ? "Auto" : "Counting"}</strong>
+            <strong>{isReadyForRep ? "Ready" : "Moving"}</strong>
           </div>
         </div>
 
-        <div className="panel-block coach-card">
-          <p className="eyebrow">Practice Assistant</p>
-          <p className="coach-feedback">{assistantMessage}</p>
-          {session?.status === "completed" ? (
+        {session?.status === "completed" ? (
+          <div className="panel-block coach-card">
+            <p className="eyebrow">Practice Assistant</p>
             <button
               className="btn btn--light btn--full"
               onClick={() => onModeChange?.("analysis")}
@@ -873,8 +898,8 @@ export default function PracticeMode({
             >
               View Analysis
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </aside>
 
       <aside className="conversation-crate conversation-crate--practice" aria-label="Talk to practice assistant">

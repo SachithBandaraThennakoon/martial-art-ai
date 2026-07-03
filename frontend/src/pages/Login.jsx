@@ -36,7 +36,7 @@ export default function Login() {
       }
 
       login(data.access_token, data.plan || "FREE_PLAN");
-      navigate("/training");
+      navigate("/studio");
     } catch {
       setError("Could not reach the server. Please check backend is running.");
     } finally {

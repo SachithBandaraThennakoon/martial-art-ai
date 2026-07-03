@@ -243,6 +243,46 @@ def get_practice_analysis(
         sum((session.average_accuracy or 0) for session in sessions) / total_sessions
         if total_sessions else 0
     )
+    target_reps = sum(session.target_reps or 0 for session in sessions)
+    clean_reps = sum(session.clean_reps or 0 for session in sessions)
+    completion_rate = (total_reps / target_reps * 100) if target_reps else 0
+    clean_rate = (clean_reps / total_reps * 100) if total_reps else 0
+    average_rep_seconds = (
+        sum((session.average_rep_seconds or 0) for session in sessions) / total_sessions
+        if total_sessions else 0
+    )
+    average_consistency = (
+        sum((session.consistency_score or 0) for session in sessions) / total_sessions
+        if total_sessions else 0
+    )
+
+    session_ids = [session.id for session in sessions]
+    reps = []
+    if session_ids:
+        reps = db.query(PracticeRep).filter(
+            PracticeRep.practice_session_id.in_(session_ids)
+        ).all()
+
+    focus_counts = {}
+    pace_counts = {}
+    for rep in reps:
+        if rep.focus_body_part:
+            focus_counts[rep.focus_body_part] = focus_counts.get(rep.focus_body_part, 0) + 1
+        if rep.speed_label:
+            pace_counts[rep.speed_label] = pace_counts.get(rep.speed_label, 0) + 1
+
+    weak_focus = max(focus_counts, key=focus_counts.get) if focus_counts else None
+    recent_sessions = list(reversed(sessions[:6]))
+    trend = [
+        {
+            "session_id": session.id,
+            "technique_name": session.technique_name,
+            "average_accuracy": round(session.average_accuracy or 0, 1),
+            "completed_reps": session.completed_reps or 0,
+            "target_reps": session.target_reps or 0,
+        }
+        for session in recent_sessions
+    ]
     latest = sessions[0] if sessions else None
     recommendation = "Start a fixed-count practice set."
     if latest:
@@ -259,6 +299,13 @@ def get_practice_analysis(
             "total_reps": total_reps,
             "average_accuracy": round(average_accuracy, 1),
             "best_accuracy": round(best_accuracy, 1),
+            "completion_rate": round(completion_rate, 1),
+            "clean_rate": round(clean_rate, 1),
+            "average_rep_seconds": round(average_rep_seconds, 1),
+            "consistency_score": round(average_consistency, 1),
+            "weak_focus": weak_focus,
+            "pace_mix": pace_counts,
+            "trend": trend,
             "recommendation": recommendation
         },
         "sessions": [_practice_session_payload(session) for session in sessions]

@@ -14,7 +14,7 @@ export default function Home() {
           </p>
 
           <div className="hero__actions">
-            <Link to="/training" className="btn btn--light">
+            <Link to="/studio" className="btn btn--light">
               Open Studio
             </Link>
             <Link to="/register" className="btn btn--ghost">

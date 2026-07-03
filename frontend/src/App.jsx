@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Studio from "./pages/Studio";
 import Training from "./pages/Training";
 import CategoryPage from "./pages/CategoryPage";
 import Pricing from "./pages/Pricing";
@@ -24,6 +25,15 @@ function AppRoutes() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        <Route
+          path="/studio"
+          element={
+            <ProtectedRoute>
+              <Studio />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/training"

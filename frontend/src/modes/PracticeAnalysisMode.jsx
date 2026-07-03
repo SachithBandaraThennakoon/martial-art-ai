@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "../services/api";
 
+const formatBodyPart = (bodyPart) =>
+  bodyPart
+    ? bodyPart.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : "None yet";
+
 export default function PracticeAnalysisMode({ onModeChange }) {
   const [analysis, setAnalysis] = useState(null);
   const [status, setStatus] = useState("Loading analysis.");
@@ -37,10 +42,14 @@ export default function PracticeAnalysisMode({ onModeChange }) {
 
   const summary = analysis?.summary;
   const sessions = analysis?.sessions || [];
+  const paceMix = summary?.pace_mix || {};
+  const paceText = Object.entries(paceMix)
+    .map(([label, value]) => `${label}: ${value}`)
+    .join(" / ");
 
   return (
-    <aside className="analysis-panel">
-      <div className="panel-block">
+    <section className="analysis-panel">
+      <div className="panel-block analysis-hero">
         <p className="eyebrow">Practice Analysis</p>
         <h1>Rep History</h1>
         <p className="practice-copy">{status}</p>
@@ -63,9 +72,25 @@ export default function PracticeAnalysisMode({ onModeChange }) {
           <span>Best</span>
           <strong>{summary ? `${summary.best_accuracy}%` : "--"}</strong>
         </div>
+        <div>
+          <span>Complete</span>
+          <strong>{summary ? `${summary.completion_rate}%` : "--"}</strong>
+        </div>
+        <div>
+          <span>Clean rate</span>
+          <strong>{summary ? `${summary.clean_rate}%` : "--"}</strong>
+        </div>
+        <div>
+          <span>Consistency</span>
+          <strong>{summary ? `${summary.consistency_score}%` : "--"}</strong>
+        </div>
+        <div>
+          <span>Avg pace</span>
+          <strong>{summary ? `${summary.average_rep_seconds}s` : "--"}</strong>
+        </div>
       </div>
 
-      <div className="panel-block coach-card">
+      <div className="panel-block coach-card analysis-recommendation">
         <p className="eyebrow">Recommendation</p>
         <p className="coach-feedback">
           {summary?.recommendation || "Start a fixed-count practice set."}
@@ -79,7 +104,42 @@ export default function PracticeAnalysisMode({ onModeChange }) {
         </button>
       </div>
 
-      <div className="panel-block">
+      <div className="panel-block analysis-insights">
+        <p className="eyebrow">Focus</p>
+        <div className="analysis-insight-grid">
+          <div>
+            <span>Needs attention</span>
+            <strong>{formatBodyPart(summary?.weak_focus)}</strong>
+          </div>
+          <div>
+            <span>Pace mix</span>
+            <strong>{paceText || "No reps yet"}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel-block analysis-trend-card">
+        <div className="panel-heading">
+          <p className="eyebrow">Trend</p>
+          <span>{summary?.trend?.length || 0}</span>
+        </div>
+        <div className="analysis-trend">
+          {(summary?.trend || []).length === 0 ? (
+            <p className="empty-state">Practice history will appear here.</p>
+          ) : (
+            summary.trend.map((item) => (
+              <div className="analysis-trend__bar" key={item.session_id}>
+                <span>{item.completed_reps}/{item.target_reps}</span>
+                <strong style={{ width: `${Math.max(4, item.average_accuracy)}%` }}>
+                  {item.average_accuracy}%
+                </strong>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="panel-block analysis-recent">
         <div className="panel-heading">
           <p className="eyebrow">Recent Sets</p>
           <span>{sessions.length}</span>
@@ -107,6 +167,6 @@ export default function PracticeAnalysisMode({ onModeChange }) {
           )}
         </div>
       </div>
-    </aside>
+    </section>
   );
 }

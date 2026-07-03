@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
@@ -25,6 +25,11 @@ export default function TrainingStudio() {
   const selectedTechniqueName = searchParams.get("technique");
   const categorySlug = searchParams.get("category");
   const subcategorySlug = searchParams.get("subcategory");
+  const hasTechniqueSelection = Boolean(selectedTechniqueName);
+
+  if (!hasTechniqueSelection && mode !== "analysis") {
+    return <Navigate to="/studio" replace />;
+  }
 
   const updateMode = (nextMode) => {
     setSearchParams((currentParams) => {
@@ -35,7 +40,15 @@ export default function TrainingStudio() {
   };
 
   return (
-    <main className="training-shell">
+    <main className={`training-shell ${mode === "analysis" ? "training-shell--analysis" : ""}`}>
+      <div className="rotate-prompt" role="status">
+        <span className="rotate-prompt__icon" aria-hidden="true" />
+        <div>
+          <strong>Rotate for desktop view</strong>
+          <p>Landscape gives more room for skeleton, feedback, chat, and angles.</p>
+        </div>
+      </div>
+
       <div className="studio-mode-switch" aria-label="Training Studio mode">
         <div>
           <p className="eyebrow">Training Studio</p>
