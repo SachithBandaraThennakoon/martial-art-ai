@@ -1386,6 +1386,144 @@ select:focus {
   background: rgba(96, 211, 148, 0.1);
 }
 
+.panel-block--awareness {
+  padding: 14px;
+}
+
+.awareness-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.awareness-panel .panel-heading {
+  margin-bottom: 0;
+}
+
+.awareness-panel .panel-heading span {
+  color: rgba(96, 211, 148, 0.95);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.awareness-face,
+.awareness-hand {
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.awareness-face {
+  padding: 12px;
+}
+
+.awareness-face__main,
+.awareness-card__head,
+.awareness-meter > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.awareness-face__main span,
+.awareness-card__head span,
+.awareness-meter span,
+.awareness-face__grid span {
+  color: var(--subtle);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.awareness-face__main strong,
+.awareness-card__head strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.awareness-face__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.awareness-face__grid div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.awareness-face__grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.awareness-face__grid .is-good {
+  border-color: rgba(96, 211, 148, 0.32);
+  background: rgba(96, 211, 148, 0.1);
+}
+
+.awareness-face__grid .is-low {
+  border-color: rgba(255, 99, 99, 0.28);
+  background: rgba(255, 99, 99, 0.08);
+}
+
+.awareness-face__grid .is-waiting {
+  opacity: 0.7;
+}
+
+.awareness-hands {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.awareness-hand {
+  padding: 10px;
+}
+
+.awareness-hand.is-missing {
+  opacity: 0.74;
+}
+
+.awareness-bars {
+  display: grid;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.awareness-meter {
+  display: grid;
+  gap: 5px;
+}
+
+.awareness-meter strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.awareness-meter i {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(96, 211, 148, 0.86);
+  box-shadow: 0 0 16px rgba(96, 211, 148, 0.24);
+}
+
+.awareness-meter--blue i {
+  background: rgba(106, 168, 255, 0.86);
+  box-shadow: 0 0 16px rgba(106, 168, 255, 0.2);
+}
+
 .feedback-banner__message {
   min-width: 0;
 }

@@ -4,8 +4,18 @@ from types import SimpleNamespace
 from agents.movement_agent import analyze_movement
 
 
-ACCURACY_TO_ADVANCE = 85
+ACCURACY_TO_ADVANCE = 90
 TREND_SPEAK_DELTA = 3
+STEADY_REMINDER_FRAMES = 16
+READINESS_TARGETS = {
+    "face_forward",
+    "eyes_forward",
+    "face_calm",
+    "fist_left",
+    "fist_right",
+    "hand_left_open",
+    "hand_right_open",
+}
 
 
 @dataclass
@@ -216,9 +226,21 @@ class CoachSession:
             )
             if item["issue"] != "good"
         ]
+        readiness_issues = [
+            item for item in sorted(
+                issues,
+                key=lambda entry: self._readiness_priority(entry["body_part"]),
+            )
+            if self._is_readiness_target(item["body_part"])
+        ]
+        body_issues = [
+            item for item in issues
+            if not self._is_readiness_target(item["body_part"])
+        ]
+        ordered_issues = readiness_issues or body_issues
 
         if self.is_paused and self.pending_question == "practice":
-            if accuracy >= ACCURACY_TO_ADVANCE:
+            if self._can_complete_step(accuracy, readiness_issues):
                 self.is_paused = False
                 self.pending_question = None
                 self.practice_suggested = False
@@ -227,7 +249,7 @@ class CoachSession:
                 self.last_accuracy = accuracy
                 return self._complete_step_event(step_key, accuracy, analysis)
 
-            focus = issues[0] if issues else None
+            focus = ordered_issues[0] if ordered_issues else None
             message = "Practice or continue?"
             body_part = None
             issue_name = "waiting"
@@ -275,13 +297,22 @@ class CoachSession:
         self._update_attention_memory(analysis)
         self._update_plateau_memory(accuracy)
 
-        if accuracy >= ACCURACY_TO_ADVANCE:
+        if self._can_complete_step(accuracy, readiness_issues):
             self.active_body_part = None
             self.active_issue = None
             self._reset_temporal_focus(keep_ready=True)
             return self._complete_step_event(step_key, accuracy, analysis)
 
         active_item = self._active_issue_item(analysis)
+
+        if (
+            readiness_issues
+            and active_item
+            and not self._is_readiness_target(active_item["body_part"])
+        ):
+            active_item = None
+            self.active_body_part = None
+            self.active_issue = None
 
         if self.missing_pose_frames >= 3:
             self.state = "focus_check"
@@ -299,7 +330,7 @@ class CoachSession:
             self.active_body_part = None
             self.active_issue = None
 
-            next_issue = issues[0] if issues else None
+            next_issue = ordered_issues[0] if ordered_issues else None
             if next_issue:
                 self.active_body_part = next_issue["body_part"]
                 self.active_issue = next_issue["issue"]
@@ -314,8 +345,8 @@ class CoachSession:
         else:
             focus = active_item if active_item and active_item["issue"] != "good" else None
 
-            if focus is None and issues:
-                focus = issues[0]
+            if focus is None and ordered_issues:
+                focus = ordered_issues[0]
                 self.active_body_part = focus["body_part"]
                 self.active_issue = focus["issue"]
                 self.correction_frames = 0
@@ -330,7 +361,10 @@ class CoachSession:
                     message = f"{message} Practice mode?"
                     body_part = focus["body_part"]
                     issue_name = "practice_suggested"
-                elif self.correction_frames in {4, 8}:
+                elif (
+                    self.correction_frames in {4, 10}
+                    or self.correction_frames % STEADY_REMINDER_FRAMES == 0
+                ):
                     message = self._trend_cue(focus, force_short=True)
                     body_part = focus["body_part"]
                     issue_name = "focus_check"
@@ -390,6 +424,8 @@ class CoachSession:
             "message": message,
             "feedback": [message],
             "summary": message,
+            "current_step_index": self.current_step_index,
+            "total_steps": self.total_steps,
             "accuracy": accuracy,
             "body_part": body_part,
             "issue": issue,
@@ -522,7 +558,10 @@ class CoachSession:
         return "unknown"
 
     def _update_attention_memory(self, analysis):
-        missing_count = sum(1 for item in analysis if item["issue"] == "missing")
+        missing_count = sum(
+            1 for item in analysis
+            if item["issue"] == "missing" and not self._is_readiness_target(item["body_part"])
+        )
 
         if missing_count:
             self.missing_pose_frames += 1
@@ -542,9 +581,12 @@ class CoachSession:
     def _should_offer_practice(self):
         return (
             not self.practice_suggested
-            and self.correction_frames >= 6
-            and (self.plateau_frames >= 4 or self.attention_score < 55)
+            and self.correction_frames >= 32
+            and (self.plateau_frames >= 18 or self.attention_score < 35)
         )
+
+    def _can_complete_step(self, accuracy, readiness_issues):
+        return accuracy >= ACCURACY_TO_ADVANCE and not readiness_issues
 
     def _reset_temporal_focus(self, keep_ready=False):
         self.active_body_part = None
@@ -591,11 +633,30 @@ class CoachSession:
 
         return cue or f"Hold {label}."
 
+    def _is_readiness_target(self, body_part):
+        return body_part in READINESS_TARGETS
+
+    def _readiness_priority(self, body_part):
+        order = {
+            "face_forward": 0,
+            "eyes_forward": 1,
+            "face_calm": 2,
+            "fist_left": 3,
+            "hand_left_open": 3,
+            "fist_right": 4,
+            "hand_right_open": 4,
+        }
+
+        return order.get(body_part, 99)
+
     def _should_speak(self, message):
-        if message == self.last_spoken_message:
+        focus = self.pending_speech_focus
+
+        if message == self.last_spoken_message and (
+            not focus or focus.get("kind") != "steady"
+        ):
             return False
 
-        focus = self.pending_speech_focus
         if focus:
             body_part = focus["body_part"]
             delta = focus["delta"]
@@ -604,7 +665,7 @@ class CoachSession:
 
             should_speak = (
                 previous_spoken_delta is None
-                or kind in {"improving", "regressing", "almost"}
+                or kind in {"improving", "regressing", "almost", "steady"}
                 or abs(delta - previous_spoken_delta) >= 5
             )
 
@@ -626,6 +687,8 @@ class CoachSession:
         sentence_label = f"Your {label}"
         direction = item.get("direction")
         delta = item.get("degree_delta")
+        unit = item.get("unit", "degrees")
+        unit_label = "points" if unit == "score" else "degrees"
         self.pending_speech_focus = None
 
         if delta is None:
@@ -639,7 +702,12 @@ class CoachSession:
         }
 
         action = "Increase" if direction == "increase" else "Decrease"
-        plain_cue = f"{action} {spoken_label} {delta} degrees."
+        if unit == "score":
+            plain_cue = item.get("cue") or (
+                f"Improve {spoken_label} by {delta} points."
+            )
+        else:
+            plain_cue = f"{action} {spoken_label} {delta} degrees."
         self.pending_speech_focus = {
             "body_part": body_part,
             "delta": delta,
@@ -659,16 +727,16 @@ class CoachSession:
         if improvement >= TREND_SPEAK_DELTA:
             self.pending_speech_focus["kind"] = "improving"
             if delta <= 3:
-                return f"Good. Almost there. You reduced {spoken_label} from {previous_delta} to {delta} degrees off."
-            return f"Good correction. You reduced {spoken_label} from {previous_delta} to {delta} degrees off. Keep going slowly."
+                return f"Good. Almost there. You reduced {spoken_label} from {previous_delta} to {delta} {unit_label} off."
+            return f"Good correction. You reduced {spoken_label} from {previous_delta} to {delta} {unit_label} off. Keep going slowly."
 
         if regression >= TREND_SPEAK_DELTA:
             self.pending_speech_focus["kind"] = "regressing"
-            return f"Careful. {sentence_label} moved away from target, now {delta} degrees off. Bring it back slowly."
+            return f"Careful. {sentence_label} moved away from target, now {delta} {unit_label} off. Bring it back slowly."
 
         if force_short:
             self.pending_speech_focus["kind"] = "steady"
-            return f"Hold steady. {sentence_label} is {delta} degrees off."
+            return f"Hold steady. {sentence_label} is {delta} {unit_label} off."
 
         if delta <= 3:
             self.pending_speech_focus["kind"] = "almost"

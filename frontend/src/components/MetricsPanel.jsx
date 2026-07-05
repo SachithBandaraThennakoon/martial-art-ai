@@ -9,7 +9,15 @@ export default function MetricsPanel({
 }) {
   const currentStep = steps[currentStepIndex];
   const focusPart = coachEvent?.focus_body_part || coachEvent?.body_part;
-  const activeParts = [...requiredParts].sort((first, second) => {
+  const isReadinessMetric = (bodyPart) =>
+    bodyPart?.startsWith("fist_") ||
+    bodyPart?.startsWith("hand_") ||
+    bodyPart?.startsWith("face_") ||
+    bodyPart?.startsWith("eyes_");
+  const bodyParts = requiredParts.filter(
+    (part) => !isReadinessMetric(part.body_part)
+  );
+  const activeParts = [...bodyParts].sort((first, second) => {
     if (first.body_part === focusPart) return -1;
     if (second.body_part === focusPart) return 1;
     return 0;
@@ -19,6 +27,10 @@ export default function MetricsPanel({
     bodyPart
       ? bodyPart.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
       : "Whole form";
+
+  const formatValue = (value) => `${value} deg`;
+
+  const formatTarget = (min, max) => `Target ${min}-${max} deg`;
 
   const getFeedback = (value, min, max) => {
     if (value < min) {
@@ -50,11 +62,11 @@ export default function MetricsPanel({
       <div className="panel-block">
         <div className="panel-heading">
           <p className="eyebrow">Live Values</p>
-          <span>{requiredParts.length} tracked</span>
+          <span>{bodyParts.length} tracked</span>
         </div>
 
-        {requiredParts.length === 0 ? (
-          <p className="empty-state">No angle targets loaded yet.</p>
+        {bodyParts.length === 0 ? (
+          <p className="empty-state">No body angle targets loaded yet.</p>
         ) : (
           <div className="metrics-grid">
             {activeParts.map((part) => {
@@ -72,11 +84,13 @@ export default function MetricsPanel({
                   key={part.body_part}
                 >
                   <span>{formatBodyPart(part.body_part)}</span>
-                  <strong>{hasValue ? `${value} deg` : "--"}</strong>
-                  <small>
-                    Target {part.min}-{part.max} deg
-                  </small>
-                  <em>{hasValue ? getFeedback(value, part.min, part.max) : "Waiting"}</em>
+                  <strong>{hasValue ? formatValue(value) : "--"}</strong>
+                  <small>{formatTarget(part.min, part.max)}</small>
+                  <em>
+                    {hasValue
+                      ? getFeedback(value, part.min, part.max)
+                      : "Waiting"}
+                  </em>
                 </article>
               );
             })}

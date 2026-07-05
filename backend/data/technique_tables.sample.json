@@ -155,6 +155,21 @@
     { "id": 21, "step_id": 18, "body_part": "ankle_left", "min_angle": 85, "max_angle": 125 },
     { "id": 22, "step_id": 19, "body_part": "shoulder_left", "min_angle": 15, "max_angle": 40 },
     { "id": 23, "step_id": 19, "body_part": "shoulder_right", "min_angle": 10, "max_angle": 40 },
-    { "id": 24, "step_id": 20, "body_part": "elbow_right", "min_angle": 20, "max_angle": 25 }
+    { "id": 24, "step_id": 20, "body_part": "elbow_right", "min_angle": 20, "max_angle": 95 },
+    { "id": 25, "step_id": 1, "body_part": "fist_left", "min_angle": 70, "max_angle": 100 },
+    { "id": 26, "step_id": 1, "body_part": "fist_right", "min_angle": 70, "max_angle": 100 },
+    { "id": 27, "step_id": 2, "body_part": "fist_left", "min_angle": 75, "max_angle": 100 },
+    { "id": 28, "step_id": 3, "body_part": "fist_left", "min_angle": 70, "max_angle": 100 },
+    { "id": 29, "step_id": 3, "body_part": "fist_right", "min_angle": 70, "max_angle": 100 },
+    { "id": 30, "step_id": 19, "body_part": "face_forward", "min_angle": 70, "max_angle": 100 },
+    { "id": 31, "step_id": 19, "body_part": "eyes_forward", "min_angle": 55, "max_angle": 100 },
+    { "id": 32, "step_id": 19, "body_part": "face_calm", "min_angle": 55, "max_angle": 100 },
+    { "id": 33, "step_id": 19, "body_part": "fist_left", "min_angle": 65, "max_angle": 100 },
+    { "id": 34, "step_id": 19, "body_part": "fist_right", "min_angle": 65, "max_angle": 100 },
+    { "id": 35, "step_id": 20, "body_part": "face_forward", "min_angle": 75, "max_angle": 100 },
+    { "id": 36, "step_id": 20, "body_part": "eyes_forward", "min_angle": 60, "max_angle": 100 },
+    { "id": 37, "step_id": 20, "body_part": "face_calm", "min_angle": 50, "max_angle": 100 },
+    { "id": 38, "step_id": 20, "body_part": "fist_left", "min_angle": 65, "max_angle": 100 },
+    { "id": 39, "step_id": 20, "body_part": "hand_right_open", "min_angle": 55, "max_angle": 100 }
   ]
 }

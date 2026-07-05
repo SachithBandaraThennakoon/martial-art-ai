@@ -10,119 +10,62 @@ const BODY_CONNECTIONS = [
   [23, 25],
   [25, 27],
   [24, 26],
-  [26, 28],
-  [28, 32],
-  [27, 31],
-  [28, 30],
-  [30, 32],
-  [27, 29],
-  [29, 31],
-  [15, 17],
-  [17, 19],
-  [19, 15],
-  [16, 18],
-  [18, 20],
-  [20, 16]
+  [26, 28]
 ];
 
-const HAND_CONNECTIONS = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  [3, 4],
-  [0, 5],
-  [5, 6],
-  [6, 7],
-  [7, 8],
-  [0, 9],
-  [9, 10],
-  [10, 11],
-  [11, 12],
-  [0, 13],
-  [13, 14],
-  [14, 15],
-  [15, 16],
-  [0, 17],
-  [17, 18],
-  [18, 19],
-  [19, 20]
-];
+const KEY_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+const SKELETON_SCALE = 0.7;
+const MIN_VISIBILITY = 0.35;
 
-export function drawSkeleton(canvas, poseLandmarks, handLandmarksList) {
+function fitLivePoint(point) {
+  return {
+    ...point,
+    x: 0.5 + (point.x - 0.5) * SKELETON_SCALE,
+    y: 0.5 + (point.y - 0.5) * SKELETON_SCALE
+  };
+}
+
+function isVisible(point) {
+  return point && (point.visibility == null || point.visibility >= MIN_VISIBILITY);
+}
+
+export function drawSkeleton(canvas, poseLandmarks) {
   if (!canvas || !poseLandmarks) return;
 
-  const ctx = canvas.getContext("2d");
-  const w = canvas.width;
-  const h = canvas.height;
+  const ctx = canvas.getContext("2d", { alpha: true });
+  const width = canvas.width;
+  const height = canvas.height;
+  const points = poseLandmarks.map(fitLivePoint);
 
-  ctx.clearRect(0, 0, w, h);
-
+  ctx.clearRect(0, 0, width, height);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
   ctx.strokeStyle = "#ffffff";
   ctx.fillStyle = "#ffffff";
-  ctx.lineCap = "round";
-  ctx.shadowColor = "rgba(255, 255, 255, 0.32)";
-  ctx.shadowBlur = 5;
+  ctx.shadowColor = "rgba(255, 255, 255, 0.22)";
+  ctx.shadowBlur = 4;
 
-  const fitLivePoint = (point) => ({
-    ...point,
-    x: 0.5 + (point.x - 0.5) * 0.7,
-    y: 0.5 + (point.y - 0.5) * 0.7
-  });
+  BODY_CONNECTIONS.forEach(([fromIndex, toIndex]) => {
+    const from = points[fromIndex];
+    const to = points[toIndex];
 
-  const fittedPoseLandmarks = poseLandmarks.map(fitLivePoint);
+    if (!isVisible(from) || !isVisible(to)) return;
 
-  const drawBone = (a, b, thickness = 4) => {
-    ctx.lineWidth = thickness;
+    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.moveTo(a.x * w, a.y * h);
-    ctx.lineTo(b.x * w, b.y * h);
+    ctx.moveTo(from.x * width, from.y * height);
+    ctx.lineTo(to.x * width, to.y * height);
     ctx.stroke();
-  };
-
-  const drawJoint = (p, size = 3) => {
-    ctx.beginPath();
-    ctx.arc(p.x * w, p.y * h, size, 0, Math.PI * 2);
-    ctx.fill();
-  };
-
-  BODY_CONNECTIONS.forEach(([a, b]) => {
-    drawBone(fittedPoseLandmarks[a], fittedPoseLandmarks[b], 6);
   });
 
-  fittedPoseLandmarks.forEach(p => drawJoint(p, 3));
+  ctx.shadowBlur = 2;
+  KEY_JOINTS.forEach((index) => {
+    const point = points[index];
 
-  // =========================
-  // HAND LOCKING
-  // =========================
-  if (handLandmarksList) {
+    if (!isVisible(point)) return;
 
-    handLandmarksList.forEach(hand => {
-
-      const handWrist = hand[0];
-
-      // Find closest body wrist
-      const leftWrist = poseLandmarks[15];
-      const rightWrist = poseLandmarks[16];
-
-      const distLeft = Math.abs(handWrist.x - leftWrist.x);
-      const distRight = Math.abs(handWrist.x - rightWrist.x);
-
-      const anchor = distLeft < distRight ? leftWrist : rightWrist;
-
-      const offsetX = anchor.x - handWrist.x;
-      const offsetY = anchor.y - handWrist.y;
-
-      const adjustedHand = hand.map(p => fitLivePoint({
-        x: p.x + offsetX,
-        y: p.y + offsetY,
-        z: p.z
-      }));
-
-      HAND_CONNECTIONS.forEach(([a, b]) => {
-        drawBone(adjustedHand[a], adjustedHand[b], 3);
-      });
-
-      adjustedHand.forEach(p => drawJoint(p, 2));
-    });
-  }
+    ctx.beginPath();
+    ctx.arc(point.x * width, point.y * height, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }

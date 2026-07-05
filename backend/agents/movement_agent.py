@@ -11,6 +11,13 @@ BODY_PART_LABELS = {
     "ankle_left": "left ankle",
     "wrist_right": "right wrist",
     "wrist_left": "left wrist",
+    "fist_right": "right fist",
+    "fist_left": "left fist",
+    "hand_right_open": "right open hand",
+    "hand_left_open": "left open hand",
+    "face_forward": "face direction",
+    "eyes_forward": "eye focus",
+    "face_calm": "facial tension",
 }
 
 
@@ -29,6 +36,39 @@ def _target_values(part):
 
 def _label(body_part):
     return BODY_PART_LABELS.get(body_part, body_part.replace("_", " "))
+
+
+def _is_score_part(body_part):
+    return (
+        body_part.startswith("fist_")
+        or body_part.startswith("hand_")
+        or body_part.startswith("face_")
+        or body_part.startswith("eyes_")
+    )
+
+
+def _low_score_cue(body_part):
+    if body_part.startswith("fist_"):
+        return f"Close your {_label(body_part)} more."
+    if body_part.startswith("hand_"):
+        return f"Open your {_label(body_part)} more."
+    if body_part == "face_forward":
+        return "Look forward before the angle correction."
+    if body_part == "eyes_forward":
+        return "Keep your eyes forward before the angle correction."
+    if body_part == "face_calm":
+        return "Relax your face before the angle correction."
+
+    return f"Increase {_label(body_part)}."
+
+
+def _high_score_cue(body_part):
+    if body_part.startswith("fist_"):
+        return f"Relax your {_label(body_part)} slightly."
+    if body_part.startswith("hand_"):
+        return f"Close your {_label(body_part)} slightly."
+
+    return f"Ease {_label(body_part)} slightly."
 
 
 def analyze_movement(required_parts, live_angles):
@@ -60,12 +100,18 @@ def analyze_movement(required_parts, live_angles):
             difference = min_angle - value
             issue = "too_closed"
             direction = "increase"
-            cue = f"Increase {_label(body_part)} {int(round(difference))} degrees."
+            if _is_score_part(body_part):
+                cue = _low_score_cue(body_part)
+            else:
+                cue = f"Increase {_label(body_part)} {int(round(difference))} degrees."
         elif value > max_angle:
             difference = value - max_angle
             issue = "too_open"
             direction = "decrease"
-            cue = f"Decrease {_label(body_part)} {int(round(difference))} degrees."
+            if _is_score_part(body_part):
+                cue = _high_score_cue(body_part)
+            else:
+                cue = f"Decrease {_label(body_part)} {int(round(difference))} degrees."
         else:
             target_center = (min_angle + max_angle) / 2
             difference = abs(value - target_center)
@@ -82,6 +128,7 @@ def analyze_movement(required_parts, live_angles):
             "difference": difference,
             "degree_delta": int(round(difference)),
             "direction": direction,
+            "unit": "score" if _is_score_part(body_part) else "degrees",
             "severity": difference if issue != "good" else 0,
             "cue": cue
         })

@@ -415,6 +415,11 @@ async def train(websocket: WebSocket):
                     db.commit()
 
                 if not sent_initial_greeting:
+                    if coach.state in {"confirm_session_complete", "session_complete"}:
+                        coach._reset_temporal_focus(keep_ready=True)
+                        coach.state = "observe_pose"
+                        coach.completed_steps.clear()
+                        coach.last_accuracy = 0
                     message = coach.initial_greeting()
                     action = "confirm_start"
                     sent_initial_greeting = True

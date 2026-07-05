@@ -1,5 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import AwarenessPanel from "../components/AwarenessPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import MetricsPanel from "../components/MetricsPanel";
 import { AuthContext } from "../context/auth";
@@ -76,6 +77,7 @@ export default function TrainMode({
   const [accuracy, setAccuracy] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [coachEvent, setCoachEvent] = useState(null);
+  const [awareness, setAwareness] = useState(null);
   const [voiceEnabled] = useState(true);
   const voiceProfile = "calmMale";
   const [coachInput, setCoachInput] = useState("");
@@ -150,7 +152,15 @@ export default function TrainMode({
   }, [steps.length]);
 
   const appendConversation = useCallback((item) => {
-    setConversation((items) => [...items.slice(-7), item]);
+    setConversation((items) => {
+      const lastItem = items[items.length - 1];
+
+      if (lastItem?.role === item.role && lastItem?.text === item.text) {
+        return items;
+      }
+
+      return [...items.slice(-7), item];
+    });
   }, []);
 
   const handleCoachEvent = useCallback((event) => {
@@ -179,6 +189,14 @@ export default function TrainMode({
       } else {
         goToNextStep();
       }
+      return;
+    }
+
+    if (
+      event?.action === "session_complete_prompt" &&
+      Number.isInteger(event.current_step_index)
+    ) {
+      goToStepIndex(event.current_step_index);
       return;
     }
 
@@ -261,6 +279,8 @@ export default function TrainMode({
       currentAudioRef.current.src = "";
       currentAudioRef.current = null;
     }
+
+    window.speechSynthesis?.cancel();
   }, [clearVoiceWords]);
 
   const sendCoachMessage = useCallback((message) => {
@@ -503,6 +523,40 @@ export default function TrainMode({
     return played;
   }, [startVoiceWordProgress]);
 
+  const playBrowserVoice = useCallback(async (message, requestId) => {
+    if (!window.speechSynthesis || requestId !== voiceRequestIdRef.current) {
+      return false;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = "en-US";
+    utterance.pitch = VOICE_PROFILES[voiceProfile].pitch;
+    utterance.rate = VOICE_PROFILES[voiceProfile].rate;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        resolve(ok);
+      };
+
+      utterance.onstart = () => {
+        setVoiceState("speaking");
+        startVoiceWordProgress();
+      };
+      utterance.onend = () => finish(true);
+      utterance.onerror = () => finish(false);
+      window.speechSynthesis.speak(utterance);
+      window.setTimeout(
+        () => finish(true),
+        Math.max(1800, splitVoiceWords(message).length * 520)
+      );
+    });
+  }, [startVoiceWordProgress, voiceProfile]);
+
   const speakWithBestVoice = useCallback(async (message, requestId) => {
     const cacheKey = getNaturalVoiceKey(message);
     const cached = naturalVoiceCacheRef.current.get(cacheKey);
@@ -516,12 +570,16 @@ export default function TrainMode({
     const naturalVoice = await fetchNaturalVoice(message);
 
     if (!naturalVoice || requestId !== voiceRequestIdRef.current) {
-      setVoiceState("idle");
+      await playBrowserVoice(message, requestId);
       return;
     }
 
-    await playNaturalAudio(message, naturalVoice, requestId);
-  }, [fetchNaturalVoice, getNaturalVoiceKey, playNaturalAudio]);
+    const played = await playNaturalAudio(message, naturalVoice, requestId);
+
+    if (!played) {
+      await playBrowserVoice(message, requestId);
+    }
+  }, [fetchNaturalVoice, getNaturalVoiceKey, playBrowserVoice, playNaturalAudio]);
 
   const playVoiceQueue = useCallback(async () => {
     if (isSpeakingRef.current || !voiceEnabled) {
@@ -561,7 +619,7 @@ export default function TrainMode({
     }
 
     lastSpokenMessageRef.current = trimmed;
-    voiceQueueRef.current = [...voiceQueueRef.current, trimmed];
+    voiceQueueRef.current = [trimmed];
     playVoiceQueue();
   }, [playVoiceQueue]);
 
@@ -641,6 +699,12 @@ export default function TrainMode({
     if (currentStepName) {
       setConversation((items) => {
         const baseItems = techniqueChanged ? [] : items;
+        const lastItem = baseItems[baseItems.length - 1];
+
+        if (lastItem?.role === "ai" && lastItem?.text === message) {
+          return baseItems;
+        }
+
         return [...baseItems.slice(-7), { role: "ai", text: message }];
       });
       lastCoachChatRef.current = message;
@@ -690,12 +754,14 @@ export default function TrainMode({
       <section className="training-stage" aria-label="Live skeleton tracking">
         <SkeletonCanvas
           enableCoach
+          enableAwareness
           currentStepId={currentStep?.id}
           currentStepName={currentStep?.step_name}
           sessionConfig={sessionConfig}
           coachCommand={coachCommand}
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
+          onAwarenessUpdate={setAwareness}
           onAccuracyUpdate={setAccuracy}
           onFeedbackUpdate={setFeedback}
           onSummaryUpdate={setFeedback}
@@ -735,6 +801,10 @@ export default function TrainMode({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="panel-block panel-block--awareness">
+          <AwarenessPanel awareness={awareness} />
         </div>
       </aside>
 

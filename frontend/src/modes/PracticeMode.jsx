@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AwarenessPanel from "../components/AwarenessPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
@@ -107,6 +108,7 @@ export default function PracticeMode({
   const [assistantMessage, setAssistantMessage] = useState(
     "Choose a count and start practice."
   );
+  const [awareness, setAwareness] = useState(null);
   const [conversation, setConversation] = useState([
     { role: "ai", text: "Choose a count and say start when ready." }
   ]);
@@ -752,8 +754,10 @@ export default function PracticeMode({
       >
         <SkeletonCanvas
           enableCoach={false}
+          enableAwareness
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
+          onAwarenessUpdate={setAwareness}
           onAccuracyUpdate={() => {}}
           onFeedbackUpdate={() => {}}
           onSummaryUpdate={() => {}}
@@ -824,6 +828,10 @@ export default function PracticeMode({
           <div className="practice-progress" aria-hidden="true">
             <span style={{ width: `${steps.length ? (completedStepCount / steps.length) * 100 : 0}%` }} />
           </div>
+        </div>
+
+        <div className="panel-block panel-block--awareness">
+          <AwarenessPanel awareness={awareness} />
         </div>
 
         <div className="panel-block practice-controls">
