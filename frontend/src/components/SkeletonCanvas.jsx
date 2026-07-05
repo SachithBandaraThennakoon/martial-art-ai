@@ -27,6 +27,8 @@ const BODY_PART_MAP = {
 const POSE_FPS = 16;
 const HAND_INTERVAL_MS = 220;
 const FACE_INTERVAL_MS = 500;
+const MAX_HAND_STALE_MS = 700;
+const MAX_FACE_STALE_MS = 1200;
 const AWARENESS_INTERVAL_MS = 300;
 const COACH_SEND_INTERVAL_MS = 180;
 const MIN_LANDMARK_VISIBILITY = 0.45;
@@ -84,6 +86,50 @@ function shouldTrackHands(requiredParts = [], stepName = "") {
   return hasHandTarget || hasHandStepName;
 }
 
+function getHandEntries(handLandmarksList, poseLandmarks, handednessList = []) {
+  if (!handLandmarksList?.length) return [];
+
+  const leftWrist = poseLandmarks?.[15];
+  const rightWrist = poseLandmarks?.[16];
+  const canUsePoseWrists = leftWrist && rightWrist;
+  const entries = handLandmarksList.map((hand, index) => {
+    const handednessLabel =
+      handednessList?.[index]?.[0]?.categoryName?.toLowerCase?.() || "";
+
+    if (!canUsePoseWrists) {
+      return {
+        hand,
+        side: handednessLabel === "left" ? "left" : "right",
+        confidence: 1
+      };
+    }
+
+    const handWrist = hand[0];
+    const leftDistance = distance(handWrist, leftWrist);
+    const rightDistance = distance(handWrist, rightWrist);
+
+    return {
+      hand,
+      side: leftDistance <= rightDistance ? "left" : "right",
+      confidence: Math.abs(leftDistance - rightDistance)
+    };
+  });
+  const usedSides = new Set();
+
+  return entries
+    .sort((first, second) => second.confidence - first.confidence)
+    .map((entry) => {
+      if (!usedSides.has(entry.side)) {
+        usedSides.add(entry.side);
+        return entry;
+      }
+
+      const fallbackSide = entry.side === "left" ? "right" : "left";
+      usedSides.add(fallbackSide);
+      return { ...entry, side: fallbackSide };
+    });
+}
+
 function getFistScore(hand) {
   const wrist = hand[0];
   const indexMcp = hand[5];
@@ -120,20 +166,13 @@ function getFistScore(hand) {
   return Math.round((fingerClosure * 0.65) + (palmClosure * 0.35));
 }
 
-function getHandAwareness(handLandmarksList, poseLandmarks) {
+function getHandAwareness(handLandmarksList, poseLandmarks, handednessList) {
   const hands = {
     left: { visible: false, fistScore: null, state: "Not visible" },
     right: { visible: false, fistScore: null, state: "Not visible" }
   };
 
-  handLandmarksList?.forEach((hand) => {
-    const handWrist = hand[0];
-    const leftWrist = poseLandmarks?.[15];
-    const rightWrist = poseLandmarks?.[16];
-    const hasPoseWrists = leftWrist && rightWrist;
-    const side = hasPoseWrists && distance(handWrist, leftWrist) < distance(handWrist, rightWrist)
-      ? "left"
-      : "right";
+  getHandEntries(handLandmarksList, poseLandmarks, handednessList).forEach(({ hand, side }) => {
     const fistScore = getFistScore(hand);
 
     hands[side] = {
@@ -147,8 +186,8 @@ function getHandAwareness(handLandmarksList, poseLandmarks) {
   return hands;
 }
 
-function getHandScores(handLandmarksList, poseLandmarks) {
-  const awareness = getHandAwareness(handLandmarksList, poseLandmarks);
+function getHandScores(handLandmarksList, poseLandmarks, handednessList) {
+  const awareness = getHandAwareness(handLandmarksList, poseLandmarks, handednessList);
   const scores = {};
 
   ["left", "right"].forEach((side) => {
@@ -261,6 +300,59 @@ function getFaceScores(faceLandmarks) {
   };
 }
 
+function createLandmarkFrame({
+  timestamp,
+  poseLandmarks,
+  angleLandmarks,
+  handLandmarksList,
+  handednessList,
+  faceLandmarks
+}) {
+  const handEntries = getHandEntries(handLandmarksList, poseLandmarks, handednessList);
+
+  return {
+    timestamp,
+    pose: poseLandmarks,
+    worldPose: angleLandmarks || poseLandmarks,
+    hands: handLandmarksList || [],
+    handedness: handednessList || [],
+    handEntries,
+    face: faceLandmarks || null
+  };
+}
+
+function getHolisticScores(frame, includeHands, includeFace) {
+  const scores = {};
+
+  if (includeHands) {
+    Object.assign(scores, getHandScores(frame.hands, frame.pose, frame.handedness));
+  }
+
+  if (includeFace) {
+    Object.assign(scores, getFaceScores(frame.face));
+  }
+
+  return scores;
+}
+
+function getCorrectionParts(requiredParts = [], anglesPayload = {}) {
+  return new Set(
+    requiredParts
+      .filter((part) => {
+        const canColorSkeleton =
+          BODY_PART_MAP[part.body_part] ||
+          part.body_part.startsWith("fist_") ||
+          part.body_part.startsWith("hand_");
+
+        if (!canColorSkeleton) return false;
+
+        const value = anglesPayload[part.body_part];
+        return Number.isFinite(value) && (value < part.min || value > part.max);
+      })
+      .map((part) => part.body_part)
+  );
+}
+
 export default function SkeletonCanvas({
   enableCoach = true,
   currentStepId,
@@ -286,7 +378,10 @@ export default function SkeletonCanvas({
   const previousPoseRef = useRef(null);
   const previousWorldPoseRef = useRef(null);
   const previousHandsRef = useRef(null);
+  const previousHandednessRef = useRef(null);
   const previousFaceRef = useRef(null);
+  const lastHandSeenTimeRef = useRef(0);
+  const lastFaceSeenTimeRef = useRef(0);
   const lastFrameTimeRef = useRef(0);
   const lastHandTimeRef = useRef(0);
   const lastFaceTimeRef = useRef(0);
@@ -521,10 +616,17 @@ export default function SkeletonCanvas({
 
       let poseLandmarks = null;
       let angleLandmarks = null;
-      let handLandmarksList = shouldTrackHandsRef.current
-        ? previousHandsRef.current
-        : null;
-      let faceLandmarks = enableAwarenessRef.current ? previousFaceRef.current : null;
+      const hasFreshHands =
+        shouldTrackHandsRef.current &&
+        previousHandsRef.current &&
+        now - lastHandSeenTimeRef.current <= MAX_HAND_STALE_MS;
+      const hasFreshFace =
+        enableAwarenessRef.current &&
+        previousFaceRef.current &&
+        now - lastFaceSeenTimeRef.current <= MAX_FACE_STALE_MS;
+      let handLandmarksList = hasFreshHands ? previousHandsRef.current : null;
+      let handednessList = hasFreshHands ? previousHandednessRef.current : null;
+      let faceLandmarks = hasFreshFace ? previousFaceRef.current : null;
 
       if (poseRef.current) {
         const result = poseRef.current.detectForVideo(videoRef.current, now);
@@ -578,7 +680,15 @@ export default function SkeletonCanvas({
           handLandmarksList = result.landmarks.map((hand, index) =>
             smoothLandmarks(hand, previousHandsRef.current?.[index])
           );
+          handednessList = result.handedness || [];
           previousHandsRef.current = handLandmarksList;
+          previousHandednessRef.current = handednessList;
+          lastHandSeenTimeRef.current = now;
+        } else if (now - lastHandSeenTimeRef.current > MAX_HAND_STALE_MS) {
+          handLandmarksList = null;
+          handednessList = null;
+          previousHandsRef.current = null;
+          previousHandednessRef.current = null;
         }
       }
 
@@ -593,28 +703,34 @@ export default function SkeletonCanvas({
         if (result.faceLandmarks.length > 0) {
           faceLandmarks = result.faceLandmarks[0];
           previousFaceRef.current = faceLandmarks;
+          lastFaceSeenTimeRef.current = now;
+        } else if (now - lastFaceSeenTimeRef.current > MAX_FACE_STALE_MS) {
+          faceLandmarks = null;
+          previousFaceRef.current = null;
         }
       }
 
       if (poseLandmarks) {
-        drawSkeleton(canvasRef.current, poseLandmarks);
-
-        const anglesPayload = {};
-
-        if (shouldTrackHandsRef.current) {
-          Object.assign(anglesPayload, getHandScores(handLandmarksList, poseLandmarks));
-        }
-
-        if (enableAwarenessRef.current) {
-          Object.assign(anglesPayload, getFaceScores(faceLandmarks));
-        }
+        const frame = createLandmarkFrame({
+          timestamp: now,
+          poseLandmarks,
+          angleLandmarks,
+          handLandmarksList,
+          handednessList,
+          faceLandmarks
+        });
+        const anglesPayload = getHolisticScores(
+          frame,
+          shouldTrackHandsRef.current,
+          enableAwarenessRef.current
+        );
 
         requiredPartsRef.current?.forEach((part) => {
           const mapping = BODY_PART_MAP[part.body_part];
 
           if (mapping) {
             const [a, b, c] = mapping;
-            const points = [angleLandmarks?.[a], angleLandmarks?.[b], angleLandmarks?.[c]];
+            const points = [frame.worldPose?.[a], frame.worldPose?.[b], frame.worldPose?.[c]];
 
             if (hasVisiblePoints(points)) {
               const angle = calculateAngle(points[0], points[1], points[2]);
@@ -625,6 +741,13 @@ export default function SkeletonCanvas({
             }
           }
         });
+
+        drawSkeleton(
+          canvasRef.current,
+          frame.pose,
+          getCorrectionParts(requiredPartsRef.current, anglesPayload),
+          frame.handEntries
+        );
 
         emitAngleUpdate(anglesPayload);
         sendCoachFrame(anglesPayload);
@@ -637,8 +760,8 @@ export default function SkeletonCanvas({
           lastAwarenessTimeRef.current = now;
           onAwarenessUpdate({
             active: true,
-            face: getFaceAwareness(faceLandmarks),
-            hands: getHandAwareness(handLandmarksList, poseLandmarks)
+            face: getFaceAwareness(frame.face),
+            hands: getHandAwareness(frame.hands, frame.pose, frame.handedness)
           });
         }
       }

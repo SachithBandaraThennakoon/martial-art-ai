@@ -13,8 +13,8 @@ BODY_PART_LABELS = {
     "wrist_left": "left wrist",
     "fist_right": "right fist",
     "fist_left": "left fist",
-    "hand_right_open": "right open hand",
-    "hand_left_open": "left open hand",
+    "hand_right_open": "right hand",
+    "hand_left_open": "left hand",
     "face_forward": "face direction",
     "eyes_forward": "eye focus",
     "face_calm": "facial tension",
@@ -49,9 +49,9 @@ def _is_score_part(body_part):
 
 def _low_score_cue(body_part):
     if body_part.startswith("fist_"):
-        return f"Close your {_label(body_part)} more."
+        return f"Curl your fingers into a tighter {_label(body_part)}."
     if body_part.startswith("hand_"):
-        return f"Open your {_label(body_part)} more."
+        return f"Open your {_label(body_part)} and extend the fingers."
     if body_part == "face_forward":
         return "Look forward before the angle correction."
     if body_part == "eyes_forward":
@@ -64,9 +64,9 @@ def _low_score_cue(body_part):
 
 def _high_score_cue(body_part):
     if body_part.startswith("fist_"):
-        return f"Relax your {_label(body_part)} slightly."
+        return f"Relax your {_label(body_part)} slightly; it is tighter than needed."
     if body_part.startswith("hand_"):
-        return f"Close your {_label(body_part)} slightly."
+        return f"Close your {_label(body_part)} slightly; it is too open for this target."
 
     return f"Ease {_label(body_part)} slightly."
 
@@ -80,6 +80,13 @@ def analyze_movement(required_parts, live_angles):
         value = live_angles.get(body_part)
 
         if value is None:
+            if body_part.startswith("fist_"):
+                missing_cue = f"Show your {_label(body_part)} so I can read the fingers."
+            elif body_part.startswith("hand_"):
+                missing_cue = f"Show your {_label(body_part)} so I can read the open hand."
+            else:
+                missing_cue = f"Show your {_label(body_part)}."
+
             analysis.append({
                 "body_part": body_part,
                 "label": _label(body_part),
@@ -90,7 +97,7 @@ def analyze_movement(required_parts, live_angles):
                 "degree_delta": None,
                 "direction": "show",
                 "severity": 999,
-                "cue": f"Show your {_label(body_part)}."
+                "cue": missing_cue
             })
             continue
 
