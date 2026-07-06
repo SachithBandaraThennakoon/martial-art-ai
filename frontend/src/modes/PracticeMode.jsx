@@ -80,9 +80,12 @@ function parseCountCommand(message) {
 
 export default function PracticeMode({
   categorySlug,
+  displayMirrored = true,
   onModeChange,
   selectedTechniqueName,
-  subcategorySlug
+  subcategorySlug,
+  textEnabled = true,
+  voiceEnabled = true
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -141,13 +144,14 @@ export default function PracticeMode({
   const greetedTechniqueRef = useRef("");
 
   const appendConversation = useCallback((item) => {
+    if (!textEnabled) return;
     setConversation((items) => [...items.slice(-7), item]);
-  }, []);
+  }, [textEnabled]);
 
   const fetchPracticeVoice = useCallback(async (message) => {
     const trimmed = message.trim();
     const token = localStorage.getItem("token");
-    if (!trimmed || !token) return null;
+    if (!voiceEnabled || !trimmed || !token) return null;
 
     const cacheKey = `${PRACTICE_VOICE}:${trimmed}`;
     const cached = voiceCacheRef.current.get(cacheKey);
@@ -185,7 +189,7 @@ export default function PracticeMode({
         window.clearTimeout(timeoutId);
       }
     }
-  }, []);
+  }, [voiceEnabled]);
 
   const playPracticeAudio = useCallback(async (message, data, requestId) => {
     if (!data || requestId !== voiceRequestIdRef.current) return;
@@ -208,7 +212,7 @@ export default function PracticeMode({
   }, []);
 
   const playVoiceQueue = useCallback(async () => {
-    if (isSpeakingRef.current) return;
+    if (isSpeakingRef.current || !voiceEnabled) return;
 
     const nextMessage = voiceQueueRef.current.shift();
     if (!nextMessage) return;
@@ -229,15 +233,15 @@ export default function PracticeMode({
         }
       }
     }
-  }, [fetchPracticeVoice, playPracticeAudio]);
+  }, [fetchPracticeVoice, playPracticeAudio, voiceEnabled]);
 
   const queuePracticeVoice = useCallback((message) => {
     const trimmed = message.trim();
-    if (!trimmed) return;
+    if (!voiceEnabled || !trimmed) return;
 
     voiceQueueRef.current = [...voiceQueueRef.current, trimmed];
     playVoiceQueue();
-  }, [playVoiceQueue]);
+  }, [playVoiceQueue, voiceEnabled]);
 
   const stopPracticeVoice = useCallback(() => {
     voiceRequestIdRef.current += 1;
@@ -253,13 +257,13 @@ export default function PracticeMode({
 
   const sayPractice = useCallback((message, { speak = false, log = true } = {}) => {
     setAssistantMessage(message);
-    if (log) {
+    if (textEnabled && log) {
       appendConversation({ role: "ai", text: message });
     }
-    if (speak) {
+    if (voiceEnabled && speak) {
       queuePracticeVoice(message);
     }
-  }, [appendConversation, queuePracticeVoice]);
+  }, [appendConversation, queuePracticeVoice, textEnabled, voiceEnabled]);
 
   const postPracticeRep = useCallback(async (nextRep, repAccuracy, durationMs, focus, issue) => {
     const activeSession = sessionRef.current;
@@ -358,13 +362,17 @@ export default function PracticeMode({
       : `Step ${startIndex + 1}. I will count completed reps only. Follow each step.`;
     sayPractice(setupMessage, { speak: false });
 
-    numberAudioRef.current = await Promise.all(
-      Array.from({ length: targetReps }, (_, index) =>
-        fetchPracticeVoice(String(index + 1))
-      )
-    );
-    const setupAudio = await fetchPracticeVoice(setupMessage);
-    await playPracticeAudio(setupMessage, setupAudio, requestId);
+    numberAudioRef.current = voiceEnabled
+      ? await Promise.all(
+          Array.from({ length: targetReps }, (_, index) =>
+            fetchPracticeVoice(String(index + 1))
+          )
+        )
+      : [];
+    const setupAudio = voiceEnabled ? await fetchPracticeVoice(setupMessage) : null;
+    if (voiceEnabled) {
+      await playPracticeAudio(setupMessage, setupAudio, requestId);
+    }
     if (requestId !== voiceRequestIdRef.current) return;
     setIsReadyForRep(true);
     isReadyForRepRef.current = true;
@@ -404,7 +412,8 @@ export default function PracticeMode({
     sayPractice,
     steps,
     stopPracticeVoice,
-    targetReps
+    targetReps,
+    voiceEnabled
   ]);
 
   const startPractice = useCallback(() => {
@@ -432,6 +441,12 @@ export default function PracticeMode({
     sayPractice,
     stopPracticeVoice
   ]);
+
+  useEffect(() => {
+    if (!voiceEnabled) {
+      stopPracticeVoice();
+    }
+  }, [stopPracticeVoice, voiceEnabled]);
 
   const moveToPracticeStep = useCallback((nextIndex, { cancelSession = true } = {}) => {
     if (nextIndex < 0 || nextIndex >= steps.length) return false;
@@ -463,7 +478,9 @@ export default function PracticeMode({
     if (!trimmed) return;
 
     const normalized = trimmed.toLowerCase();
-    appendConversation({ role: "user", text: trimmed });
+    if (textEnabled) {
+      appendConversation({ role: "user", text: trimmed });
+    }
 
     const requestedCount = parseCountCommand(trimmed);
     if (requestedCount && normalized.includes("count")) {
@@ -518,7 +535,8 @@ export default function PracticeMode({
     resetPractice,
     sayPractice,
     selectedStepIndex,
-    startPractice
+    startPractice,
+    textEnabled
   ]);
 
   const handleAngleUpdate = useCallback(async (liveAngles) => {
@@ -573,12 +591,16 @@ export default function PracticeMode({
     setRepCount(nextRep);
     setCleanReps((value) => value + (repAccuracy >= CLEAN_ACCURACY ? 1 : 0));
     setAssistantMessage(String(nextRep));
-    appendConversation({ role: "ai", text: String(nextRep) });
-    await playPracticeAudio(
-      String(nextRep),
-      numberAudioRef.current[nextRep - 1],
-      voiceRequestIdRef.current
-    );
+    if (textEnabled) {
+      appendConversation({ role: "ai", text: String(nextRep) });
+    }
+    if (voiceEnabled) {
+      await playPracticeAudio(
+        String(nextRep),
+        numberAudioRef.current[nextRep - 1],
+        voiceRequestIdRef.current
+      );
+    }
     await postPracticeRep(
       nextRep,
       repAccuracy,
@@ -617,7 +639,9 @@ export default function PracticeMode({
     sayPractice,
     selectedStepIndex,
     steps.length,
-    targetReps
+    targetReps,
+    textEnabled,
+    voiceEnabled
   ]);
 
   const stopVoiceInput = useCallback((status = "Voice commands are off.") => {
@@ -755,6 +779,7 @@ export default function PracticeMode({
         <SkeletonCanvas
           enableCoach={false}
           enableAwareness
+          displayMirrored={displayMirrored}
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
           onAwarenessUpdate={setAwareness}
@@ -775,7 +800,7 @@ export default function PracticeMode({
               <span className="master-focus">Focus: {formatBodyPart(focusBodyPart)}</span>
             ) : null}
           </div>
-          <span>{assistantMessage}</span>
+          <span>{textEnabled ? assistantMessage : "Text feedback is off."}</span>
         </div>
       </div>
 
@@ -831,7 +856,7 @@ export default function PracticeMode({
         </div>
 
         <div className="panel-block panel-block--awareness">
-          <AwarenessPanel awareness={awareness} />
+          <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
         </div>
 
         <div className="panel-block practice-controls">
@@ -926,15 +951,19 @@ export default function PracticeMode({
         </div>
 
         <div className="conversation-log">
-          {conversation.slice(-6).map((item, index) => (
-            <p
-              className={`conversation-line conversation-line--${item.role}`}
-              key={`${item.role}-${index}-${item.text}`}
-            >
-              <span>{item.role === "ai" ? "Practice Coach" : "You"}</span>
-              {item.text}
-            </p>
-          ))}
+          {!textEnabled ? (
+            <p className="conversation-empty">Text coach is off.</p>
+          ) : (
+            conversation.slice(-6).map((item, index) => (
+              <p
+                className={`conversation-line conversation-line--${item.role}`}
+                key={`${item.role}-${index}-${item.text}`}
+              >
+                <span>{item.role === "ai" ? "Practice Coach" : "You"}</span>
+                {item.text}
+              </p>
+            ))
+          )}
         </div>
 
         <div className="coach-actions">

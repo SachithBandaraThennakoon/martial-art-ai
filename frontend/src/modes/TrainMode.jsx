@@ -56,9 +56,12 @@ const normalizeCoachMessage = (message) =>
 
 export default function TrainMode({
   categorySlug,
+  displayMirrored = true,
   onModeChange,
   selectedTechniqueName,
-  subcategorySlug
+  subcategorySlug,
+  textEnabled = true,
+  voiceEnabled = true
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -78,7 +81,6 @@ export default function TrainMode({
   const [feedback, setFeedback] = useState("");
   const [coachEvent, setCoachEvent] = useState(null);
   const [awareness, setAwareness] = useState(null);
-  const [voiceEnabled] = useState(true);
   const voiceProfile = "calmMale";
   const [coachInput, setCoachInput] = useState("");
   const [coachCommand, setCoachCommand] = useState(null);
@@ -114,13 +116,17 @@ export default function TrainMode({
   const currentStepName = currentStep?.step_name;
   const requiredParts = useMemo(() => currentStep?.angles || [], [currentStep]);
   const masterMessage =
-    coachEvent?.message ||
-    feedback ||
-    "Step into frame. Feedback starts when your pose is detected.";
+    textEnabled
+      ? coachEvent?.message ||
+        feedback ||
+        "Step into frame. Feedback starts when your pose is detected."
+      : "Text feedback is off.";
   const coachStateLabel =
-    ACTION_LABELS[coachEvent?.action] ||
-    ACTION_LABELS[coachEvent?.state] ||
-    "Master watching";
+    textEnabled
+      ? ACTION_LABELS[coachEvent?.action] ||
+        ACTION_LABELS[coachEvent?.state] ||
+        "Master watching"
+      : "Text off";
   const focusLabel = formatBodyPart(
     coachEvent?.focus_body_part || coachEvent?.body_part
   );
@@ -177,7 +183,7 @@ export default function TrainMode({
         event?.action !== "correct"
       );
 
-    if (shouldAddCoachMessage) {
+    if (textEnabled && shouldAddCoachMessage) {
       lastCoachChatRef.current = message;
       lastCoachChatPatternRef.current = messagePattern;
       appendConversation({ role: "ai", text: message });
@@ -208,7 +214,7 @@ export default function TrainMode({
     if (event?.action === "switch_practice" && onModeChange) {
       onModeChange("practice");
     }
-  }, [appendConversation, goToNextStep, goToStepIndex, onModeChange]);
+  }, [appendConversation, goToNextStep, goToStepIndex, onModeChange, textEnabled]);
 
   const handleAngleUpdate = useCallback((liveAngles) => {
     setAngles(liveAngles);
@@ -292,9 +298,11 @@ export default function TrainMode({
       id: `${Date.now()}-${trimmed}`,
       message: trimmed
     });
-    appendConversation({ role: "user", text: trimmed });
+    if (textEnabled) {
+      appendConversation({ role: "user", text: trimmed });
+    }
     setCoachInput("");
-  }, [appendConversation]);
+  }, [appendConversation, textEnabled]);
 
   const stopVoiceInput = useCallback((status = "Hands-free listening is off.") => {
     shouldListenRef.current = false;
@@ -696,7 +704,7 @@ export default function TrainMode({
       speak: shouldSpeakEntry
     });
 
-    if (currentStepName) {
+    if (textEnabled && currentStepName) {
       setConversation((items) => {
         const baseItems = techniqueChanged ? [] : items;
         const lastItem = baseItems[baseItems.length - 1];
@@ -710,7 +718,7 @@ export default function TrainMode({
       lastCoachChatRef.current = message;
       lastCoachChatPatternRef.current = normalizeCoachMessage(message);
     }
-  }, [currentStep?.id, currentStepName, currentTechnique?.id]);
+  }, [currentStep?.id, currentStepName, currentTechnique?.id, textEnabled]);
 
   if (!currentTechnique) {
     return (
@@ -753,8 +761,9 @@ export default function TrainMode({
     <>
       <section className="training-stage" aria-label="Live skeleton tracking">
         <SkeletonCanvas
-          enableCoach
+          enableCoach={textEnabled}
           enableAwareness
+          displayMirrored={displayMirrored}
           currentStepId={currentStep?.id}
           currentStepName={currentStep?.step_name}
           sessionConfig={sessionConfig}
@@ -804,7 +813,7 @@ export default function TrainMode({
         </div>
 
         <div className="panel-block panel-block--awareness">
-          <AwarenessPanel awareness={awareness} />
+          <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
         </div>
       </aside>
 
@@ -816,7 +825,7 @@ export default function TrainMode({
             {focusLabel ? <span className="master-focus">Focus: {focusLabel}</span> : null}
           </div>
           <span>{masterMessage}</span>
-          {voiceWords.length > 0 ? (
+          {textEnabled && voiceWords.length > 0 ? (
             <div className={`voice-word-strip voice-word-strip--${voiceState}`}>
               {voiceWords.map((word, index) => (
                 <span
@@ -842,7 +851,9 @@ export default function TrainMode({
         </div>
 
         <div className="conversation-log">
-          {conversation.length === 0 ? (
+          {!textEnabled ? (
+            <p className="conversation-empty">Text coach is off.</p>
+          ) : conversation.length === 0 ? (
             <p className="conversation-empty">Ask or answer the master.</p>
           ) : (
             conversation.slice(-6).map((item, index) => (
@@ -883,8 +894,8 @@ export default function TrainMode({
           accuracy={accuracy}
           angles={angles}
           requiredParts={requiredParts}
-          feedback={feedback}
-          coachEvent={coachEvent}
+          feedback={textEnabled ? feedback : ""}
+          coachEvent={textEnabled ? coachEvent : null}
         />
       </aside>
     </>

@@ -1,4 +1,5 @@
 import { Navigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
@@ -20,6 +21,15 @@ const MODES = {
 
 export default function TrainingStudio() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [voiceEnabled, setVoiceEnabled] = useState(
+    () => localStorage.getItem("studioVoiceEnabled") !== "false"
+  );
+  const [textEnabled, setTextEnabled] = useState(
+    () => localStorage.getItem("studioTextEnabled") !== "false"
+  );
+  const [displayMirrored, setDisplayMirrored] = useState(
+    () => localStorage.getItem("studioDisplayMirrored") !== "false"
+  );
   const requestedMode = searchParams.get("mode");
   const mode = MODES[requestedMode] ? requestedMode : "train";
   const selectedTechniqueName = searchParams.get("technique");
@@ -36,6 +46,30 @@ export default function TrainingStudio() {
       const nextParams = new URLSearchParams(currentParams);
       nextParams.set("mode", nextMode);
       return nextParams;
+    });
+  };
+
+  const toggleVoice = () => {
+    setVoiceEnabled((enabled) => {
+      const nextValue = !enabled;
+      localStorage.setItem("studioVoiceEnabled", String(nextValue));
+      return nextValue;
+    });
+  };
+
+  const toggleText = () => {
+    setTextEnabled((enabled) => {
+      const nextValue = !enabled;
+      localStorage.setItem("studioTextEnabled", String(nextValue));
+      return nextValue;
+    });
+  };
+
+  const toggleMirror = () => {
+    setDisplayMirrored((enabled) => {
+      const nextValue = !enabled;
+      localStorage.setItem("studioDisplayMirrored", String(nextValue));
+      return nextValue;
     });
   };
 
@@ -69,23 +103,56 @@ export default function TrainingStudio() {
             </button>
           ))}
         </div>
+
+        <div className="coach-toggles" aria-label="Coach output controls">
+          <button
+            aria-pressed={voiceEnabled}
+            className={`coach-toggle-button ${voiceEnabled ? "is-active" : ""}`}
+            onClick={toggleVoice}
+            type="button"
+          >
+            Voice {voiceEnabled ? "On" : "Off"}
+          </button>
+          <button
+            aria-pressed={textEnabled}
+            className={`coach-toggle-button ${textEnabled ? "is-active" : ""}`}
+            onClick={toggleText}
+            type="button"
+          >
+            Text {textEnabled ? "On" : "Off"}
+          </button>
+          <button
+            aria-pressed={displayMirrored}
+            className={`coach-toggle-button ${displayMirrored ? "is-active" : ""}`}
+            onClick={toggleMirror}
+            type="button"
+          >
+            Mirror {displayMirrored ? "On" : "Off"}
+          </button>
+        </div>
       </div>
 
       {mode === "train" ? (
         <TrainMode
           categorySlug={categorySlug}
+          displayMirrored={displayMirrored}
           key={`${categorySlug}-${subcategorySlug}-${selectedTechniqueName}`}
           onModeChange={updateMode}
           selectedTechniqueName={selectedTechniqueName}
           subcategorySlug={subcategorySlug}
+          textEnabled={textEnabled}
+          voiceEnabled={voiceEnabled}
         />
       ) : mode === "practice" ? (
         <PracticeMode
           categorySlug={categorySlug}
+          displayMirrored={displayMirrored}
           key={`practice-${categorySlug}-${subcategorySlug}-${selectedTechniqueName}`}
           onModeChange={updateMode}
           selectedTechniqueName={selectedTechniqueName}
           subcategorySlug={subcategorySlug}
+          textEnabled={textEnabled}
+          voiceEnabled={voiceEnabled}
         />
       ) : (
         <PracticeAnalysisMode onModeChange={updateMode} />

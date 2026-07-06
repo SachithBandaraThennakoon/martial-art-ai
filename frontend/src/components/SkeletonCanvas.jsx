@@ -300,6 +300,27 @@ function getFaceScores(faceLandmarks) {
   };
 }
 
+function getFaceDetailPoints(faceLandmarks) {
+  if (!faceLandmarks?.length) return [];
+
+  return faceLandmarks.map((point, index) => ({
+    index,
+    x: point.x,
+    y: point.y
+  }));
+}
+
+function getHandDetailPoints(handEntries = []) {
+  return handEntries.reduce((details, entry) => {
+    details[entry.side] = entry.hand.map((point, index) => ({
+      index,
+      x: point.x,
+      y: point.y
+    }));
+    return details;
+  }, {});
+}
+
 function createLandmarkFrame({
   timestamp,
   poseLandmarks,
@@ -355,6 +376,7 @@ function getCorrectionParts(requiredParts = [], anglesPayload = {}) {
 
 export default function SkeletonCanvas({
   enableCoach = true,
+  displayMirrored = true,
   currentStepId,
   currentStepName,
   sessionConfig,
@@ -396,6 +418,7 @@ export default function SkeletonCanvas({
   const sessionConfigRef = useRef(sessionConfig);
   const shouldTrackHandsRef = useRef(false);
   const enableAwarenessRef = useRef(enableAwareness);
+  const displayMirroredRef = useRef(displayMirrored);
   const handModelPromiseRef = useRef(null);
   const faceModelPromiseRef = useRef(null);
 
@@ -421,6 +444,7 @@ export default function SkeletonCanvas({
     requiredPartsRef.current = requiredParts;
     sessionConfigRef.current = sessionConfig;
     enableAwarenessRef.current = enableAwareness;
+    displayMirroredRef.current = displayMirrored;
     shouldTrackHandsRef.current = enableAwareness || shouldTrackHands(requiredParts, currentStepName);
 
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
@@ -433,7 +457,15 @@ export default function SkeletonCanvas({
         })
       );
     }
-  }, [currentStepId, currentStepName, enableAwareness, enableCoach, requiredParts, sessionConfig]);
+  }, [
+    currentStepId,
+    currentStepName,
+    displayMirrored,
+    enableAwareness,
+    enableCoach,
+    requiredParts,
+    sessionConfig
+  ]);
 
   useEffect(() => {
     if (!enableCoach) {
@@ -746,7 +778,7 @@ export default function SkeletonCanvas({
           canvasRef.current,
           frame.pose,
           getCorrectionParts(requiredPartsRef.current, anglesPayload),
-          frame.handEntries
+          { mirrored: displayMirroredRef.current }
         );
 
         emitAngleUpdate(anglesPayload);
@@ -761,6 +793,8 @@ export default function SkeletonCanvas({
           onAwarenessUpdate({
             active: true,
             face: getFaceAwareness(frame.face),
+            facePoints: getFaceDetailPoints(frame.face),
+            handPoints: getHandDetailPoints(frame.handEntries),
             hands: getHandAwareness(frame.hands, frame.pose, frame.handedness)
           });
         }

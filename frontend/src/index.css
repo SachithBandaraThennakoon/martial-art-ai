@@ -1042,7 +1042,7 @@ select:focus {
   z-index: 8;
   display: grid;
   gap: 12px;
-  width: min(324px, calc(100vw - 48px));
+  width: min(336px, calc(100vw - 48px));
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1091,6 +1091,31 @@ select:focus {
   background: var(--text);
   color: #050505;
   box-shadow: 0 0 28px rgba(106, 168, 255, 0.22);
+}
+
+.coach-toggles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.coach-toggle-button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.045);
+  white-space: nowrap;
+}
+
+.coach-toggle-button.is-active {
+  border-color: rgba(96, 211, 148, 0.46);
+  color: var(--text);
+  background: rgba(96, 211, 148, 0.13);
 }
 
 .studio-hub {
@@ -1210,7 +1235,7 @@ select:focus {
 .training-panel {
   position: fixed;
   z-index: 3;
-  width: min(348px, calc(100vw - 48px));
+  width: min(372px, calc(100vw - 48px));
   max-height: calc(100dvh - 124px);
   overflow: auto;
   scrollbar-width: thin;
@@ -1219,7 +1244,7 @@ select:focus {
 .training-panel--left {
   top: 88px;
   left: 24px;
-  width: min(320px, calc(100vw - 48px));
+  width: min(364px, calc(100vw - 48px));
 }
 
 .app-shell--studio .training-panel--left {
@@ -1227,9 +1252,10 @@ select:focus {
 }
 
 .training-panel--right {
-  top: 216px;
+  top: 258px;
   right: 24px;
   width: min(336px, calc(100vw - 48px));
+  max-height: calc(100dvh - 282px);
 }
 
 .panel-block {
@@ -1388,6 +1414,7 @@ select:focus {
 
 .panel-block--awareness {
   padding: 14px;
+  margin-top: 12px;
 }
 
 .awareness-panel {
@@ -1417,6 +1444,103 @@ select:focus {
   padding: 12px;
 }
 
+.face-mesh-preview,
+.hand-mesh-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(106, 168, 255, 0.12), transparent 54%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.face-mesh-preview {
+  height: 152px;
+}
+
+.face-mesh-preview svg {
+  width: min(138px, 88%);
+  height: min(138px, 88%);
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.12));
+}
+
+.face-mesh-preview line {
+  stroke: rgba(255, 255, 255, 0.42);
+  stroke-linecap: round;
+  stroke-width: 0.55;
+}
+
+.face-mesh-preview polyline {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1;
+}
+
+.face-mesh-preview__leftEye {
+  stroke: rgba(89, 243, 255, 0.92);
+}
+
+.face-mesh-preview__rightEye {
+  stroke: rgba(255, 86, 241, 0.92);
+}
+
+.face-mesh-preview__mouth {
+  stroke: rgba(255, 255, 255, 0.68);
+}
+
+.face-mesh-preview__nose {
+  stroke: rgba(255, 255, 255, 0.84);
+}
+
+.face-mesh-preview circle {
+  fill: rgba(255, 255, 255, 0.72);
+  r: 0.72px;
+}
+
+.hand-mesh-preview {
+  height: 76px;
+  margin: 7px 0 7px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08), transparent 58%),
+    rgba(0, 0, 0, 0.22);
+}
+
+.hand-mesh-preview svg {
+  width: 70px;
+  height: 70px;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.16));
+}
+
+.hand-mesh-preview line {
+  stroke: rgba(255, 255, 255, 0.66);
+  stroke-linecap: round;
+  stroke-width: 1.2;
+}
+
+.hand-mesh-preview circle {
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.face-mesh-preview.is-empty,
+.hand-mesh-preview.is-empty {
+  opacity: 0.72;
+}
+
+.face-mesh-preview span,
+.hand-mesh-preview span {
+  position: absolute;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .awareness-face__main,
 .awareness-card__head,
 .awareness-meter > div {
@@ -1444,6 +1568,17 @@ select:focus {
   text-align: right;
 }
 
+.awareness-card__head {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.awareness-card__head strong {
+  font-size: 12px;
+  text-align: left;
+}
+
 .awareness-face__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1452,8 +1587,9 @@ select:focus {
 }
 
 .awareness-face__grid div {
+  position: relative;
   min-width: 0;
-  padding: 8px;
+  padding: 8px 8px 14px;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.045);
@@ -1467,6 +1603,28 @@ select:focus {
   line-height: 1.1;
 }
 
+.awareness-face__grid i {
+  position: relative;
+  z-index: 1;
+  display: block;
+  height: 4px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: rgba(96, 211, 148, 0.9);
+  box-shadow: 0 0 14px rgba(96, 211, 148, 0.22);
+}
+
+.awareness-face__grid div::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
 .awareness-face__grid .is-good {
   border-color: rgba(96, 211, 148, 0.32);
   background: rgba(96, 211, 148, 0.1);
@@ -1477,18 +1635,24 @@ select:focus {
   background: rgba(255, 99, 99, 0.08);
 }
 
+.awareness-face__grid .is-low i {
+  background: rgba(255, 99, 99, 0.86);
+  box-shadow: 0 0 14px rgba(255, 99, 99, 0.18);
+}
+
 .awareness-face__grid .is-waiting {
   opacity: 0.7;
 }
 
 .awareness-hands {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .awareness-hand {
-  padding: 10px;
+  min-width: 0;
+  padding: 8px;
 }
 
 .awareness-hand.is-missing {
@@ -1497,23 +1661,23 @@ select:focus {
 
 .awareness-bars {
   display: grid;
-  gap: 7px;
-  margin-top: 9px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .awareness-meter {
   display: grid;
-  gap: 5px;
+  gap: 4px;
 }
 
 .awareness-meter strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .awareness-meter i {
   display: block;
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: rgba(96, 211, 148, 0.86);
   box-shadow: 0 0 16px rgba(96, 211, 148, 0.24);
@@ -1632,7 +1796,7 @@ select:focus {
 
 .conversation-crate {
   position: fixed;
-  left: 360px;
+  left: 408px;
   right: 380px;
   bottom: 20px;
   z-index: 7;
@@ -1649,7 +1813,7 @@ select:focus {
 }
 
 .app-shell--studio .conversation-crate {
-  left: 360px;
+  left: 408px;
   right: 380px;
   background: transparent;
   box-shadow: none;
@@ -1657,7 +1821,7 @@ select:focus {
 }
 
 .app-shell--studio .conversation-crate--practice {
-  left: 520px;
+  left: 508px;
   right: 380px;
 }
 
@@ -1936,7 +2100,7 @@ select:focus {
   top: 76px;
   left: 24px;
   z-index: 3;
-  width: min(420px, 30vw);
+  width: min(460px, 32vw);
   max-height: calc(100dvh - 92px);
   overflow: auto;
   scrollbar-width: thin;
@@ -2107,7 +2271,7 @@ select:focus {
   width: 100%;
   max-width: 1480px;
   margin: 0 auto;
-  padding: 164px clamp(24px, 4vw, 64px) 48px;
+  padding: 268px clamp(24px, 4vw, 64px) 48px;
 }
 
 .analysis-summary {
@@ -2228,6 +2392,84 @@ select:focus {
 .locked-access-card {
   display: grid;
   gap: 16px;
+}
+
+@media (min-width: 981px) and (max-width: 1280px) {
+  .studio-mode-switch {
+    right: 16px;
+    width: 292px;
+    padding: 12px;
+    gap: 9px;
+  }
+
+  .studio-mode-switch strong {
+    font-size: 12px;
+  }
+
+  .mode-tiles {
+    gap: 5px;
+  }
+
+  .mode-tile {
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+
+  .coach-toggles {
+    gap: 5px;
+  }
+
+  .coach-toggle-button {
+    min-height: 30px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .training-panel--left {
+    left: 16px;
+    width: min(316px, 30vw);
+  }
+
+  .practice-panel {
+    left: 16px;
+    width: min(360px, 34vw);
+  }
+
+  .training-panel--right {
+    top: 236px;
+    right: 16px;
+    width: min(292px, 29vw);
+    max-height: calc(100dvh - 252px);
+  }
+
+  .feedback-banner {
+    width: clamp(340px, 34vw, 460px);
+    padding: 14px;
+  }
+
+  .feedback-banner span {
+    font-size: clamp(18px, 1.35vw, 24px);
+  }
+
+  .conversation-crate,
+  .app-shell--studio .conversation-crate {
+    left: calc(16px + min(316px, 30vw) + 16px);
+    right: calc(16px + min(292px, 29vw) + 16px);
+  }
+
+  .app-shell--studio .conversation-crate--practice {
+    left: calc(16px + min(360px, 34vw) + 16px);
+    right: calc(16px + min(292px, 29vw) + 16px);
+  }
+
+  .conversation-line {
+    max-width: min(86%, 420px);
+  }
+
+  .analysis-panel {
+    padding-top: 250px;
+  }
 }
 
 @media (max-width: 980px) {
@@ -2387,7 +2629,7 @@ select:focus {
     order: 0;
     right: auto;
     left: auto;
-    width: min(420px, 100%);
+    width: min(460px, 100%);
     margin-bottom: 12px;
     padding: 5px;
     gap: 0;
@@ -2409,6 +2651,18 @@ select:focus {
     padding: 0 8px;
     border-radius: 999px;
     font-size: 13px;
+  }
+
+  .coach-toggles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .coach-toggle-button {
+    min-height: 28px;
+    border-radius: 999px;
+    font-size: 11px;
   }
 
   .feedback-banner span {
@@ -2764,15 +3018,15 @@ select:focus {
   .practice-panel {
     top: 76px;
     left: 12px;
-    width: min(250px, 30vw);
+    width: min(292px, 32vw);
     max-height: calc(100dvh - 88px);
   }
 
   .training-panel--right {
-    top: 148px;
+    top: 158px;
     right: 12px;
     width: min(260px, 31vw);
-    max-height: calc(100dvh - 160px);
+    max-height: calc(100dvh - 170px);
     padding: 0;
     border: 0;
     background: transparent;
