@@ -10,6 +10,7 @@ import Studio from "./pages/Studio";
 import Training from "./pages/Training";
 import CategoryPage from "./pages/CategoryPage";
 import Pricing from "./pages/Pricing";
+import ModelTestPage from "./pages/ModelTestPage";
 
 function AppRoutes() {
   const location = useLocation();
@@ -23,6 +24,7 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/categories/:categorySlug" element={<CategoryPage />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/model-test" element={<ModelTestPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 

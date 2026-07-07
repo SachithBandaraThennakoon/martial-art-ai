@@ -1,6 +1,9 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import ActionSkeletonOverlay from "../components/ActionSkeletonOverlay";
 import AwarenessPanel from "../components/AwarenessPanel";
+import Level1DebugPanel from "../components/Level1DebugPanel";
+import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import MetricsPanel from "../components/MetricsPanel";
 import { AuthContext } from "../context/auth";
@@ -81,6 +84,9 @@ export default function TrainMode({
   const [feedback, setFeedback] = useState("");
   const [coachEvent, setCoachEvent] = useState(null);
   const [awareness, setAwareness] = useState(null);
+  const [level1State, setLevel1State] = useState(null);
+  const [level2State, setLevel2State] = useState(null);
+  const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const voiceProfile = "calmMale";
   const [coachInput, setCoachInput] = useState("");
   const [coachCommand, setCoachCommand] = useState(null);
@@ -771,11 +777,14 @@ export default function TrainMode({
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
           onAwarenessUpdate={setAwareness}
+          onLevel1Update={setLevel1State}
+          onLevel2Update={setLevel2State}
           onAccuracyUpdate={setAccuracy}
           onFeedbackUpdate={setFeedback}
           onSummaryUpdate={setFeedback}
           onCoachEvent={handleCoachEvent}
         />
+        <ActionSkeletonOverlay level2State={level2State} />
       </section>
 
       <aside className="training-panel training-panel--left">
@@ -888,6 +897,24 @@ export default function TrainMode({
       </aside>
 
       <aside className="training-panel training-panel--right">
+        <div className="panel-block advanced-analysis-toggle">
+          <button
+            aria-expanded={showAdvancedAnalysis}
+            className="advanced-analysis-button"
+            onClick={() => setShowAdvancedAnalysis((isVisible) => !isVisible)}
+            type="button"
+          >
+            Advanced Analysis
+            <span>{showAdvancedAnalysis ? "Hide" : "Expand"}</span>
+          </button>
+          {showAdvancedAnalysis ? (
+            <>
+              <Level1DebugPanel state={level1State} />
+              <Level2DebugPanel state={level2State} />
+            </>
+          ) : null}
+        </div>
+
         <MetricsPanel
           steps={steps}
           currentStepIndex={safeStepIndex}

@@ -17,6 +17,9 @@ const KEY_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
 const SKELETON_SCALE = 0.7;
 const MIN_VISIBILITY = 0.35;
 const CORRECTION_RED = "#ff3b3b";
+const PREDICTION_YELLOW = "#ffd84a";
+const ATTENTION_GREEN = "#60d394";
+const FALLBACK_ORANGE = "#ff9f43";
 
 function fitLivePoint(point, mirrored = false) {
   const x = 0.5 + (point.x - 0.5) * SKELETON_SCALE;
@@ -30,6 +33,10 @@ function fitLivePoint(point, mirrored = false) {
 
 function isVisible(point) {
   return point && (point.visibility == null || point.visibility >= MIN_VISIBILITY);
+}
+
+function isDrawablePrediction(point) {
+  return point && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 function shouldHighlight(connection, correctionParts) {
@@ -48,6 +55,50 @@ export function drawSkeleton(
   const width = canvas.width;
   const height = canvas.height;
   const points = poseLandmarks.map((point) => fitLivePoint(point, options.mirrored));
+  const predictedPoints = options.predictedLandmarks?.map((point) =>
+    fitLivePoint(point, options.mirrored)
+  );
+  const attentionPredictedPoints = options.attentionPredictedLandmarks?.map((point) =>
+    fitLivePoint(point, options.mirrored)
+  );
+  const onnxPredictedPoints = options.onnxPredictedLandmarks?.map((point) =>
+    fitLivePoint(point, options.mirrored)
+  );
+  const heuristicPredictedPoints = options.heuristicPredictedLandmarks?.map((point) =>
+    fitLivePoint(point, options.mirrored)
+  );
+  const drawPredictionLayer = (layerPoints, color, shadowColor, lineWidth = 3) => {
+    if (!layerPoints) return;
+
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = shadowColor;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = lineWidth;
+
+    BODY_CONNECTIONS.forEach((connection) => {
+      const [fromIndex, toIndex] = connection.points;
+      const from = layerPoints[fromIndex];
+      const to = layerPoints[toIndex];
+
+      if (!isDrawablePrediction(from) || !isDrawablePrediction(to)) return;
+
+      ctx.beginPath();
+      ctx.moveTo(from.x * width, from.y * height);
+      ctx.lineTo(to.x * width, to.y * height);
+      ctx.stroke();
+    });
+
+    KEY_JOINTS.forEach((index) => {
+      const point = layerPoints[index];
+
+      if (!isDrawablePrediction(point)) return;
+
+      ctx.beginPath();
+      ctx.arc(point.x * width, point.y * height, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  };
 
   ctx.clearRect(0, 0, width, height);
   ctx.lineCap = "round";
@@ -94,4 +145,14 @@ export function drawSkeleton(
     ctx.arc(point.x * width, point.y * height, isCorrection ? 4 : 3, 0, Math.PI * 2);
     ctx.fill();
   });
+
+  if (predictedPoints) {
+    drawPredictionLayer(predictedPoints, PREDICTION_YELLOW, "rgba(255, 216, 74, 0.58)", 3);
+  }
+
+  const fallbackOrangePoints = options.attentionPredictionSource === "onnx"
+    ? heuristicPredictedPoints
+    : attentionPredictedPoints;
+  drawPredictionLayer(fallbackOrangePoints, FALLBACK_ORANGE, "rgba(255, 159, 67, 0.62)", 3);
+  drawPredictionLayer(onnxPredictedPoints, ATTENTION_GREEN, "rgba(96, 211, 148, 0.62)", 3.25);
 }

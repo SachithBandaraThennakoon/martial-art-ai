@@ -7,6 +7,8 @@ import {
 } from "@mediapipe/tasks-vision";
 
 import { drawSkeleton } from "../utils/drawSkeleton";
+import { Level1MotionLayer } from "../temporal/level1MotionLayer";
+import { Level2ActionLayer } from "../temporal/level2ActionLayer";
 import { WS_BASE_URL } from "../services/api";
 
 const BODY_PART_MAP = {
@@ -388,6 +390,8 @@ export default function SkeletonCanvas({
   onSummaryUpdate,
   onCoachEvent,
   onAwarenessUpdate,
+  onLevel1Update,
+  onLevel2Update,
   enableAwareness = false
 }) {
   const videoRef = useRef(null);
@@ -421,6 +425,10 @@ export default function SkeletonCanvas({
   const displayMirroredRef = useRef(displayMirrored);
   const handModelPromiseRef = useRef(null);
   const faceModelPromiseRef = useRef(null);
+  const level1MotionRef = useRef(new Level1MotionLayer());
+  const level2ActionRef = useRef(new Level2ActionLayer());
+  const lastLevel1UpdateTimeRef = useRef(0);
+  const lastLevel2UpdateTimeRef = useRef(0);
 
   const sendCoachCommand = useCallback((command) => {
     if (!command || wsRef.current?.readyState !== WebSocket.OPEN) {
@@ -751,6 +759,14 @@ export default function SkeletonCanvas({
           handednessList,
           faceLandmarks
         });
+        const level1State = level1MotionRef.current.update(frame.pose, now);
+        const level2State = level2ActionRef.current.update({
+          level1State,
+          requiredParts: requiredPartsRef.current,
+          currentStepId: currentStepIdRef.current,
+          currentStepName: currentStepNameRef.current,
+          techniqueName: sessionConfigRef.current?.technique_name
+        });
         const anglesPayload = getHolisticScores(
           frame,
           shouldTrackHandsRef.current,
@@ -774,11 +790,28 @@ export default function SkeletonCanvas({
           }
         });
 
+        if (onLevel1Update && now - lastLevel1UpdateTimeRef.current > 250) {
+          lastLevel1UpdateTimeRef.current = now;
+          onLevel1Update(level1State);
+        }
+
+        if (onLevel2Update && level2State && now - lastLevel2UpdateTimeRef.current > 250) {
+          lastLevel2UpdateTimeRef.current = now;
+          onLevel2Update(level2State);
+        }
+
         drawSkeleton(
           canvasRef.current,
-          frame.pose,
+          level1State?.debug?.currentLandmarks || frame.pose,
           getCorrectionParts(requiredPartsRef.current, anglesPayload),
-          { mirrored: displayMirroredRef.current }
+          {
+            mirrored: displayMirroredRef.current,
+            predictedLandmarks: level1State?.debug?.predictedLandmarks,
+            attentionPredictedLandmarks: level2State?.debug?.attentionPredictedLandmarks,
+            onnxPredictedLandmarks: level2State?.debug?.onnxPredictedLandmarks,
+            heuristicPredictedLandmarks: level2State?.debug?.heuristicPredictedLandmarks,
+            attentionPredictionSource: level2State?.action_context?.attention_prediction?.source
+          }
         );
 
         emitAngleUpdate(anglesPayload);
@@ -792,6 +825,15 @@ export default function SkeletonCanvas({
           lastAwarenessTimeRef.current = now;
           onAwarenessUpdate({
             active: true,
+            level1: {
+              ready: level1State?.ready_for_next_layer || false,
+              motionContext: level1State?.motion_context,
+              tracking: level1State?.tracking
+            },
+            level2: {
+              ready: level2State?.ready_for_situation_awareness || false,
+              actionContext: level2State?.action_context
+            },
             face: getFaceAwareness(frame.face),
             facePoints: getFaceDetailPoints(frame.face),
             handPoints: getHandDetailPoints(frame.handEntries),
@@ -860,7 +902,9 @@ export default function SkeletonCanvas({
     };
   }, [
     onAngleUpdate,
-    onAwarenessUpdate
+    onAwarenessUpdate,
+    onLevel1Update,
+    onLevel2Update
   ]);
 
   useEffect(() => {

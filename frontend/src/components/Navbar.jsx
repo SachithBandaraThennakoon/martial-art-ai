@@ -60,6 +60,10 @@ export default function Navbar() {
         <NavLink to="/pricing" className={navClass}>
           Pricing
         </NavLink>
+
+        <NavLink to="/model-test" className={navClass}>
+          Model Test
+        </NavLink>
       </div>
 
       <div className="navbar__center navbar__categories" aria-label="Training categories">
