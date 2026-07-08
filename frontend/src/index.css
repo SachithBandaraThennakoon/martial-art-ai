@@ -1223,9 +1223,13 @@ select:focus {
   gap: 8px;
 }
 
+.coach-toggles--skeleton {
+  gap: 6px;
+}
+
 .coach-toggle-button {
-  min-height: 34px;
-  padding: 0 10px;
+  min-height: 32px;
+  padding: 0 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   color: var(--muted);
@@ -1374,6 +1378,17 @@ select:focus {
   backdrop-filter: blur(20px) saturate(140%);
   pointer-events: none;
   transform: translateX(-50%);
+}
+
+.action-skeleton-overlay--panel {
+  position: static;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
 }
 
 .action-skeleton-overlay__status {
@@ -2473,6 +2488,95 @@ select:focus {
 
 .level2-progress--risk i {
   background: rgba(255, 107, 107, 0.9);
+}
+
+.data-layers-panel {
+  display: grid;
+  gap: 4px;
+}
+
+.data-layer-card,
+.data-layer-recommendation {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.data-layer-card__heading {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.data-layer-card__heading > span {
+  padding: 2px 0;
+  border-radius: 3px;
+  color: #050505;
+  font-size: 10px;
+  font-weight: 900;
+  text-align: center;
+  background: var(--text);
+}
+
+.data-layer-card__heading b {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-layer-card__heading strong {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.coach-toggles--skeleton .coach-toggle-button {
+  min-height: 30px;
+  font-size: 11px;
+}
+
+.data-schema {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+}
+
+.data-schema div {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.data-schema dt {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-schema dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 800;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .level1-charts {

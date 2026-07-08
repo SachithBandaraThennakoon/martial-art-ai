@@ -46,9 +46,11 @@ class CoachSession:
     completed_steps: set[str] = field(default_factory=set)
     recent_user_messages: list[str] = field(default_factory=list)
     recent_feedback: list[str] = field(default_factory=list)
+    recent_intelligence_contexts: list[dict] = field(default_factory=list)
     body_part_trends: dict[str, dict] = field(default_factory=dict)
     last_spoken_corrections: dict[str, int] = field(default_factory=dict)
     pending_speech_focus: dict | None = None
+    last_situation_signature: str = ""
 
     def user_message(self, message):
         text = (message or "").strip()
@@ -398,6 +400,90 @@ class CoachSession:
             action="complete"
         )
 
+    def intelligence_context_event(self, packet):
+        if not isinstance(packet, dict):
+            return None
+
+        situation = packet.get("situation_awareness") or {}
+        temporal_layers = packet.get("temporal_layers") or {}
+        agent_context = situation.get("agent_context") or {}
+        feedback_decision = situation.get("feedback_decision") or {}
+        next_action = situation.get("next_action") or {}
+        reasoning = situation.get("reasoning") or {}
+        attention_target = situation.get("attention_target") or {}
+        situation_state = situation.get("situation_state") or "observing"
+
+        self.recent_intelligence_contexts = (
+            self.recent_intelligence_contexts + [
+                {
+                    "timestamp": packet.get("timestamp"),
+                    "technique": packet.get("technique"),
+                    "current_step": packet.get("current_step"),
+                    "situation_state": situation_state,
+                    "attention_target": attention_target,
+                    "feedback_decision": feedback_decision,
+                    "next_action": next_action,
+                    "reasoning": reasoning,
+                    "temporal_layers": temporal_layers,
+                }
+            ]
+        )[-8:]
+
+        if packet.get("technique"):
+            self.technique_name = packet.get("technique")
+        current_step = packet.get("current_step") or {}
+        if current_step.get("id") is not None:
+            self.current_step_key = current_step.get("id")
+        if current_step.get("name"):
+            self.current_step_name = current_step.get("name")
+
+        signature = ":".join(
+            str(value or "")
+            for value in [
+                situation_state,
+                agent_context.get("action"),
+                agent_context.get("target"),
+                agent_context.get("issue"),
+            ]
+        )
+        decision_score = reasoning.get("decision_score") or 0
+        should_speak = bool(feedback_decision.get("should_speak"))
+        important = (
+            situation_state in {"tracking_unclear", "warning", "correcting", "advance_ready"}
+            or decision_score >= 0.68
+        )
+
+        if not important or signature == self.last_situation_signature:
+            return None
+
+        self.last_situation_signature = signature
+        message = self._intelligence_message(
+            situation_state=situation_state,
+            feedback_decision=feedback_decision,
+            attention_target=attention_target,
+            next_action=next_action,
+            temporal_layers=temporal_layers,
+        )
+        action = self._coach_action_from_intelligence(situation_state, next_action)
+
+        self.active_body_part = attention_target.get("body_part") or self.active_body_part
+        self.active_issue = attention_target.get("issue") or self.active_issue
+        self.last_feedback = message
+        self.recent_feedback = (self.recent_feedback + [message])[-8:]
+
+        return self.panel_event(
+            message,
+            accuracy=int((temporal_layers.get("level3_session", {}).get("mastery_score") or 0) * 100),
+            action=action,
+            body_part=attention_target.get("body_part"),
+            issue=attention_target.get("issue"),
+            speak=should_speak,
+            intelligence_context={
+                "situation_awareness": situation,
+                "temporal_summary": temporal_layers,
+            },
+        )
+
     def initial_greeting(self):
         name_prefix = f"Hello {self.student_name}. " if self.student_name else ""
         return (
@@ -414,7 +500,8 @@ class CoachSession:
         body_part=None,
         issue=None,
         speak=True,
-        next_step_index=None
+        next_step_index=None,
+        intelligence_context=None
     ):
         event = {
             "type": "coach",
@@ -435,6 +522,7 @@ class CoachSession:
             "memory": {
                 "recent_user_messages": self.recent_user_messages,
                 "recent_feedback": self.recent_feedback,
+                "recent_intelligence_contexts": self.recent_intelligence_contexts,
                 "completed_steps": list(self.completed_steps),
                 "ready": self.is_ready,
                 "paused": self.is_paused,
@@ -448,6 +536,9 @@ class CoachSession:
 
         if next_step_index is not None:
             event["next_step_index"] = next_step_index
+
+        if intelligence_context is not None:
+            event["intelligence_context"] = intelligence_context
 
         return event
 
@@ -479,8 +570,10 @@ class CoachSession:
             "completed_steps": list(self.completed_steps),
             "recent_user_messages": self.recent_user_messages,
             "recent_feedback": self.recent_feedback,
+            "recent_intelligence_contexts": self.recent_intelligence_contexts,
             "body_part_trends": self.body_part_trends,
             "last_spoken_corrections": self.last_spoken_corrections,
+            "last_situation_signature": self.last_situation_signature,
         }
 
     def restore_memory(self, memory):
@@ -529,6 +622,48 @@ class CoachSession:
             return self.current_step_index + 1
 
         return min(self.current_step_index + 1, self.total_steps - 1)
+
+    def _intelligence_message(
+        self,
+        situation_state,
+        feedback_decision,
+        attention_target,
+        next_action,
+        temporal_layers,
+    ):
+        frontend_message = (feedback_decision.get("message") or "").strip()
+        if frontend_message:
+            return frontend_message
+
+        body_part = (attention_target.get("body_part") or "form").replace("_", " ")
+        issue = (attention_target.get("issue") or "needs attention").replace("_", " ")
+
+        if situation_state == "tracking_unclear":
+            return "Tracking is unclear. Step fully into camera view."
+        if situation_state == "warning":
+            return "Slow down. Form quality is dropping."
+        if situation_state == "correcting":
+            user_layer = temporal_layers.get("level4_user", {})
+            speed = (user_layer.get("personalization") or {}).get("recommended_speed")
+            prefix = "Slow down. " if speed == "slow" else ""
+            return f"{prefix}{body_part}: {issue}."
+        if situation_state == "advance_ready" or next_action.get("allow_next_step"):
+            return "Good consistency. Ready for the next step."
+        if situation_state == "encouraging":
+            return "Good trend. Keep the same rhythm."
+        return "Observing your movement."
+
+    def _coach_action_from_intelligence(self, situation_state, next_action):
+        command = next_action.get("command")
+        if command in {"advance_step", "unlock_next_technique"}:
+            return "advance_step"
+        if command == "fix_tracking":
+            return "ask_focus"
+        if command == "slow_down":
+            return "fatigue_warning"
+        if command == "repeat_step" or situation_state == "correcting":
+            return "correct"
+        return "observe"
 
     def _classify_user_intent(self, text):
         if any(word in text for word in ["practice", "practice mode", "free mode", "free practice"]):

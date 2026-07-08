@@ -1,0 +1,23 @@
+{
+  "model_name": "ACP-STGAT",
+  "display_name": "Action-Conditioned Physics-Informed ST-GAT",
+  "past_frames": 60,
+  "future_frames": 30,
+  "num_joints": 33,
+  "coord_dim": 3,
+  "normalization": "hip_center_origin_shoulder_or_torso_scale",
+  "opset_version": 18,
+  "input_names": [
+    "past_landmarks"
+  ],
+  "output_names": [
+    "future_landmarks"
+  ],
+  "features_inside_model": [
+    "velocity",
+    "acceleration",
+    "physics_prior",
+    "action_context",
+    "joint_attention"
+  ]
+}

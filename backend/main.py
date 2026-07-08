@@ -472,6 +472,28 @@ async def train(websocket: WebSocket):
                 await websocket.send_text(json.dumps(coach_event))
                 continue
 
+            if event_type == "coach_intelligence_context":
+                coach_event = coach.intelligence_context_event(parsed)
+                if db_ready and user_record:
+                    _save_coach_memory(db, user_record.id, coach, coach_event)
+                    last_memory_save_time = time.time()
+                if coach_event:
+                    last_feedback = coach_event["summary"]
+                    last_body_part = coach_event.get("body_part")
+                    last_issue = coach_event.get("issue")
+                    last_action = coach_event.get("action")
+                    last_feedback_time = time.time()
+                    if db_ready and training_session:
+                        _record_training_feedback(
+                            db,
+                            training_session.id,
+                            coach.current_step_key,
+                            coach.current_step_name,
+                            coach_event
+                        )
+                    await websocket.send_text(json.dumps(coach_event))
+                continue
+
             if event_type == "session_complete":
                 coach_event = coach.complete_session()
                 if db_ready and training_session:

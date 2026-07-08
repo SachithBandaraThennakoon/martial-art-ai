@@ -158,10 +158,10 @@ export default function ModelTestPage() {
       <section className="model-test-shell">
         <div className="model-test-panel model-test-panel--hero">
           <p className="eyebrow">Model test harness</p>
-          <h1>Try the motion predictor against your live skeleton</h1>
+          <h1>Try ACP-STGAT against your live skeleton</h1>
           <p>
             This page opens your camera, runs the MediaPipe pose detector, and sends the
-            live landmarks into the ONNX motion predictor so you can compare the live and
+            live landmarks into the ACP-STGAT ONNX predictor so you can compare the live and
             predicted skeletons side by side.
           </p>
         </div>
@@ -196,7 +196,7 @@ export default function ModelTestPage() {
               <h2>What to expect</h2>
               <ul>
                 <li>White skeleton = your live pose from MediaPipe.</li>
-                <li>Yellow skeleton = the ONNX model prediction.</li>
+                <li>Green skeleton = ACP-STGAT ONNX prediction.</li>
                 <li>Allow camera access if the browser asks for permission.</li>
               </ul>
             </div>

@@ -13,6 +13,10 @@ export default function Navbar() {
     location.pathname === "/studio" || location.pathname === "/training"
       ? "navbar__link active"
       : "navbar__link";
+  const adminStudioNavClass = () =>
+    location.pathname === "/admin-studio" || location.pathname === "/admin-training"
+      ? "navbar__link active"
+      : "navbar__link";
 
   return (
     <nav className="navbar">
@@ -54,6 +58,12 @@ export default function Navbar() {
         {token && (
           <NavLink to="/studio" className={studioNavClass}>
             Studio
+          </NavLink>
+        )}
+
+        {token && (
+          <NavLink to="/admin-studio" className={adminStudioNavClass}>
+            Admin Studio
           </NavLink>
         )}
 

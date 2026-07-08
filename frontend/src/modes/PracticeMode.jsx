@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ActionSkeletonOverlay from "../components/ActionSkeletonOverlay";
 import AwarenessPanel from "../components/AwarenessPanel";
+import DataLayersPanel from "../components/DataLayersPanel";
 import Level1DebugPanel from "../components/Level1DebugPanel";
 import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
@@ -88,7 +89,9 @@ export default function PracticeMode({
   selectedTechniqueName,
   subcategorySlug,
   textEnabled = true,
-  voiceEnabled = true
+  voiceEnabled = true,
+  isAdminStudio = false,
+  skeletonLayers = {}
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -117,7 +120,11 @@ export default function PracticeMode({
   const [awareness, setAwareness] = useState(null);
   const [level1State, setLevel1State] = useState(null);
   const [level2State, setLevel2State] = useState(null);
+  const [level3State, setLevel3State] = useState(null);
+  const [level4State, setLevel4State] = useState(null);
+  const [situationAwarenessState, setSituationAwarenessState] = useState(null);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
+  const [showDataLayers, setShowDataLayers] = useState(false);
   const [conversation, setConversation] = useState([
     { role: "ai", text: "Choose a count and say start when ready." }
   ]);
@@ -786,16 +793,19 @@ export default function PracticeMode({
           enableCoach={false}
           enableAwareness
           displayMirrored={displayMirrored}
+          skeletonLayers={skeletonLayers}
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
           onAwarenessUpdate={setAwareness}
           onLevel1Update={setLevel1State}
           onLevel2Update={setLevel2State}
+          onLevel3Update={setLevel3State}
+          onLevel4Update={setLevel4State}
+          onSituationAwarenessUpdate={setSituationAwarenessState}
           onAccuracyUpdate={() => {}}
           onFeedbackUpdate={() => {}}
           onSummaryUpdate={() => {}}
         />
-        <ActionSkeletonOverlay level2State={level2State} />
       </section>
 
       <div className="feedback-banner feedback-banner--practice">
@@ -868,23 +878,49 @@ export default function PracticeMode({
           <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
         </div>
 
-        <div className="panel-block advanced-analysis-toggle">
-          <button
-            aria-expanded={showAdvancedAnalysis}
-            className="advanced-analysis-button"
-            onClick={() => setShowAdvancedAnalysis((isVisible) => !isVisible)}
-            type="button"
-          >
-            Advanced Analysis
-            <span>{showAdvancedAnalysis ? "Hide" : "Expand"}</span>
-          </button>
-          {showAdvancedAnalysis ? (
-            <>
-              <Level1DebugPanel state={level1State} />
-              <Level2DebugPanel state={level2State} />
-            </>
-          ) : null}
-        </div>
+        {isAdminStudio ? (
+          <>
+            <div className="panel-block advanced-analysis-toggle">
+              <button
+                aria-expanded={showAdvancedAnalysis}
+                className="advanced-analysis-button"
+                onClick={() => setShowAdvancedAnalysis((isVisible) => !isVisible)}
+                type="button"
+              >
+                Advanced Analysis
+                <span>{showAdvancedAnalysis ? "Hide" : "Expand"}</span>
+              </button>
+              {showAdvancedAnalysis ? (
+                <>
+                  <ActionSkeletonOverlay level2State={level2State} variant="panel" />
+                  <Level1DebugPanel state={level1State} />
+                  <Level2DebugPanel state={level2State} />
+                </>
+              ) : null}
+            </div>
+
+            <div className="panel-block advanced-analysis-toggle">
+              <button
+                aria-expanded={showDataLayers}
+                className="advanced-analysis-button"
+                onClick={() => setShowDataLayers((isVisible) => !isVisible)}
+                type="button"
+              >
+                Data Layers
+                <span>{showDataLayers ? "Hide" : "Expand"}</span>
+              </button>
+              {showDataLayers ? (
+                <DataLayersPanel
+                  level1State={level1State}
+                  level2State={level2State}
+                  level3State={level3State}
+                  level4State={level4State}
+                  situationAwarenessState={situationAwarenessState}
+                />
+              ) : null}
+            </div>
+          </>
+        ) : null}
 
         <div className="panel-block practice-controls">
           <p className="eyebrow">Count</p>

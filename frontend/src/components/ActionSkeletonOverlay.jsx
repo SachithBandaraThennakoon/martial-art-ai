@@ -3,7 +3,7 @@ const formatPercent = (value) =>
 
 const formatLabel = (value) => (value ? value.replace(/_/g, " ") : "--");
 
-export default function ActionSkeletonOverlay({ level2State }) {
+export default function ActionSkeletonOverlay({ level2State, variant = "overlay" }) {
   const action = level2State?.action_context;
 
   if (!action) return null;
@@ -13,7 +13,10 @@ export default function ActionSkeletonOverlay({ level2State }) {
   const onnxError = attention.onnx_error || attention.error;
 
   return (
-    <div className="action-skeleton-overlay" aria-label="Live action analysis">
+    <div
+      className={`action-skeleton-overlay action-skeleton-overlay--${variant}`}
+      aria-label="Live action analysis"
+    >
       <div className="action-skeleton-overlay__status">
         <span>Level 2 Action</span>
         <strong>{formatLabel(action.step_state)}</strong>
@@ -36,7 +39,7 @@ export default function ActionSkeletonOverlay({ level2State }) {
       </div>
 
       <div className="action-skeleton-overlay__model">
-        <span>ST-GAT</span>
+        <span>ACP-STGAT</span>
         <strong>
           {attention.source === "onnx"
             ? `ONNX green / ${formatLabel(attention.status)}`

@@ -1,8 +1,10 @@
 import * as ort from "onnxruntime-web/wasm";
 
-const MODEL_PATH = "/models/stgat_motion_predictor.onnx?v=mediapipe33-opset18";
+const MODEL_PATH = "/models/acp_stgat_motion_predictor.onnx?v=acp-stgat-mediapipe33-opset18";
+const MODEL_NAME = "ACP-STGAT";
+const MODEL_DISPLAY_NAME = "Action-Conditioned Physics-Informed ST-GAT";
 const DEFAULT_SEQUENCE_LENGTH = 60;
-const DEFAULT_FUTURE_LENGTH = 15;
+const DEFAULT_FUTURE_LENGTH = 30;
 const DEFAULT_JOINT_COUNT = 33;
 const DEFAULT_CHANNEL_COUNT = 3;
 const BODY_ANCHOR_JOINTS = [11, 12, 23, 24];
@@ -424,6 +426,7 @@ export class StgatOnnxPredictor {
       if (!session || this.isRunning || !frames.length) return;
 
       this.isRunning = true;
+      const sourceLandmarks = currentLandmarks.map((point) => ({ ...point }));
       const { inputName, tensor, denormalize } = buildInputTensor(session, frames);
 
       session
@@ -438,9 +441,13 @@ export class StgatOnnxPredictor {
           this.latestPrediction = {
             source: "onnx",
             status: landmarks ? "ready_stabilized" : "output_shape_unsupported",
-            model_name: "Spatio-Temporal Graph Attention Transformer",
+            model_name: MODEL_NAME,
+            display_name: MODEL_DISPLAY_NAME,
             prediction_horizon_ms: actionContext?.attention_prediction_horizon_ms || null,
             landmarks,
+            source_landmarks: sourceLandmarks,
+            completed_at_ms:
+              typeof performance !== "undefined" ? performance.now() : Date.now(),
             input_names: session.inputNames,
             output_names: session.outputNames,
             output_dims: outputTensor?.dims || []
@@ -451,7 +458,8 @@ export class StgatOnnxPredictor {
             source: "onnx",
             status: "run_failed",
             error: error?.message || "ONNX inference failed",
-            model_name: "Spatio-Temporal Graph Attention Transformer"
+            model_name: MODEL_NAME,
+            display_name: MODEL_DISPLAY_NAME
           };
         })
         .finally(() => {

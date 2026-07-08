@@ -14,7 +14,8 @@ import ModelTestPage from "./pages/ModelTestPage";
 
 function AppRoutes() {
   const location = useLocation();
-  const isStudio = location.pathname === "/training";
+  const isStudio =
+    location.pathname === "/training" || location.pathname === "/admin-training";
 
   return (
     <div className={`app-shell ${isStudio ? "app-shell--studio" : ""}`}>
@@ -38,10 +39,28 @@ function AppRoutes() {
         />
 
         <Route
+          path="/admin-studio"
+          element={
+            <ProtectedRoute>
+              <Studio isAdminStudio />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/training"
           element={
             <ProtectedRoute>
               <Training />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin-training"
+          element={
+            <ProtectedRoute>
+              <Training studioMode="admin" />
             </ProtectedRoute>
           }
         />

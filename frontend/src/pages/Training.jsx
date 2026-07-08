@@ -19,8 +19,9 @@ const MODES = {
   }
 };
 
-export default function TrainingStudio() {
+export default function TrainingStudio({ studioMode = "student" }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const isAdminStudio = studioMode === "admin";
   const [voiceEnabled, setVoiceEnabled] = useState(
     () => localStorage.getItem("studioVoiceEnabled") !== "false"
   );
@@ -30,6 +31,11 @@ export default function TrainingStudio() {
   const [displayMirrored, setDisplayMirrored] = useState(
     () => localStorage.getItem("studioDisplayMirrored") !== "false"
   );
+  const [skeletonLayers, setSkeletonLayers] = useState({
+    level1: false,
+    heuristic: isAdminStudio,
+    onnx: isAdminStudio
+  });
   const requestedMode = searchParams.get("mode");
   const mode = MODES[requestedMode] ? requestedMode : "train";
   const selectedTechniqueName = searchParams.get("technique");
@@ -38,7 +44,7 @@ export default function TrainingStudio() {
   const hasTechniqueSelection = Boolean(selectedTechniqueName);
 
   if (!hasTechniqueSelection && mode !== "analysis") {
-    return <Navigate to="/studio" replace />;
+    return <Navigate to={isAdminStudio ? "/admin-studio" : "/studio"} replace />;
   }
 
   const updateMode = (nextMode) => {
@@ -73,6 +79,17 @@ export default function TrainingStudio() {
     });
   };
 
+  const toggleSkeletonLayer = (layer) => {
+    setSkeletonLayers((currentLayers) => ({
+      ...currentLayers,
+      [layer]: !currentLayers[layer]
+    }));
+  };
+
+  const activeSkeletonLayers = isAdminStudio
+    ? skeletonLayers
+    : { level1: false, heuristic: false, onnx: false, corrections: false };
+
   return (
     <main className={`training-shell ${mode === "analysis" ? "training-shell--analysis" : ""}`}>
       <div className="rotate-prompt" role="status">
@@ -85,7 +102,7 @@ export default function TrainingStudio() {
 
       <div className="studio-mode-switch" aria-label="Training Studio mode">
         <div>
-          <p className="eyebrow">Training Studio</p>
+          <p className="eyebrow">{isAdminStudio ? "Admin Studio" : "Training Studio"}</p>
           <strong>{MODES[mode].title}</strong>
         </div>
 
@@ -130,6 +147,35 @@ export default function TrainingStudio() {
             Mirror {displayMirrored ? "On" : "Off"}
           </button>
         </div>
+
+        {isAdminStudio ? (
+          <div className="coach-toggles coach-toggles--skeleton" aria-label="Research skeleton layers">
+            <button
+              aria-pressed={activeSkeletonLayers.level1}
+              className={`coach-toggle-button ${activeSkeletonLayers.level1 ? "is-active" : ""}`}
+              onClick={() => toggleSkeletonLayer("level1")}
+              type="button"
+            >
+              Yellow L1 {activeSkeletonLayers.level1 ? "On" : "Off"}
+            </button>
+            <button
+              aria-pressed={activeSkeletonLayers.heuristic}
+              className={`coach-toggle-button ${activeSkeletonLayers.heuristic ? "is-active" : ""}`}
+              onClick={() => toggleSkeletonLayer("heuristic")}
+              type="button"
+            >
+              Orange L2 {activeSkeletonLayers.heuristic ? "On" : "Off"}
+            </button>
+            <button
+              aria-pressed={activeSkeletonLayers.onnx}
+              className={`coach-toggle-button ${activeSkeletonLayers.onnx ? "is-active" : ""}`}
+              onClick={() => toggleSkeletonLayer("onnx")}
+              type="button"
+            >
+              Green ACP {activeSkeletonLayers.onnx ? "On" : "Off"}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {mode === "train" ? (
@@ -142,6 +188,8 @@ export default function TrainingStudio() {
           subcategorySlug={subcategorySlug}
           textEnabled={textEnabled}
           voiceEnabled={voiceEnabled}
+          isAdminStudio={isAdminStudio}
+          skeletonLayers={activeSkeletonLayers}
         />
       ) : mode === "practice" ? (
         <PracticeMode
@@ -153,6 +201,8 @@ export default function TrainingStudio() {
           subcategorySlug={subcategorySlug}
           textEnabled={textEnabled}
           voiceEnabled={voiceEnabled}
+          isAdminStudio={isAdminStudio}
+          skeletonLayers={activeSkeletonLayers}
         />
       ) : (
         <PracticeAnalysisMode onModeChange={updateMode} />

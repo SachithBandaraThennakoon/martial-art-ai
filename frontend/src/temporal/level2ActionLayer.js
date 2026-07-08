@@ -224,7 +224,8 @@ class SpatioTemporalGraphAttentionPredictor {
     });
 
     return {
-      model_name: "Spatio-Temporal Graph Attention Transformer",
+      model_name: "Level 2 Heuristic Predictor",
+      display_name: "Physics + Attention Fallback",
       status: "level_2_heuristic_interface_ready",
       prediction_horizon_ms: horizonMs,
       landmarks,
@@ -386,6 +387,7 @@ export class Level2ActionLayer {
         ...actionContext,
         attention_prediction: {
           model_name: modelPrediction?.model_name,
+          display_name: modelPrediction?.display_name,
           status: modelPrediction?.status,
           source: modelPrediction?.source || "heuristic_fallback",
           error: modelPrediction?.error || null,

@@ -9,6 +9,10 @@ import {
 import { drawSkeleton } from "../utils/drawSkeleton";
 import { Level1MotionLayer } from "../temporal/level1MotionLayer";
 import { Level2ActionLayer } from "../temporal/level2ActionLayer";
+import { Level3SessionLayer } from "../temporal/level3SessionLayer";
+import { Level4UserLayer } from "../temporal/level4UserLayer";
+import { SituationAwarenessLayer } from "../situationAwareness/SituationAwarenessLayer";
+import { buildCoachContextPacket } from "../situationAwareness/buildCoachContextPacket";
 import { WS_BASE_URL } from "../services/api";
 
 const BODY_PART_MAP = {
@@ -33,6 +37,7 @@ const MAX_HAND_STALE_MS = 700;
 const MAX_FACE_STALE_MS = 1200;
 const AWARENESS_INTERVAL_MS = 300;
 const COACH_SEND_INTERVAL_MS = 180;
+const COACH_CONTEXT_SEND_INTERVAL_MS = 2500;
 const MIN_LANDMARK_VISIBILITY = 0.45;
 const HAND_TRACKING_KEYWORDS = ["fist", "punch", "jab", "cross", "guard", "hand"];
 
@@ -75,6 +80,27 @@ function distance(first, second) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function compensatePredictionLatency(predictedLandmarks, sourceLandmarks, currentLandmarks) {
+  if (!predictedLandmarks?.length || !sourceLandmarks?.length || !currentLandmarks?.length) {
+    return predictedLandmarks || null;
+  }
+
+  return predictedLandmarks.map((point, index) => {
+    const source = sourceLandmarks[index];
+    const current = currentLandmarks[index];
+
+    if (!point || !source || !current) return point;
+
+    return {
+      ...point,
+      x: point.x + ((current.x || 0) - (source.x || 0)),
+      y: point.y + ((current.y || 0) - (source.y || 0)),
+      z: (point.z || 0) + ((current.z || 0) - (source.z || 0)),
+      visibility: current.visibility ?? point.visibility
+    };
+  });
 }
 
 function shouldTrackHands(requiredParts = [], stepName = "") {
@@ -379,6 +405,7 @@ function getCorrectionParts(requiredParts = [], anglesPayload = {}) {
 export default function SkeletonCanvas({
   enableCoach = true,
   displayMirrored = true,
+  skeletonLayers = {},
   currentStepId,
   currentStepName,
   sessionConfig,
@@ -392,6 +419,9 @@ export default function SkeletonCanvas({
   onAwarenessUpdate,
   onLevel1Update,
   onLevel2Update,
+  onLevel3Update,
+  onLevel4Update,
+  onSituationAwarenessUpdate,
   enableAwareness = false
 }) {
   const videoRef = useRef(null);
@@ -413,6 +443,8 @@ export default function SkeletonCanvas({
   const lastFaceTimeRef = useRef(0);
   const lastAwarenessTimeRef = useRef(0);
   const lastCoachSendTimeRef = useRef(0);
+  const lastCoachContextSendTimeRef = useRef(0);
+  const lastCoachContextSignatureRef = useRef("");
   const lastAnglePayloadRef = useRef({});
   const lastCommandIdRef = useRef(null);
   const pendingCommandRef = useRef(null);
@@ -423,12 +455,19 @@ export default function SkeletonCanvas({
   const shouldTrackHandsRef = useRef(false);
   const enableAwarenessRef = useRef(enableAwareness);
   const displayMirroredRef = useRef(displayMirrored);
+  const skeletonLayersRef = useRef(skeletonLayers);
   const handModelPromiseRef = useRef(null);
   const faceModelPromiseRef = useRef(null);
   const level1MotionRef = useRef(new Level1MotionLayer());
   const level2ActionRef = useRef(new Level2ActionLayer());
+  const level3SessionRef = useRef(new Level3SessionLayer());
+  const level4UserRef = useRef(new Level4UserLayer());
+  const situationAwarenessRef = useRef(new SituationAwarenessLayer());
   const lastLevel1UpdateTimeRef = useRef(0);
   const lastLevel2UpdateTimeRef = useRef(0);
+  const lastLevel3UpdateTimeRef = useRef(0);
+  const lastLevel4UpdateTimeRef = useRef(0);
+  const lastSituationAwarenessUpdateTimeRef = useRef(0);
 
   const sendCoachCommand = useCallback((command) => {
     if (!command || wsRef.current?.readyState !== WebSocket.OPEN) {
@@ -453,6 +492,7 @@ export default function SkeletonCanvas({
     sessionConfigRef.current = sessionConfig;
     enableAwarenessRef.current = enableAwareness;
     displayMirroredRef.current = displayMirrored;
+    skeletonLayersRef.current = skeletonLayers;
     shouldTrackHandsRef.current = enableAwareness || shouldTrackHands(requiredParts, currentStepName);
 
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
@@ -472,6 +512,7 @@ export default function SkeletonCanvas({
     enableAwareness,
     enableCoach,
     requiredParts,
+    skeletonLayers,
     sessionConfig
   ]);
 
@@ -612,6 +653,55 @@ export default function SkeletonCanvas({
           angles: anglesPayload
         })
       );
+    };
+
+    const sendCoachContextPacket = ({
+      level1State,
+      level2State,
+      level3State,
+      level4State,
+      situationAwarenessState
+    }) => {
+      const now = performance.now();
+
+      if (wsRef.current?.readyState !== WebSocket.OPEN || !currentStepIdRef.current) {
+        return;
+      }
+
+      const situation = situationAwarenessState?.situation_context;
+      const agentContext = situation?.agent_context || {};
+      const signature = [
+        situation?.situation_state,
+        agentContext.action,
+        agentContext.target,
+        agentContext.issue
+      ].join(":");
+      const changed = signature && signature !== lastCoachContextSignatureRef.current;
+      const due = now - lastCoachContextSendTimeRef.current >= COACH_CONTEXT_SEND_INTERVAL_MS;
+
+      if (!changed && !due) {
+        return;
+      }
+
+      const packet = buildCoachContextPacket({
+        level1State,
+        level2State,
+        level3State,
+        level4State,
+        situationAwarenessState,
+        mode: enableCoach ? "train" : "practice",
+        techniqueName: sessionConfigRef.current?.technique_name,
+        currentStepId: currentStepIdRef.current,
+        currentStepName: currentStepNameRef.current
+      });
+
+      if (!packet) {
+        return;
+      }
+
+      lastCoachContextSendTimeRef.current = now;
+      lastCoachContextSignatureRef.current = signature;
+      wsRef.current.send(JSON.stringify(packet));
     };
 
     const emitAngleUpdate = (anglesPayload) => {
@@ -767,6 +857,24 @@ export default function SkeletonCanvas({
           currentStepName: currentStepNameRef.current,
           techniqueName: sessionConfigRef.current?.technique_name
         });
+        const level3State = level3SessionRef.current.update({
+          level1State,
+          level2State,
+          techniqueName: sessionConfigRef.current?.technique_name,
+          currentStepName: currentStepNameRef.current
+        });
+        const level4State = level4UserRef.current.update({
+          level3State,
+          techniqueName: sessionConfigRef.current?.technique_name,
+          currentStepName: currentStepNameRef.current
+        });
+        const situationAwarenessState = situationAwarenessRef.current.update({
+          level1State,
+          level2State,
+          level3State,
+          level4State,
+          mode: enableCoach ? "train" : "practice"
+        });
         const anglesPayload = getHolisticScores(
           frame,
           shouldTrackHandsRef.current,
@@ -800,22 +908,64 @@ export default function SkeletonCanvas({
           onLevel2Update(level2State);
         }
 
+        if (onLevel3Update && level3State && now - lastLevel3UpdateTimeRef.current > 500) {
+          lastLevel3UpdateTimeRef.current = now;
+          onLevel3Update(level3State);
+        }
+
+        if (onLevel4Update && level4State && now - lastLevel4UpdateTimeRef.current > 1000) {
+          lastLevel4UpdateTimeRef.current = now;
+          onLevel4Update(level4State);
+        }
+
+        if (
+          onSituationAwarenessUpdate &&
+          situationAwarenessState &&
+          now - lastSituationAwarenessUpdateTimeRef.current > 500
+        ) {
+          lastSituationAwarenessUpdateTimeRef.current = now;
+          onSituationAwarenessUpdate(situationAwarenessState);
+        }
+
+        const latencyCompensatedOnnxLandmarks = compensatePredictionLatency(
+          level2State?.debug?.onnxPredictedLandmarks,
+          level2State?.debug?.onnxPrediction?.source_landmarks,
+          level1State?.debug?.currentLandmarks || frame.pose
+        );
+
         drawSkeleton(
           canvasRef.current,
           level1State?.debug?.currentLandmarks || frame.pose,
-          getCorrectionParts(requiredPartsRef.current, anglesPayload),
+          skeletonLayersRef.current.corrections === false
+            ? new Set()
+            : getCorrectionParts(requiredPartsRef.current, anglesPayload),
           {
             mirrored: displayMirroredRef.current,
-            predictedLandmarks: level1State?.debug?.predictedLandmarks,
-            attentionPredictedLandmarks: level2State?.debug?.attentionPredictedLandmarks,
-            onnxPredictedLandmarks: level2State?.debug?.onnxPredictedLandmarks,
-            heuristicPredictedLandmarks: level2State?.debug?.heuristicPredictedLandmarks,
+            predictedLandmarks: skeletonLayersRef.current.level1
+              ? level1State?.debug?.predictedLandmarks
+              : null,
+            attentionPredictedLandmarks: skeletonLayersRef.current.level2
+              ? level2State?.debug?.attentionPredictedLandmarks
+              : null,
+            onnxPredictedLandmarks: skeletonLayersRef.current.onnx
+              ? latencyCompensatedOnnxLandmarks
+              : null,
+            heuristicPredictedLandmarks: skeletonLayersRef.current.heuristic
+              ? level2State?.debug?.heuristicPredictedLandmarks
+              : null,
             attentionPredictionSource: level2State?.action_context?.attention_prediction?.source
           }
         );
 
         emitAngleUpdate(anglesPayload);
         sendCoachFrame(anglesPayload);
+        sendCoachContextPacket({
+          level1State,
+          level2State,
+          level3State,
+          level4State,
+          situationAwarenessState
+        });
 
         if (
           enableAwarenessRef.current &&
@@ -833,6 +983,18 @@ export default function SkeletonCanvas({
             level2: {
               ready: level2State?.ready_for_situation_awareness || false,
               actionContext: level2State?.action_context
+            },
+            level3: {
+              ready: level3State?.session_context?.ready_for_level_4 || false,
+              sessionContext: level3State?.session_context
+            },
+            level4: {
+              ready: level4State?.user_context?.progression?.ready_for_level_5 || false,
+              userContext: level4State?.user_context
+            },
+            situationAwareness: {
+              ready: Boolean(situationAwarenessState?.situation_context),
+              situationContext: situationAwarenessState?.situation_context
             },
             face: getFaceAwareness(frame.face),
             facePoints: getFaceDetailPoints(frame.face),
@@ -901,10 +1063,14 @@ export default function SkeletonCanvas({
       visionRef.current = null;
     };
   }, [
+    enableCoach,
     onAngleUpdate,
     onAwarenessUpdate,
     onLevel1Update,
-    onLevel2Update
+    onLevel2Update,
+    onLevel3Update,
+    onLevel4Update,
+    onSituationAwarenessUpdate
   ]);
 
   useEffect(() => {

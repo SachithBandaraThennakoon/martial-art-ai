@@ -74,7 +74,8 @@ export default function Level2DebugPanel({ state }) {
 
       <div className="level2-attention">
         <span>Future Model</span>
-        <strong>{attention.model_name || "Spatio-Temporal Graph Attention Transformer"}</strong>
+        <strong>{attention.model_name || "ACP-STGAT"}</strong>
+        {attention.display_name ? <small>{attention.display_name}</small> : null}
         <small>
           {attention.source ? `${attention.source} / ` : ""}
           {attention.status || "Waiting for action context"}

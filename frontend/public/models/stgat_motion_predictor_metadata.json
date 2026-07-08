@@ -1,8 +1,0 @@
-{
-  "past_frames": 60,
-  "future_frames": 15,
-  "num_joints": 33,
-  "coord_dim": 3,
-  "normalization": "hip_center_origin_shoulder_or_torso_scale",
-  "opset_version": 18
-}

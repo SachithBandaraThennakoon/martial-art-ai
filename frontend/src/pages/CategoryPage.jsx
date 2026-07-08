@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthContext } from "../context/auth";
 import { getCategoryBySlug, slugify } from "../data/techniqueCatalog";
 import { canAccessPlan, formatPlanName } from "../data/planAccess";
@@ -10,8 +10,10 @@ function formatPrice(price) {
 
 export default function CategoryPage() {
   const { categorySlug } = useParams();
+  const location = useLocation();
   const category = getCategoryBySlug(categorySlug);
   const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
+  const isAdminStudio = new URLSearchParams(location.search).get("admin") === "1";
 
   if (!category) {
     return <Navigate to="/" replace />;
@@ -23,8 +25,9 @@ export default function CategoryPage() {
         <p className="eyebrow">Main Category</p>
         <h1>{category.category}</h1>
         <p>
-          Choose a sub category, pick a technique, then open Training Studio to
-          train or practice.
+          {isAdminStudio
+            ? "Choose a sub category and technique to open Admin Studio research controls."
+            : "Choose a sub category, pick a technique, then open Training Studio to train or practice."}
         </p>
       </section>
 
@@ -70,13 +73,13 @@ export default function CategoryPage() {
                     {hasAccess ? (
                       <Link
                         className="btn btn--light btn--small"
-                        to={`/training?mode=train&category=${slugify(
+                        to={`/${isAdminStudio ? "admin-training" : "training"}?mode=train&category=${slugify(
                           category.category
                         )}&subcategory=${slugify(
                           subcategory.name
                         )}&technique=${encodeURIComponent(technique.name)}`}
                       >
-                        Studio
+                        {isAdminStudio ? "Admin Studio" : "Studio"}
                       </Link>
                     ) : (
                       <Link className="btn btn--ghost btn--small" to="/pricing">
