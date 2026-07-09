@@ -67,6 +67,7 @@ export default function TrainMode({
   textEnabled = true,
   voiceEnabled = true,
   isAdminStudio = false,
+  performanceProfile = "student",
   skeletonLayers = {}
 }) {
   const currentTechnique = useMemo(
@@ -776,6 +777,7 @@ export default function TrainMode({
         <SkeletonCanvas
           enableCoach={textEnabled}
           enableAwareness
+          performanceProfile={performanceProfile}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
           currentStepId={currentStep?.id}

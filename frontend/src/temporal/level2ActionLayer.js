@@ -7,24 +7,10 @@ const DEFAULT_CONFIG = {
   stepReadyThreshold: 0.78,
   mistakeRiskThreshold: 0.45,
   trendWindow: 12,
-  attentionPredictionHorizonMs: 500
+  attentionPredictionHorizonMs: 500,
+  onnxEnabled: false,
+  onnxIntervalMs: 900
 };
-
-const KEY_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 31, 32];
-const SKELETON_EDGES = [
-  [11, 12],
-  [11, 13],
-  [13, 15],
-  [12, 14],
-  [14, 16],
-  [11, 23],
-  [12, 24],
-  [23, 24],
-  [23, 25],
-  [25, 27],
-  [24, 26],
-  [26, 28]
-];
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -34,27 +20,6 @@ function average(values) {
   const finiteValues = values.filter(Number.isFinite);
   if (!finiteValues.length) return null;
   return finiteValues.reduce((total, value) => total + value, 0) / finiteValues.length;
-}
-
-function distance(first, second) {
-  return Math.hypot(
-    (first?.x || 0) - (second?.x || 0),
-    (first?.y || 0) - (second?.y || 0),
-    (first?.z || 0) - (second?.z || 0)
-  );
-}
-
-function normalizeWeights(entries) {
-  const total = entries.reduce((sum, entry) => sum + Math.max(entry.weight, 0), 0);
-
-  if (!total) {
-    return entries.map((entry) => ({ ...entry, weight: 0 }));
-  }
-
-  return entries.map((entry) => ({
-    ...entry,
-    weight: Number((Math.max(entry.weight, 0) / total).toFixed(4))
-  }));
 }
 
 function formatPartName(bodyPart) {
@@ -122,123 +87,6 @@ function getTrend(values) {
   return "stable";
 }
 
-class SpatioTemporalGraphAttentionPredictor {
-  predict({ level1State, actionContext, history, horizonMs }) {
-    const currentLandmarks = level1State?.debug?.currentLandmarks;
-
-    if (!currentLandmarks?.length) return null;
-
-    const horizonSeconds = horizonMs / 1000;
-    const velocity = level1State.motion_context?.velocity || {};
-    const acceleration = level1State.motion_context?.acceleration || {};
-    const mistakePart = actionContext.likely_mistake?.body_part || "";
-    const targetParts = actionContext.targets || [];
-    const spatialAttention = normalizeWeights(
-      KEY_JOINTS.map((index) => {
-        const pointVelocity = velocity[index] || { x: 0, y: 0, z: 0 };
-        const pointAcceleration = acceleration[index] || { x: 0, y: 0, z: 0 };
-        const isMistakeJoint = targetParts.some(
-          (target) =>
-            target.body_part === mistakePart &&
-            target.body_part &&
-            /wrist|elbow|knee|shoulder|hip|ankle/.test(target.body_part)
-        );
-
-        return {
-          index,
-          weight:
-            Math.hypot(pointVelocity.x, pointVelocity.y, pointVelocity.z) +
-            Math.hypot(pointAcceleration.x, pointAcceleration.y, pointAcceleration.z) * 0.12 +
-            (isMistakeJoint ? actionContext.mistake_risk : 0)
-        };
-      })
-    );
-    const temporalAttention = normalizeWeights(
-      [...history.slice(-10), { timestamp: level1State.timestamp, action_context: actionContext }]
-        .slice(-10)
-        .map((item, index) => ({
-          index,
-          timestamp: item.timestamp,
-          weight: (item.action_context?.step_probability || actionContext.step_probability || 0) +
-            (index + 1) * 0.08
-        }))
-    );
-    const graphAttention = normalizeWeights(
-      SKELETON_EDGES.map(([from, to]) => {
-        const fromVelocity = velocity[from] || { x: 0, y: 0, z: 0 };
-        const toVelocity = velocity[to] || { x: 0, y: 0, z: 0 };
-
-        return {
-          edge: [from, to],
-          weight:
-            Math.hypot(fromVelocity.x, fromVelocity.y, fromVelocity.z) +
-            Math.hypot(toVelocity.x, toVelocity.y, toVelocity.z)
-        };
-      })
-    );
-    const predictedReference = level1State.debug?.predictedLandmarks;
-    const crossAttention = normalizeWeights(
-      KEY_JOINTS.map((index) => ({
-        index,
-        weight: predictedReference?.[index]
-          ? distance(currentLandmarks[index], predictedReference[index]) +
-            (1 - actionContext.step_probability)
-          : 1 - actionContext.step_probability
-      }))
-    );
-    const spatialWeightByJoint = new Map(spatialAttention.map((entry) => [entry.index, entry.weight]));
-    const graphWeightByJoint = new Map();
-
-    graphAttention.forEach(({ edge, weight }) => {
-      edge.forEach((index) => {
-        graphWeightByJoint.set(index, (graphWeightByJoint.get(index) || 0) + weight);
-      });
-    });
-
-    const landmarks = currentLandmarks.map((point, index) => {
-      const pointVelocity = velocity[index] || { x: 0, y: 0, z: 0 };
-      const pointAcceleration = acceleration[index] || { x: 0, y: 0, z: 0 };
-      const attentionBoost = clamp(
-        1 +
-          (spatialWeightByJoint.get(index) || 0) * 1.2 +
-          (graphWeightByJoint.get(index) || 0) * 0.65,
-        1,
-        1.85
-      );
-
-      return {
-        x:
-          point.x +
-          pointVelocity.x * horizonSeconds * attentionBoost +
-          0.5 * pointAcceleration.x * horizonSeconds ** 2,
-        y:
-          point.y +
-          pointVelocity.y * horizonSeconds * attentionBoost +
-          0.5 * pointAcceleration.y * horizonSeconds ** 2,
-        z:
-          (point.z || 0) +
-          pointVelocity.z * horizonSeconds * attentionBoost +
-          0.5 * pointAcceleration.z * horizonSeconds ** 2,
-        visibility: point.visibility
-      };
-    });
-
-    return {
-      model_name: "Level 2 Heuristic Predictor",
-      display_name: "Physics + Attention Fallback",
-      status: "level_2_heuristic_interface_ready",
-      prediction_horizon_ms: horizonMs,
-      landmarks,
-      attention: {
-        spatial: spatialAttention,
-        temporal: temporalAttention,
-        graph: graphAttention,
-        cross: crossAttention
-      }
-    };
-  }
-}
-
 export class Level2ActionLayer {
   constructor(config = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -247,9 +95,8 @@ export class Level2ActionLayer {
     this.history = [];
     this.motionFrames = [];
     this.previousStepId = null;
-    this.attentionPredictor = new SpatioTemporalGraphAttentionPredictor();
+    this.lastOnnxUpdateMs = 0;
     this.onnxPredictor = new StgatOnnxPredictor();
-    this.onnxPredictor.load();
   }
 
   update({
@@ -366,21 +213,24 @@ export class Level2ActionLayer {
       motion_energy: Number(motionEnergy.toFixed(4)),
       targets: targetScores
     };
-    const attentionPrediction = this.attentionPredictor.predict({
-      level1State,
-      actionContext,
-      history: this.history,
-      horizonMs: this.config.attentionPredictionHorizonMs
-    });
-    const onnxPrediction = this.onnxPredictor.update({
-      frames: this.motionFrames,
-      currentLandmarks: level1State.debug?.currentLandmarks || [],
-      actionContext: {
-        ...actionContext,
-        attention_prediction_horizon_ms: this.config.attentionPredictionHorizonMs
-      }
-    });
-    const modelPrediction = onnxPrediction?.landmarks ? onnxPrediction : attentionPrediction;
+    const shouldUpdateOnnx =
+      this.config.onnxEnabled &&
+      timestampMs - this.lastOnnxUpdateMs >= this.config.onnxIntervalMs;
+    const onnxPrediction = shouldUpdateOnnx
+      ? this.onnxPredictor.update({
+          frames: this.motionFrames,
+          currentLandmarks: level1State.debug?.currentLandmarks || [],
+          actionContext: {
+            ...actionContext,
+            attention_prediction_horizon_ms: this.config.attentionPredictionHorizonMs
+          }
+        })
+      : this.onnxPredictor.latestPrediction;
+
+    if (shouldUpdateOnnx) {
+      this.lastOnnxUpdateMs = timestampMs;
+    }
+    const modelPrediction = onnxPrediction?.landmarks ? onnxPrediction : null;
     const actionState = {
       timestamp: level1State.timestamp,
       action_context: {
@@ -389,7 +239,7 @@ export class Level2ActionLayer {
           model_name: modelPrediction?.model_name,
           display_name: modelPrediction?.display_name,
           status: modelPrediction?.status,
-          source: modelPrediction?.source || "heuristic_fallback",
+          source: modelPrediction?.source || "none",
           error: modelPrediction?.error || null,
           onnx_status: onnxPrediction?.status || this.onnxPredictor.status,
           onnx_error: onnxPrediction?.error || null,
@@ -397,11 +247,11 @@ export class Level2ActionLayer {
           output_names: modelPrediction?.output_names || [],
           output_dims: modelPrediction?.output_dims || [],
           prediction_horizon_ms:
-            modelPrediction?.prediction_horizon_ms || attentionPrediction?.prediction_horizon_ms,
-          spatial_attention: attentionPrediction?.attention?.spatial || [],
-          temporal_attention: attentionPrediction?.attention?.temporal || [],
-          graph_attention: attentionPrediction?.attention?.graph || [],
-          cross_attention: attentionPrediction?.attention?.cross || []
+            modelPrediction?.prediction_horizon_ms || this.config.attentionPredictionHorizonMs,
+          spatial_attention: [],
+          temporal_attention: [],
+          graph_attention: [],
+          cross_attention: []
         }
       },
       ready_for_situation_awareness:
@@ -409,9 +259,7 @@ export class Level2ActionLayer {
         !confidenceLow &&
         predictionConfidence >= this.config.lowConfidenceThreshold,
       debug: {
-        attentionPredictedLandmarks: modelPrediction?.landmarks || null,
         onnxPredictedLandmarks: onnxPrediction?.landmarks || null,
-        heuristicPredictedLandmarks: attentionPrediction?.landmarks || null,
         onnxPrediction,
         history: this.history.slice(-40).map((item) => ({
           timestamp: item.timestamp,

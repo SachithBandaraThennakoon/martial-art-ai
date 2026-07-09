@@ -91,6 +91,7 @@ export default function PracticeMode({
   textEnabled = true,
   voiceEnabled = true,
   isAdminStudio = false,
+  performanceProfile = "student",
   skeletonLayers = {}
 }) {
   const currentTechnique = useMemo(
@@ -792,6 +793,7 @@ export default function PracticeMode({
         <SkeletonCanvas
           enableCoach={false}
           enableAwareness
+          performanceProfile={performanceProfile}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
           requiredParts={requiredParts}

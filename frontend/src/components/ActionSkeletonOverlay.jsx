@@ -43,7 +43,7 @@ export default function ActionSkeletonOverlay({ level2State, variant = "overlay"
         <strong>
           {attention.source === "onnx"
             ? `ONNX green / ${formatLabel(attention.status)}`
-            : `Orange / ${formatLabel(attention.onnx_status || attention.status)}`}
+            : `Green off / ${formatLabel(attention.onnx_status || attention.status || "waiting")}`}
         </strong>
         {onnxError ? <small title={onnxError}>{onnxError}</small> : null}
       </div>

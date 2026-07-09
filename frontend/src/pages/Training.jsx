@@ -33,8 +33,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
   );
   const [skeletonLayers, setSkeletonLayers] = useState({
     level1: false,
-    heuristic: isAdminStudio,
-    onnx: isAdminStudio
+    onnx: false
   });
   const requestedMode = searchParams.get("mode");
   const mode = MODES[requestedMode] ? requestedMode : "train";
@@ -88,7 +87,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
 
   const activeSkeletonLayers = isAdminStudio
     ? skeletonLayers
-    : { level1: false, heuristic: false, onnx: false, corrections: false };
+    : { level1: false, onnx: false, corrections: false };
 
   return (
     <main className={`training-shell ${mode === "analysis" ? "training-shell--analysis" : ""}`}>
@@ -159,14 +158,6 @@ export default function TrainingStudio({ studioMode = "student" }) {
               Yellow L1 {activeSkeletonLayers.level1 ? "On" : "Off"}
             </button>
             <button
-              aria-pressed={activeSkeletonLayers.heuristic}
-              className={`coach-toggle-button ${activeSkeletonLayers.heuristic ? "is-active" : ""}`}
-              onClick={() => toggleSkeletonLayer("heuristic")}
-              type="button"
-            >
-              Orange L2 {activeSkeletonLayers.heuristic ? "On" : "Off"}
-            </button>
-            <button
               aria-pressed={activeSkeletonLayers.onnx}
               className={`coach-toggle-button ${activeSkeletonLayers.onnx ? "is-active" : ""}`}
               onClick={() => toggleSkeletonLayer("onnx")}
@@ -189,6 +180,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           textEnabled={textEnabled}
           voiceEnabled={voiceEnabled}
           isAdminStudio={isAdminStudio}
+          performanceProfile={isAdminStudio ? "admin" : "student"}
           skeletonLayers={activeSkeletonLayers}
         />
       ) : mode === "practice" ? (
@@ -202,6 +194,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           textEnabled={textEnabled}
           voiceEnabled={voiceEnabled}
           isAdminStudio={isAdminStudio}
+          performanceProfile={isAdminStudio ? "admin" : "student"}
           skeletonLayers={activeSkeletonLayers}
         />
       ) : (

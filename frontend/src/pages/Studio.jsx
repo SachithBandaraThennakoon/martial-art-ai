@@ -10,7 +10,7 @@ export default function Studio({ isAdminStudio = false }) {
           <h1>{isAdminStudio ? "Choose a research category" : "Choose a training category"}</h1>
           <p>
             {isAdminStudio
-              ? "Pick a technique to research Level 1, Level 2, heuristic, and ACP-STGAT behavior."
+              ? "Pick a technique to research Level 1, Level 2, and ACP-STGAT behavior."
               : "Pick a category, then choose a subcategory and technique to open Train or Practice mode with live tracking."}
           </p>
         </div>

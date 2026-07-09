@@ -13,6 +13,10 @@ import { Level3SessionLayer } from "../temporal/level3SessionLayer";
 import { Level4UserLayer } from "../temporal/level4UserLayer";
 import { SituationAwarenessLayer } from "../situationAwareness/SituationAwarenessLayer";
 import { buildCoachContextPacket } from "../situationAwareness/buildCoachContextPacket";
+import {
+  getAdaptiveSmoothing,
+  getStudioPerformanceConfig
+} from "../performance/studioPerformanceConfig";
 import { WS_BASE_URL } from "../services/api";
 
 const BODY_PART_MAP = {
@@ -30,14 +34,6 @@ const BODY_PART_MAP = {
   wrist_left: [13, 15, 19]
 };
 
-const POSE_FPS = 16;
-const HAND_INTERVAL_MS = 220;
-const FACE_INTERVAL_MS = 500;
-const MAX_HAND_STALE_MS = 700;
-const MAX_FACE_STALE_MS = 1200;
-const AWARENESS_INTERVAL_MS = 300;
-const COACH_SEND_INTERVAL_MS = 180;
-const COACH_CONTEXT_SEND_INTERVAL_MS = 2500;
 const MIN_LANDMARK_VISIBILITY = 0.45;
 const HAND_TRACKING_KEYWORDS = ["fist", "punch", "jab", "cross", "guard", "hand"];
 
@@ -112,6 +108,37 @@ function shouldTrackHands(requiredParts = [], stepName = "") {
   );
 
   return hasHandTarget || hasHandStepName;
+}
+
+function waitForVideoMetadata(video) {
+  if (!video) return Promise.resolve();
+  if (video.readyState >= 1 && video.videoWidth > 0 && video.videoHeight > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const finish = () => {
+      video.removeEventListener("loadedmetadata", finish);
+      resolve();
+    };
+
+    video.addEventListener("loadedmetadata", finish, { once: true });
+    window.setTimeout(finish, 1200);
+  });
+}
+
+function syncCanvasToVideo(canvas, video) {
+  if (!canvas || !video) return;
+
+  const width = video.videoWidth || 640;
+  const height = video.videoHeight || 480;
+
+  if (canvas.width !== width) {
+    canvas.width = width;
+  }
+  if (canvas.height !== height) {
+    canvas.height = height;
+  }
 }
 
 function getHandEntries(handLandmarksList, poseLandmarks, handednessList = []) {
@@ -338,6 +365,99 @@ function getFaceDetailPoints(faceLandmarks) {
   }));
 }
 
+function getPoseFaceLandmarks(poseLandmarks = []) {
+  return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    .map((index) => {
+      const point = poseLandmarks[index];
+      return point ? { ...point, index } : null;
+    })
+    .filter(Boolean);
+}
+
+function getPoseFaceAwareness(poseLandmarks) {
+  const points = getPoseFaceLandmarks(poseLandmarks);
+  const pointMap = new Map(points.map((point) => [point.index, point]));
+  const nose = pointMap.get(0);
+  const leftEye = pointMap.get(2) || pointMap.get(1) || pointMap.get(3);
+  const rightEye = pointMap.get(5) || pointMap.get(4) || pointMap.get(6);
+  const leftEar = pointMap.get(7);
+  const rightEar = pointMap.get(8);
+  const mouthLeft = pointMap.get(9);
+  const mouthRight = pointMap.get(10);
+
+  if (!nose || !leftEye || !rightEye) {
+    return {
+      visible: false,
+      focus: "Head partial",
+      forwardScore: null,
+      eyeScore: null,
+      calmScore: null,
+      expression: "--",
+      source: "pose"
+    };
+  }
+
+  const eyeCenter = {
+    x: (leftEye.x + rightEye.x) / 2,
+    y: (leftEye.y + rightEye.y) / 2
+  };
+  const eyeWidth = Math.max(distance(leftEye, rightEye), 0.001);
+  const earBalance = leftEar && rightEar
+    ? Math.abs(distance(nose, leftEar) - distance(nose, rightEar)) / Math.max(distance(leftEar, rightEar), 0.001)
+    : 0.12;
+  const yawOffset = Math.abs(nose.x - eyeCenter.x) / eyeWidth;
+  const mouthCenter = mouthLeft && mouthRight
+    ? {
+        x: (mouthLeft.x + mouthRight.x) / 2,
+        y: (mouthLeft.y + mouthRight.y) / 2
+      }
+    : { x: eyeCenter.x, y: eyeCenter.y + eyeWidth * 0.75 };
+  const pitchOffset = Math.abs(nose.y - (eyeCenter.y + mouthCenter.y) / 2) / eyeWidth;
+  const forwardScore = Math.round(
+    clamp(100 - yawOffset * 210 - earBalance * 110 - pitchOffset * 55, 0, 100)
+  );
+  const eyeScore = Math.round(clamp(100 - Math.abs(leftEye.y - rightEye.y) / eyeWidth * 190, 0, 100));
+  const mouthWidth = mouthLeft && mouthRight ? distance(mouthLeft, mouthRight) / eyeWidth : 0;
+  const calmScore = Math.round(clamp(78 - Math.max(0, mouthWidth - 0.45) * 70, 45, 92));
+  const horizontal = nose.x < eyeCenter.x - eyeWidth * 0.1
+    ? "Turned right"
+    : nose.x > eyeCenter.x + eyeWidth * 0.1
+      ? "Turned left"
+      : "Forward";
+
+  return {
+    visible: true,
+    focus: forwardScore >= 65 ? "Focused forward" : horizontal,
+    forwardScore,
+    eyeScore,
+    calmScore,
+    expression: "Pose face",
+    source: "pose"
+  };
+}
+
+function getPoseFaceScores(poseLandmarks) {
+  const awareness = getPoseFaceAwareness(poseLandmarks);
+
+  if (!awareness.visible) {
+    return {};
+  }
+
+  return {
+    face_forward: awareness.forwardScore,
+    eyes_forward: awareness.eyeScore,
+    face_calm: awareness.calmScore
+  };
+}
+
+function getPoseFaceDetailPoints(poseLandmarks) {
+  return getPoseFaceLandmarks(poseLandmarks).map((point) => ({
+    index: point.index,
+    x: point.x,
+    y: point.y
+  }));
+}
+
 function getHandDetailPoints(handEntries = []) {
   return handEntries.reduce((details, entry) => {
     details[entry.side] = entry.hand.map((point, index) => ({
@@ -377,8 +497,10 @@ function getHolisticScores(frame, includeHands, includeFace) {
     Object.assign(scores, getHandScores(frame.hands, frame.pose, frame.handedness));
   }
 
-  if (includeFace) {
+  if (includeFace && frame.face) {
     Object.assign(scores, getFaceScores(frame.face));
+  } else {
+    Object.assign(scores, getPoseFaceScores(frame.pose));
   }
 
   return scores;
@@ -422,7 +544,8 @@ export default function SkeletonCanvas({
   onLevel3Update,
   onLevel4Update,
   onSituationAwarenessUpdate,
-  enableAwareness = false
+  enableAwareness = false,
+  performanceProfile = "student"
 }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -445,6 +568,7 @@ export default function SkeletonCanvas({
   const lastCoachSendTimeRef = useRef(0);
   const lastCoachContextSendTimeRef = useRef(0);
   const lastCoachContextSignatureRef = useRef("");
+  const lastMotionQualityRef = useRef({ trackingConfidence: 0.75, motionEnergy: 0 });
   const lastAnglePayloadRef = useRef({});
   const lastCommandIdRef = useRef(null);
   const pendingCommandRef = useRef(null);
@@ -452,14 +576,16 @@ export default function SkeletonCanvas({
   const currentStepNameRef = useRef(currentStepName);
   const requiredPartsRef = useRef(requiredParts);
   const sessionConfigRef = useRef(sessionConfig);
+  const performanceConfigRef = useRef(getStudioPerformanceConfig(performanceProfile));
   const shouldTrackHandsRef = useRef(false);
+  const shouldTrackFaceRef = useRef(false);
   const enableAwarenessRef = useRef(enableAwareness);
   const displayMirroredRef = useRef(displayMirrored);
   const skeletonLayersRef = useRef(skeletonLayers);
   const handModelPromiseRef = useRef(null);
   const faceModelPromiseRef = useRef(null);
   const level1MotionRef = useRef(new Level1MotionLayer());
-  const level2ActionRef = useRef(new Level2ActionLayer());
+  const level2ActionRef = useRef(new Level2ActionLayer(getStudioPerformanceConfig(performanceProfile)));
   const level3SessionRef = useRef(new Level3SessionLayer());
   const level4UserRef = useRef(new Level4UserLayer());
   const situationAwarenessRef = useRef(new SituationAwarenessLayer());
@@ -493,7 +619,18 @@ export default function SkeletonCanvas({
     enableAwarenessRef.current = enableAwareness;
     displayMirroredRef.current = displayMirrored;
     skeletonLayersRef.current = skeletonLayers;
-    shouldTrackHandsRef.current = enableAwareness || shouldTrackHands(requiredParts, currentStepName);
+    performanceConfigRef.current = getStudioPerformanceConfig(performanceProfile, {
+      onnxEnabled: Boolean(skeletonLayers?.onnx)
+    });
+    level2ActionRef.current.config = {
+      ...level2ActionRef.current.config,
+      onnxEnabled: performanceConfigRef.current.onnxEnabled,
+      onnxIntervalMs: performanceConfigRef.current.onnxIntervalMs
+    };
+    shouldTrackHandsRef.current =
+      performanceConfigRef.current.handMode === "always" ||
+      shouldTrackHands(requiredParts, currentStepName);
+    shouldTrackFaceRef.current = Boolean(enableAwareness && performanceConfigRef.current.enableFace);
 
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
@@ -513,7 +650,8 @@ export default function SkeletonCanvas({
     enableCoach,
     requiredParts,
     skeletonLayers,
-    sessionConfig
+    sessionConfig,
+    performanceProfile
   ]);
 
   useEffect(() => {
@@ -572,9 +710,7 @@ export default function SkeletonCanvas({
     let cameraStream;
     let isDisposed = false;
 
-    const smoothing = 0.6;
-
-    const smoothLandmarks = (current, previous) => {
+    const smoothLandmarks = (current, previous, smoothing = 0.6) => {
       if (!previous || previous.length !== current.length) return current;
 
       return current.map((point, index) => ({
@@ -639,7 +775,7 @@ export default function SkeletonCanvas({
       if (
         wsRef.current?.readyState !== WebSocket.OPEN ||
         !currentStepIdRef.current ||
-        now - lastCoachSendTimeRef.current < COACH_SEND_INTERVAL_MS
+        now - lastCoachSendTimeRef.current < performanceConfigRef.current.coachFrameIntervalMs
       ) {
         return;
       }
@@ -677,7 +813,9 @@ export default function SkeletonCanvas({
         agentContext.issue
       ].join(":");
       const changed = signature && signature !== lastCoachContextSignatureRef.current;
-      const due = now - lastCoachContextSendTimeRef.current >= COACH_CONTEXT_SEND_INTERVAL_MS;
+      const due =
+        now - lastCoachContextSendTimeRef.current >=
+        performanceConfigRef.current.coachContextIntervalMs;
 
       if (!changed && !due) {
         return;
@@ -730,30 +868,34 @@ export default function SkeletonCanvas({
 
       if (
         !videoRef.current ||
-        videoRef.current.videoWidth === 0 ||
-        videoRef.current.videoHeight === 0
+        !canvasRef.current ||
+        (videoRef.current.readyState < 2 &&
+          (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0))
       ) {
         animationFrameId = requestAnimationFrame(detect);
         return;
       }
 
-      if (now - lastFrameTimeRef.current < 1000 / POSE_FPS) {
+      syncCanvasToVideo(canvasRef.current, videoRef.current);
+
+      if (now - lastFrameTimeRef.current < 1000 / performanceConfigRef.current.poseFps) {
         animationFrameId = requestAnimationFrame(detect);
         return;
       }
 
       lastFrameTimeRef.current = now;
+      const performanceConfig = performanceConfigRef.current;
 
       let poseLandmarks = null;
       let angleLandmarks = null;
       const hasFreshHands =
         shouldTrackHandsRef.current &&
         previousHandsRef.current &&
-        now - lastHandSeenTimeRef.current <= MAX_HAND_STALE_MS;
+        now - lastHandSeenTimeRef.current <= performanceConfig.maxHandStaleMs;
       const hasFreshFace =
-        enableAwarenessRef.current &&
+        shouldTrackFaceRef.current &&
         previousFaceRef.current &&
-        now - lastFaceSeenTimeRef.current <= MAX_FACE_STALE_MS;
+        now - lastFaceSeenTimeRef.current <= performanceConfig.maxFaceStaleMs;
       let handLandmarksList = hasFreshHands ? previousHandsRef.current : null;
       let handednessList = hasFreshHands ? previousHandednessRef.current : null;
       let faceLandmarks = hasFreshFace ? previousFaceRef.current : null;
@@ -762,9 +904,14 @@ export default function SkeletonCanvas({
         const result = poseRef.current.detectForVideo(videoRef.current, now);
 
         if (result.landmarks.length > 0) {
+          const poseSmoothing = getAdaptiveSmoothing({
+            trackingConfidence: lastMotionQualityRef.current.trackingConfidence,
+            motionEnergy: lastMotionQualityRef.current.motionEnergy
+          });
           poseLandmarks = smoothLandmarks(
             result.landmarks[0],
-            previousPoseRef.current
+            previousPoseRef.current,
+            poseSmoothing
           );
 
           previousPoseRef.current = poseLandmarks;
@@ -772,7 +919,8 @@ export default function SkeletonCanvas({
           if (result.worldLandmarks?.length > 0) {
             angleLandmarks = smoothLandmarks(
               result.worldLandmarks[0],
-              previousWorldPoseRef.current
+              previousWorldPoseRef.current,
+              poseSmoothing
             );
 
             previousWorldPoseRef.current = angleLandmarks;
@@ -791,7 +939,7 @@ export default function SkeletonCanvas({
       }
 
       if (
-        enableAwarenessRef.current &&
+        shouldTrackFaceRef.current &&
         !faceRef.current &&
         !faceModelPromiseRef.current
       ) {
@@ -801,20 +949,20 @@ export default function SkeletonCanvas({
       if (
         shouldTrackHandsRef.current &&
         handRef.current &&
-        now - lastHandTimeRef.current > HAND_INTERVAL_MS
+        now - lastHandTimeRef.current > performanceConfig.handIntervalMs
       ) {
         lastHandTimeRef.current = now;
         const result = handRef.current.detectForVideo(videoRef.current, now);
 
         if (result.landmarks.length > 0) {
           handLandmarksList = result.landmarks.map((hand, index) =>
-            smoothLandmarks(hand, previousHandsRef.current?.[index])
+            smoothLandmarks(hand, previousHandsRef.current?.[index], 0.5)
           );
           handednessList = result.handedness || [];
           previousHandsRef.current = handLandmarksList;
           previousHandednessRef.current = handednessList;
           lastHandSeenTimeRef.current = now;
-        } else if (now - lastHandSeenTimeRef.current > MAX_HAND_STALE_MS) {
+        } else if (now - lastHandSeenTimeRef.current > performanceConfig.maxHandStaleMs) {
           handLandmarksList = null;
           handednessList = null;
           previousHandsRef.current = null;
@@ -823,9 +971,9 @@ export default function SkeletonCanvas({
       }
 
       if (
-        enableAwarenessRef.current &&
+        shouldTrackFaceRef.current &&
         faceRef.current &&
-        now - lastFaceTimeRef.current > FACE_INTERVAL_MS
+        now - lastFaceTimeRef.current > performanceConfig.faceIntervalMs
       ) {
         lastFaceTimeRef.current = now;
         const result = faceRef.current.detectForVideo(videoRef.current, now);
@@ -834,7 +982,7 @@ export default function SkeletonCanvas({
           faceLandmarks = result.faceLandmarks[0];
           previousFaceRef.current = faceLandmarks;
           lastFaceSeenTimeRef.current = now;
-        } else if (now - lastFaceSeenTimeRef.current > MAX_FACE_STALE_MS) {
+        } else if (now - lastFaceSeenTimeRef.current > performanceConfig.maxFaceStaleMs) {
           faceLandmarks = null;
           previousFaceRef.current = null;
         }
@@ -857,6 +1005,10 @@ export default function SkeletonCanvas({
           currentStepName: currentStepNameRef.current,
           techniqueName: sessionConfigRef.current?.technique_name
         });
+        lastMotionQualityRef.current = {
+          trackingConfidence: level1State?.tracking?.confidence ?? 0.75,
+          motionEnergy: level2State?.action_context?.motion_energy ?? lastMotionQualityRef.current.motionEnergy
+        };
         const level3State = level3SessionRef.current.update({
           level1State,
           level2State,
@@ -878,7 +1030,7 @@ export default function SkeletonCanvas({
         const anglesPayload = getHolisticScores(
           frame,
           shouldTrackHandsRef.current,
-          enableAwarenessRef.current
+          shouldTrackFaceRef.current
         );
 
         requiredPartsRef.current?.forEach((part) => {
@@ -898,22 +1050,37 @@ export default function SkeletonCanvas({
           }
         });
 
-        if (onLevel1Update && now - lastLevel1UpdateTimeRef.current > 250) {
+        if (
+          onLevel1Update &&
+          now - lastLevel1UpdateTimeRef.current > performanceConfig.level1UiIntervalMs
+        ) {
           lastLevel1UpdateTimeRef.current = now;
           onLevel1Update(level1State);
         }
 
-        if (onLevel2Update && level2State && now - lastLevel2UpdateTimeRef.current > 250) {
+        if (
+          onLevel2Update &&
+          level2State &&
+          now - lastLevel2UpdateTimeRef.current > performanceConfig.level2UiIntervalMs
+        ) {
           lastLevel2UpdateTimeRef.current = now;
           onLevel2Update(level2State);
         }
 
-        if (onLevel3Update && level3State && now - lastLevel3UpdateTimeRef.current > 500) {
+        if (
+          onLevel3Update &&
+          level3State &&
+          now - lastLevel3UpdateTimeRef.current > performanceConfig.level3UiIntervalMs
+        ) {
           lastLevel3UpdateTimeRef.current = now;
           onLevel3Update(level3State);
         }
 
-        if (onLevel4Update && level4State && now - lastLevel4UpdateTimeRef.current > 1000) {
+        if (
+          onLevel4Update &&
+          level4State &&
+          now - lastLevel4UpdateTimeRef.current > performanceConfig.level4UiIntervalMs
+        ) {
           lastLevel4UpdateTimeRef.current = now;
           onLevel4Update(level4State);
         }
@@ -921,7 +1088,8 @@ export default function SkeletonCanvas({
         if (
           onSituationAwarenessUpdate &&
           situationAwarenessState &&
-          now - lastSituationAwarenessUpdateTimeRef.current > 500
+          now - lastSituationAwarenessUpdateTimeRef.current >
+            performanceConfig.situationUiIntervalMs
         ) {
           lastSituationAwarenessUpdateTimeRef.current = now;
           onSituationAwarenessUpdate(situationAwarenessState);
@@ -944,16 +1112,9 @@ export default function SkeletonCanvas({
             predictedLandmarks: skeletonLayersRef.current.level1
               ? level1State?.debug?.predictedLandmarks
               : null,
-            attentionPredictedLandmarks: skeletonLayersRef.current.level2
-              ? level2State?.debug?.attentionPredictedLandmarks
-              : null,
             onnxPredictedLandmarks: skeletonLayersRef.current.onnx
               ? latencyCompensatedOnnxLandmarks
-              : null,
-            heuristicPredictedLandmarks: skeletonLayersRef.current.heuristic
-              ? level2State?.debug?.heuristicPredictedLandmarks
-              : null,
-            attentionPredictionSource: level2State?.action_context?.attention_prediction?.source
+              : null
           }
         );
 
@@ -970,7 +1131,7 @@ export default function SkeletonCanvas({
         if (
           enableAwarenessRef.current &&
           onAwarenessUpdate &&
-          now - lastAwarenessTimeRef.current > AWARENESS_INTERVAL_MS
+          now - lastAwarenessTimeRef.current > performanceConfig.awarenessIntervalMs
         ) {
           lastAwarenessTimeRef.current = now;
           onAwarenessUpdate({
@@ -996,8 +1157,11 @@ export default function SkeletonCanvas({
               ready: Boolean(situationAwarenessState?.situation_context),
               situationContext: situationAwarenessState?.situation_context
             },
-            face: getFaceAwareness(frame.face),
-            facePoints: getFaceDetailPoints(frame.face),
+            faceEnabled: true,
+            faceSource: frame.face ? "mesh" : "pose",
+            handsEnabled: shouldTrackHandsRef.current,
+            face: frame.face ? getFaceAwareness(frame.face) : getPoseFaceAwareness(frame.pose),
+            facePoints: frame.face ? getFaceDetailPoints(frame.face) : getPoseFaceDetailPoints(frame.pose),
             handPoints: getHandDetailPoints(frame.handEntries),
             hands: getHandAwareness(frame.hands, frame.pose, frame.handedness)
           });
@@ -1016,16 +1180,18 @@ export default function SkeletonCanvas({
         }
       });
 
+      if (isDisposed || !videoRef.current) return;
+
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
       videoRef.current.srcObject = cameraStream;
 
-      await new Promise((resolve) => {
-        videoRef.current.onloadedmetadata = resolve;
-      });
+      await waitForVideoMetadata(videoRef.current);
+      if (isDisposed || !videoRef.current) return;
 
-      await videoRef.current.play();
+      await videoRef.current.play().catch(() => {});
 
-      canvasRef.current.width = videoRef.current.videoWidth || 640;
-      canvasRef.current.height = videoRef.current.videoHeight || 480;
+      syncCanvasToVideo(canvasRef.current, videoRef.current);
 
       detect();
     };

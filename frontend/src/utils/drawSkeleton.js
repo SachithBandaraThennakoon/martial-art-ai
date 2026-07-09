@@ -14,12 +14,27 @@ const BODY_CONNECTIONS = [
 ];
 
 const KEY_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+const FACE_CONNECTIONS = [
+  [1, 2],
+  [2, 3],
+  [4, 5],
+  [5, 6],
+  [3, 0],
+  [0, 6],
+  [7, 1],
+  [7, 0],
+  [0, 8],
+  [8, 4],
+  [0, 9],
+  [0, 10],
+  [9, 10]
+];
+const FACE_JOINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const SKELETON_SCALE = 0.7;
 const MIN_VISIBILITY = 0.35;
 const CORRECTION_RED = "#ff3b3b";
 const PREDICTION_YELLOW = "#ffd84a";
 const ATTENTION_GREEN = "#60d394";
-const FALLBACK_ORANGE = "#ff9f43";
 
 function fitLivePoint(point, mirrored = false) {
   const x = 0.5 + (point.x - 0.5) * SKELETON_SCALE;
@@ -58,13 +73,7 @@ export function drawSkeleton(
   const predictedPoints = options.predictedLandmarks?.map((point) =>
     fitLivePoint(point, options.mirrored)
   );
-  const attentionPredictedPoints = options.attentionPredictedLandmarks?.map((point) =>
-    fitLivePoint(point, options.mirrored)
-  );
   const onnxPredictedPoints = options.onnxPredictedLandmarks?.map((point) =>
-    fitLivePoint(point, options.mirrored)
-  );
-  const heuristicPredictedPoints = options.heuristicPredictedLandmarks?.map((point) =>
     fitLivePoint(point, options.mirrored)
   );
   const drawPredictionLayer = (layerPoints, color, shadowColor, lineWidth = 3) => {
@@ -126,6 +135,21 @@ export function drawSkeleton(
     ctx.stroke();
   });
 
+  ctx.strokeStyle = "#ffffff";
+  ctx.shadowColor = "rgba(255, 255, 255, 0.24)";
+  ctx.lineWidth = 3.6;
+  FACE_CONNECTIONS.forEach(([fromIndex, toIndex]) => {
+    const from = points[fromIndex];
+    const to = points[toIndex];
+
+    if (!isVisible(from) || !isVisible(to)) return;
+
+    ctx.beginPath();
+    ctx.moveTo(from.x * width, from.y * height);
+    ctx.lineTo(to.x * width, to.y * height);
+    ctx.stroke();
+  });
+
   ctx.shadowBlur = 2;
   KEY_JOINTS.forEach((index) => {
     const point = points[index];
@@ -146,13 +170,21 @@ export function drawSkeleton(
     ctx.fill();
   });
 
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(255, 255, 255, 0.26)";
+  FACE_JOINTS.forEach((index) => {
+    const point = points[index];
+
+    if (!isVisible(point)) return;
+
+    ctx.beginPath();
+    ctx.arc(point.x * width, point.y * height, index === 0 ? 3.8 : 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
   if (predictedPoints) {
     drawPredictionLayer(predictedPoints, PREDICTION_YELLOW, "rgba(255, 216, 74, 0.58)", 3);
   }
 
-  const fallbackOrangePoints = options.attentionPredictionSource === "onnx"
-    ? heuristicPredictedPoints
-    : attentionPredictedPoints;
-  drawPredictionLayer(fallbackOrangePoints, FALLBACK_ORANGE, "rgba(255, 159, 67, 0.62)", 3);
   drawPredictionLayer(onnxPredictedPoints, ATTENTION_GREEN, "rgba(96, 211, 148, 0.62)", 3.25);
 }

@@ -39,6 +39,16 @@ const HAND_CONNECTIONS = [
   [0, 17], [17, 18], [18, 19], [19, 20],
   [5, 9], [9, 13], [13, 17]
 ];
+const POSE_FACE_CONNECTIONS = [
+  [1, 2], [2, 3],
+  [4, 5], [5, 6],
+  [3, 0], [0, 6],
+  [0, 9], [0, 10],
+  [9, 10],
+  [7, 1], [7, 9],
+  [8, 4], [8, 10],
+  [7, 0], [0, 8]
+];
 
 function normalizePoints(points = [], size = 120, padding = 14, mirrored = false) {
   const viewPoints = points.length ? points : [];
@@ -108,10 +118,11 @@ function buildFeaturePath(pointMap, toSvgPoint, feature) {
     .map(toSvgPoint);
 }
 
-function FaceMeshPreview({ points = [], visible, mirrored = false }) {
+function FaceMeshPreview({ points = [], visible, mirrored = false, enabled = true }) {
   const pointMap = new Map(points.map((point) => [point.index, point]));
   const { viewPoints, toSvgPoint } = normalizePoints(points, 144, 8, mirrored);
-  const meshEdges = buildFaceMeshEdges(points);
+  const isPoseFace = pointMap.has(0) && pointMap.has(10) && points.length <= 12;
+  const meshEdges = isPoseFace ? POSE_FACE_CONNECTIONS : buildFaceMeshEdges(points);
   const features = {
     leftEye: buildFeaturePath(pointMap, toSvgPoint, FACE_FEATURES.leftEye),
     rightEye: buildFeaturePath(pointMap, toSvgPoint, FACE_FEATURES.rightEye),
@@ -122,7 +133,7 @@ function FaceMeshPreview({ points = [], visible, mirrored = false }) {
   return (
     <div className={`face-mesh-preview ${visible ? "is-live" : "is-empty"}`}>
       <svg aria-hidden="true" viewBox="0 0 144 144">
-        <g className="face-mesh-preview__mesh">
+        <g className={isPoseFace ? "face-mesh-preview__pose" : "face-mesh-preview__mesh"}>
           {meshEdges.map(([fromIndex, toIndex]) => {
             const from = pointMap.get(fromIndex);
             const to = pointMap.get(toIndex);
@@ -158,12 +169,12 @@ function FaceMeshPreview({ points = [], visible, mirrored = false }) {
               cx={svgPoint.x}
               cy={svgPoint.y}
               key={point.index}
-              r="1.45"
+              r={isPoseFace ? "2.8" : "1.6"}
             />
           );
         })}
       </svg>
-      {!visible ? <span>Waiting for face</span> : null}
+      {!visible ? <span>{enabled ? "Waiting for face" : "Face off"}</span> : null}
     </div>
   );
 }
@@ -256,6 +267,8 @@ function FaceScoreTile({ label, value, displayValue, goodAt = 70 }) {
 
 export default function AwarenessPanel({ awareness, mirrored = false }) {
   const face = awareness?.face || {};
+  const faceEnabled = awareness?.faceEnabled !== false;
+  const faceSource = awareness?.faceSource || face.source || "pose";
   const facePoints = awareness?.facePoints || [];
   const handPoints = awareness?.handPoints || {};
   const leftHand = awareness?.hands?.left;
@@ -269,10 +282,15 @@ export default function AwarenessPanel({ awareness, mirrored = false }) {
       </div>
 
       <article className="awareness-face">
-        <FaceMeshPreview mirrored={mirrored} points={facePoints} visible={face.visible} />
+        <FaceMeshPreview
+          enabled={faceEnabled}
+          mirrored={mirrored}
+          points={facePoints}
+          visible={face.visible}
+        />
         <div className="awareness-face__main">
-          <span>Face</span>
-          <strong>{face.visible ? face.focus : "Move face into frame"}</strong>
+          <span>{faceSource === "mesh" ? "Face mesh" : "Pose face"}</span>
+          <strong>{face.visible ? face.focus : faceEnabled ? "Move face into frame" : "Tracking off"}</strong>
         </div>
         <div className="awareness-face__grid">
           <FaceScoreTile label="Forward" value={face.forwardScore} />

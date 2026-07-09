@@ -110,8 +110,7 @@ export default function ModelTestPage() {
 
             drawSkeleton(canvas, landmarks, new Set(), {
               mirrored: true,
-              attentionPredictedLandmarks: visiblePredictionLandmarks,
-              attentionPredictionSource: prediction?.source || "onnx"
+              onnxPredictedLandmarks: visiblePredictionLandmarks
             });
 
             if (now - lastUiUpdateRef.current > 220) {

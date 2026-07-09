@@ -1684,9 +1684,14 @@ select:focus {
 }
 
 .face-mesh-preview line {
-  stroke: rgba(255, 255, 255, 0.42);
+  stroke: rgba(255, 255, 255, 0.58);
   stroke-linecap: round;
-  stroke-width: 0.55;
+  stroke-width: 1.35;
+}
+
+.face-mesh-preview__pose line {
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 2.4;
 }
 
 .face-mesh-preview polyline {
@@ -1714,8 +1719,13 @@ select:focus {
 }
 
 .face-mesh-preview circle {
-  fill: rgba(255, 255, 255, 0.72);
-  r: 0.72px;
+  fill: rgba(255, 255, 255, 0.9);
+  r: 1.45px;
+}
+
+.face-mesh-preview__pose ~ circle,
+.face-mesh-preview svg > circle {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.34));
 }
 
 .hand-mesh-preview {

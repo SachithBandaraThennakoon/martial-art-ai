@@ -80,21 +80,13 @@ export default function Level2DebugPanel({ state }) {
           {attention.source ? `${attention.source} / ` : ""}
           {attention.status || "Waiting for action context"}
         </small>
-        <small>
-          Bone color: {attention.source === "onnx" ? "green" : "orange fallback"}
-        </small>
+        <small>Bone color: {attention.source === "onnx" ? "green" : "none"}</small>
         <small>ONNX status: {attention.onnx_status || "unknown"}</small>
         {attention.onnx_error ? <small>{attention.onnx_error}</small> : null}
         {attention.error ? <small>{attention.error}</small> : null}
         {attention.output_dims?.length ? (
           <small>Output {attention.output_dims.join(" x ")}</small>
         ) : null}
-        <div>
-          <em>Spatial {attention.spatial_attention?.length || 0}</em>
-          <em>Temporal {attention.temporal_attention?.length || 0}</em>
-          <em>Graph {attention.graph_attention?.length || 0}</em>
-          <em>Cross {attention.cross_attention?.length || 0}</em>
-        </div>
       </div>
     </div>
   );
