@@ -74,8 +74,8 @@ function getAttentionTarget({ trackingConfidence, action, session, user, weaknes
 
 function getSituationState({ trackingConfidence, action, session, userProgression, config }) {
   if (trackingConfidence < config.lowTrackingThreshold) return "tracking_unclear";
-  if ((session.fatigue_risk || 0) >= config.fatigueRiskThreshold) return "warning";
   if ((action.mistake_risk || 0) >= config.mistakeRiskThreshold) return "correcting";
+  if ((session.fatigue_risk || 0) >= config.fatigueRiskThreshold) return "warning";
   if (userProgression.ready_for_next_technique || session.recommendation === "advance_step") {
     return "advance_ready";
   }

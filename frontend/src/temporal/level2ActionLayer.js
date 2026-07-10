@@ -75,6 +75,13 @@ function getMotionEnergy(motionContext = {}) {
   return average(jointSpeeds) || 0;
 }
 
+function getTargetPriority(bodyPart = "") {
+  if (/fist|hand|wrist/.test(bodyPart)) return 0;
+  if (/shoulder|elbow|hip|knee|ankle/.test(bodyPart)) return 1;
+  if (/face|eyes/.test(bodyPart)) return 3;
+  return 2;
+}
+
 function getTrend(values) {
   if (values.length < 4) return "warming";
 
@@ -157,7 +164,12 @@ export class Level2ActionLayer {
       : 1;
     const worstTarget = targetScores
       .filter((target) => target.issue !== "good")
-      .sort((first, second) => (first.score || 0) - (second.score || 0))[0];
+      .sort((first, second) => {
+        const priorityDelta =
+          getTargetPriority(first.body_part) - getTargetPriority(second.body_part);
+        if (priorityDelta !== 0) return priorityDelta;
+        return (first.score || 0) - (second.score || 0);
+      })[0];
     const mistakeRisk = clamp(
       (1 - stepProbability) * 0.72 +
         missingRatio * 0.18 +

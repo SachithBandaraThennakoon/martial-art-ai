@@ -32,6 +32,7 @@ const ACTION_LABELS = {
   confirm_start: "Ready check",
   correct: "Correction",
   observe: "Watching",
+  hold_good: "Hold good form",
   advance_step: "Next step",
   confirm_next: "Step complete",
   restart_training: "Restarting",
@@ -43,6 +44,7 @@ const ACTION_LABELS = {
 
 const NATURAL_VOICE_CACHE_LIMIT = 24;
 const NATURAL_VOICE_REQUEST_TIMEOUT_MS = 8000;
+const NATURAL_VOICE_FAST_FALLBACK_MS = 850;
 
 const splitVoiceWords = (message) =>
   message
@@ -188,9 +190,13 @@ export default function TrainMode({
 
     const message = event?.message || event?.summary || "";
     const messagePattern = normalizeCoachMessage(message);
+    const isRepeatedCorrection =
+      event?.action === "correct" &&
+      messagePattern === lastCoachChatPatternRef.current;
     const shouldAddCoachMessage =
       message &&
       message !== lastCoachChatRef.current &&
+      !isRepeatedCorrection &&
       (
         messagePattern !== lastCoachChatPatternRef.current ||
         event?.speak ||
@@ -302,6 +308,20 @@ export default function TrainMode({
 
     window.speechSynthesis?.cancel();
   }, [clearVoiceWords]);
+
+  const interruptVoicePlayback = useCallback(() => {
+    voiceRequestIdRef.current += 1;
+    voiceQueueRef.current = [];
+    isSpeakingRef.current = false;
+
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.src = "";
+      currentAudioRef.current = null;
+    }
+
+    window.speechSynthesis?.cancel();
+  }, []);
 
   const sendCoachMessage = useCallback((message) => {
     const trimmed = message.trim();
@@ -589,10 +609,17 @@ export default function TrainMode({
     }
 
     setVoiceState("loading");
-    const naturalVoice = await fetchNaturalVoice(message);
+    const naturalVoiceRequest = fetchNaturalVoice(message);
+    const naturalVoice = await Promise.race([
+      naturalVoiceRequest,
+      new Promise((resolve) => {
+        window.setTimeout(() => resolve(null), NATURAL_VOICE_FAST_FALLBACK_MS);
+      })
+    ]);
 
     if (!naturalVoice || requestId !== voiceRequestIdRef.current) {
       await playBrowserVoice(message, requestId);
+      naturalVoiceRequest.catch(() => null);
       return;
     }
 
@@ -633,17 +660,21 @@ export default function TrainMode({
     }
   }, [clearVoiceWords, prepareVoiceWords, speakWithBestVoice, voiceEnabled]);
 
-  const queueVoiceMessage = useCallback((message) => {
+  const queueVoiceMessage = useCallback((message, { interrupt = true } = {}) => {
     const trimmed = message.trim();
 
     if (!trimmed || trimmed === lastSpokenMessageRef.current) {
       return;
     }
 
+    if (interrupt) {
+      interruptVoicePlayback();
+    }
+
     lastSpokenMessageRef.current = trimmed;
     voiceQueueRef.current = [trimmed];
     playVoiceQueue();
-  }, [playVoiceQueue]);
+  }, [interruptVoicePlayback, playVoiceQueue]);
 
   useEffect(() => {
     const message = coachEvent?.message || coachEvent?.summary || "";

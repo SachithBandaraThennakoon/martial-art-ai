@@ -1,7 +1,7 @@
 export const STUDIO_PERFORMANCE_PROFILES = {
   student: {
     poseFps: 24,
-    handIntervalMs: 520,
+    handIntervalMs: 260,
     faceIntervalMs: 1800,
     maxHandStaleMs: 900,
     maxFaceStaleMs: 1800,
@@ -10,7 +10,7 @@ export const STUDIO_PERFORMANCE_PROFILES = {
     level3UiIntervalMs: 1000,
     level4UiIntervalMs: 1800,
     situationUiIntervalMs: 1000,
-    awarenessIntervalMs: 900,
+    awarenessIntervalMs: 380,
     coachFrameIntervalMs: 320,
     coachContextIntervalMs: 3000,
     onnxIntervalMs: 1200,
@@ -20,7 +20,7 @@ export const STUDIO_PERFORMANCE_PROFILES = {
   },
   admin: {
     poseFps: 20,
-    handIntervalMs: 650,
+    handIntervalMs: 320,
     faceIntervalMs: 2200,
     maxHandStaleMs: 1100,
     maxFaceStaleMs: 2200,
@@ -29,7 +29,7 @@ export const STUDIO_PERFORMANCE_PROFILES = {
     level3UiIntervalMs: 1200,
     level4UiIntervalMs: 2200,
     situationUiIntervalMs: 1200,
-    awarenessIntervalMs: 1100,
+    awarenessIntervalMs: 450,
     coachFrameIntervalMs: 380,
     coachContextIntervalMs: 3500,
     onnxIntervalMs: 1400,
@@ -39,7 +39,7 @@ export const STUDIO_PERFORMANCE_PROFILES = {
   },
   analysis: {
     poseFps: 16,
-    handIntervalMs: 450,
+    handIntervalMs: 260,
     faceIntervalMs: 1400,
     maxHandStaleMs: 900,
     maxFaceStaleMs: 1800,
@@ -48,7 +48,7 @@ export const STUDIO_PERFORMANCE_PROFILES = {
     level3UiIntervalMs: 900,
     level4UiIntervalMs: 1600,
     situationUiIntervalMs: 900,
-    awarenessIntervalMs: 700,
+    awarenessIntervalMs: 360,
     coachFrameIntervalMs: 320,
     coachContextIntervalMs: 2800,
     onnxIntervalMs: 900,
