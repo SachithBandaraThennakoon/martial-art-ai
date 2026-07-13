@@ -1,16 +1,21 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Studio from "./pages/Studio";
-import Training from "./pages/Training";
 import CategoryPage from "./pages/CategoryPage";
 import Pricing from "./pages/Pricing";
-import ModelTestPage from "./pages/ModelTestPage";
+import NotFound from "./pages/NotFound";
+import Contact from "./pages/Contact";
+
+const Training = lazy(() => import("./pages/Training"));
+const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
 
 function AppRoutes() {
   const location = useLocation();
@@ -19,13 +24,31 @@ function AppRoutes() {
 
   return (
     <div className={`app-shell ${isStudio ? "app-shell--studio" : ""}`}>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <Navbar />
 
-      <Routes>
+      <div id="main-content" tabIndex="-1">
+        <Suspense
+          fallback={
+            <main className="route-loader" role="status">
+              <span className="studio-live-dot" aria-hidden="true" />
+              Preparing movement engine…
+            </main>
+          }
+        >
+          <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/categories/:categorySlug" element={<CategoryPage />} />
         <Route path="/pricing" element={<Pricing />} />
-        <Route path="/model-test" element={<ModelTestPage />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route
+          path="/model-test"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <ModelTestPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
@@ -41,7 +64,7 @@ function AppRoutes() {
         <Route
           path="/admin-studio"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="admin">
               <Studio isAdminStudio />
             </ProtectedRoute>
           }
@@ -59,12 +82,16 @@ function AppRoutes() {
         <Route
           path="/admin-training"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole="admin">
               <Training studioMode="admin" />
             </ProtectedRoute>
           }
         />
-      </Routes>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </div>
+      {!isStudio ? <Footer /> : null}
     </div>
   );
 }

@@ -124,7 +124,7 @@ export default function PayPalSubscriptionButton({
   if (!clientId) {
     return (
       <p className="payment-note payment-note--error">
-        Add VITE_PAYPAL_CLIENT_ID first.
+        Online checkout is temporarily unavailable. Please contact support.
       </p>
     );
   }
@@ -132,7 +132,7 @@ export default function PayPalSubscriptionButton({
   if (!planId) {
     return (
       <p className="payment-note payment-note--error">
-        Add the PayPal plan ID for {planName}.
+        {planName} online checkout is not available yet. Please contact support.
       </p>
     );
   }

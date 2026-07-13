@@ -41,6 +41,7 @@ export default function PracticeAnalysisMode({ onModeChange }) {
   }, [loadAnalysis]);
 
   const summary = analysis?.summary;
+  const trainingSummary = analysis?.training_summary;
   const sessions = analysis?.sessions || [];
   const paceMix = summary?.pace_mix || {};
   const paceText = Object.entries(paceMix)
@@ -102,6 +103,20 @@ export default function PracticeAnalysisMode({ onModeChange }) {
         >
           Start Practice
         </button>
+      </div>
+
+      <div className="panel-block analysis-training-card">
+        <div className="panel-heading">
+          <div><p className="eyebrow">Guided training intelligence</p><h2>Coach pattern</h2></div>
+          <span>{trainingSummary?.total_sessions ?? 0} sessions</span>
+        </div>
+        <p className="coach-feedback">{trainingSummary?.recommendation || "Complete a Train session to connect guided feedback with your practice history."}</p>
+        <div className="analysis-insight-grid">
+          <div><span>Recurring focus</span><strong>{formatBodyPart(trainingSummary?.frequent_focus)}</strong></div>
+          <div><span>Common issue</span><strong>{formatBodyPart(trainingSummary?.frequent_issue)}</strong></div>
+          <div><span>Guided form</span><strong>{trainingSummary ? `${trainingSummary.average_accuracy}%` : "--"}</strong></div>
+          <div><span>Completed</span><strong>{trainingSummary?.completed_sessions ?? 0}</strong></div>
+        </div>
       </div>
 
       <div className="panel-block analysis-insights">

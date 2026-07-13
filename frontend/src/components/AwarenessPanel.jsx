@@ -40,14 +40,10 @@ const HAND_CONNECTIONS = [
   [5, 9], [9, 13], [13, 17]
 ];
 const POSE_FACE_CONNECTIONS = [
-  [1, 2], [2, 3],
-  [4, 5], [5, 6],
-  [3, 0], [0, 6],
-  [0, 9], [0, 10],
-  [9, 10],
-  [7, 1], [7, 9],
-  [8, 4], [8, 10],
-  [7, 0], [0, 8]
+  [7, 3], [3, 2], [2, 1], [1, 0],
+  [0, 4], [4, 5], [5, 6], [6, 8],
+  [7, 9], [9, 10], [10, 8],
+  [0, 9], [0, 10]
 ];
 
 function normalizePoints(points = [], size = 120, padding = 14, mirrored = false) {
@@ -133,6 +129,9 @@ function FaceMeshPreview({ points = [], visible, mirrored = false, enabled = tru
   return (
     <div className={`face-mesh-preview ${visible ? "is-live" : "is-empty"}`}>
       <svg aria-hidden="true" viewBox="0 0 144 144">
+        <ellipse className="face-mesh-preview__guide" cx="72" cy="72" rx="46" ry="58" />
+        <line className="face-mesh-preview__axis" x1="72" y1="14" x2="72" y2="130" />
+        <line className="face-mesh-preview__axis" x1="22" y1="68" x2="122" y2="68" />
         <g className={isPoseFace ? "face-mesh-preview__pose" : "face-mesh-preview__mesh"}>
           {meshEdges.map(([fromIndex, toIndex]) => {
             const from = pointMap.get(fromIndex);
@@ -277,7 +276,7 @@ export default function AwarenessPanel({ awareness, mirrored = false }) {
   return (
     <div className="awareness-panel">
       <div className="panel-heading">
-        <p className="eyebrow">Awareness</p>
+        <p className="eyebrow">Face &amp; hands</p>
         <span>{awareness?.active ? "Live" : "Starting"}</span>
       </div>
 

@@ -3,6 +3,9 @@ export const subscriptionPlans = [
     id: "free",
     code: "FREE_PLAN",
     name: "Free",
+    description: "Explore the coaching loop and learn your first movements.",
+    audience: "New students",
+    highlights: ["5 guided techniques", "30 minutes of coaching daily", "7-day progress history"],
     price: 0,
     billing: "3 days trial",
     paypalPlanEnv: null,
@@ -29,6 +32,9 @@ export const subscriptionPlans = [
     id: "starter",
     code: "STARTER_PLAN",
     name: "Starter",
+    description: "A focused foundation for consistent weekly training.",
+    audience: "Regular practice",
+    highlights: ["20 guided techniques", "Personal training plan", "Monthly reports"],
     price: 9.99,
     billing: "per month",
     paypalPlanEnv: "VITE_PAYPAL_STARTER_PLAN_ID",
@@ -55,6 +61,9 @@ export const subscriptionPlans = [
     id: "pro",
     code: "PRO_PLAN",
     name: "Pro",
+    description: "Deeper analysis and more coaching for serious progress.",
+    audience: "Committed athletes",
+    highlights: ["50+ guided techniques", "Advanced analytics", "Weekly reports and priority support"],
     price: 29.99,
     billing: "per month",
     paypalPlanEnv: "VITE_PAYPAL_PRO_PLAN_ID",
@@ -81,6 +90,9 @@ export const subscriptionPlans = [
     id: "elite",
     code: "ELITE_PLAN",
     name: "Elite",
+    description: "The complete system for high-volume, performance-led training.",
+    audience: "Competitors and coaches",
+    highlights: ["Every technique", "Unlimited daily coaching", "Professional analytics and preparation"],
     price: 79.99,
     billing: "per month",
     paypalPlanEnv: "VITE_PAYPAL_ELITE_PLAN_ID",
@@ -110,5 +122,6 @@ export const planFeatureNames = Object.keys(subscriptionPlans[0].features);
 export function getPayPalPlanId(plan) {
   if (!plan.paypalPlanEnv) return "";
 
-  return import.meta.env[plan.paypalPlanEnv] || "";
+  const planId = import.meta.env[plan.paypalPlanEnv] || "";
+  return planId.startsWith("your_") ? "" : planId;
 }

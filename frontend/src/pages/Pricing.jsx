@@ -68,12 +68,13 @@ export default function Pricing() {
   return (
     <main className="page pricing-page">
       <section className="pricing-hero">
-        <p className="eyebrow">Membership</p>
-        <h1>Choose Your Training Plan</h1>
+        <p className="eyebrow">Simple monthly membership</p>
+        <h1>Choose the coaching depth you need.</h1>
         <p>
-          Start free, then upgrade when you need more techniques, coaching time,
-          reports, and advanced analysis.
+          Start with the core training loop. Upgrade when you need a larger library,
+          longer coaching sessions, richer history, and performance reporting.
         </p>
+        <div className="pricing-hero__facts"><span>Camera only</span><span>All disciplines</span><span>Secure PayPal checkout</span></div>
       </section>
 
       {activationMessage && (
@@ -99,8 +100,13 @@ export default function Pricing() {
               plan.featured && <span className="pricing-badge">Best Value</span>
             )}
             <p className="eyebrow">{plan.name}</p>
+            <span className="pricing-audience">For {plan.audience}</span>
             <h2>{formatPrice(plan.price)}</h2>
             <span className="pricing-billing">{plan.billing}</span>
+            <p className="pricing-description">{plan.description}</p>
+            <ul className="pricing-highlights">
+              {plan.highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}
+            </ul>
             <span
               className={`current-plan-chip ${
                 isActivePlan ? "current-plan-chip--active" : ""
@@ -157,6 +163,21 @@ export default function Pricing() {
           </article>
           );
         })}
+      </section>
+
+      <section className="pricing-guidance">
+        <div><p className="eyebrow">Quick recommendation</p><h2>Most learners should start Free, then move to Starter when training becomes a weekly habit.</h2></div>
+        <div className="pricing-guidance__steps"><span><b>Free</b> Test camera coaching</span><span><b>Starter</b> Build consistency</span><span><b>Pro</b> Analyze performance</span><span><b>Elite</b> Prepare at scale</span></div>
+      </section>
+
+      <section className="pricing-faq">
+        <div className="section-heading"><p className="eyebrow">Plan questions</p><h2>What to know before you choose.</h2></div>
+        <div className="pricing-faq__grid">
+          <article><h3>Do I need equipment?</h3><p>No wearable is required. Use a supported browser, a camera, and enough space to move safely.</p></article>
+          <article><h3>Are all disciplines available?</h3><p>Yes. Plans change technique quantity, coaching time, history, and analysis depth—not the discipline list.</p></article>
+          <article><h3>How is payment handled?</h3><p>Paid memberships use PayPal subscription checkout. Your account unlocks only after the backend verifies an active matching plan.</p></article>
+          <article><h3>Need help choosing?</h3><p>Tell us how often you train and what you want to improve.</p><Link to="/contact">Contact our team →</Link></article>
+        </div>
       </section>
     </main>
   );

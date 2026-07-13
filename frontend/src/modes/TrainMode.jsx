@@ -44,13 +44,25 @@ const ACTION_LABELS = {
 
 const NATURAL_VOICE_CACHE_LIMIT = 24;
 const NATURAL_VOICE_REQUEST_TIMEOUT_MS = 8000;
-const NATURAL_VOICE_FAST_FALLBACK_MS = 850;
+const VOICE_INTERRUPT_ACTIONS = new Set([
+  "advance_step",
+  "session_complete_prompt",
+  "restart_training",
+  "switch_practice",
+  "ask_ready",
+  "ask_focus"
+]);
 
 const splitVoiceWords = (message) =>
   message
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+
+const coachText = (event) =>
+  (event?.message || event?.summary || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const formatBodyPart = (bodyPart) =>
   bodyPart
@@ -97,6 +109,7 @@ export default function TrainMode({
   const [situationAwarenessState, setSituationAwarenessState] = useState(null);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showDataLayers, setShowDataLayers] = useState(false);
+  const [showConversationHistory, setShowConversationHistory] = useState(false);
   const voiceProfile = "calmMale";
   const [coachInput, setCoachInput] = useState("");
   const [coachCommand, setCoachCommand] = useState(null);
@@ -107,6 +120,7 @@ export default function TrainMode({
   );
   const [conversation, setConversation] = useState([]);
   const [voiceState, setVoiceState] = useState("idle");
+  const [currentVoiceMessage, setCurrentVoiceMessage] = useState("");
   const [voiceWords, setVoiceWords] = useState([]);
   const [activeVoiceWord, setActiveVoiceWord] = useState(-1);
   const recognitionRef = useRef(null);
@@ -133,7 +147,7 @@ export default function TrainMode({
   const requiredParts = useMemo(() => currentStep?.angles || [], [currentStep]);
   const masterMessage =
     textEnabled
-      ? coachEvent?.message ||
+      ? (voiceEnabled && currentVoiceMessage ? currentVoiceMessage : coachText(coachEvent)) ||
         feedback ||
         "Step into frame. Feedback starts when your pose is detected."
       : "Text feedback is off.";
@@ -188,7 +202,7 @@ export default function TrainMode({
   const handleCoachEvent = useCallback((event) => {
     setCoachEvent(event);
 
-    const message = event?.message || event?.summary || "";
+    const message = coachText(event);
     const messagePattern = normalizeCoachMessage(message);
     const isRepeatedCorrection =
       event?.action === "correct" &&
@@ -298,6 +312,7 @@ export default function TrainMode({
     voiceQueueRef.current = [];
     isSpeakingRef.current = false;
     setVoiceState("idle");
+    setCurrentVoiceMessage("");
     clearVoiceWords();
 
     if (currentAudioRef.current) {
@@ -305,22 +320,19 @@ export default function TrainMode({
       currentAudioRef.current.src = "";
       currentAudioRef.current = null;
     }
-
-    window.speechSynthesis?.cancel();
   }, [clearVoiceWords]);
 
   const interruptVoicePlayback = useCallback(() => {
     voiceRequestIdRef.current += 1;
     voiceQueueRef.current = [];
     isSpeakingRef.current = false;
+    setCurrentVoiceMessage("");
 
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.src = "";
       currentAudioRef.current = null;
     }
-
-    window.speechSynthesis?.cancel();
   }, []);
 
   const sendCoachMessage = useCallback((message) => {
@@ -565,40 +577,6 @@ export default function TrainMode({
     return played;
   }, [startVoiceWordProgress]);
 
-  const playBrowserVoice = useCallback(async (message, requestId) => {
-    if (!window.speechSynthesis || requestId !== voiceRequestIdRef.current) {
-      return false;
-    }
-
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = "en-US";
-    utterance.pitch = VOICE_PROFILES[voiceProfile].pitch;
-    utterance.rate = VOICE_PROFILES[voiceProfile].rate;
-
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (ok) => {
-        if (settled) return;
-        settled = true;
-        resolve(ok);
-      };
-
-      utterance.onstart = () => {
-        setVoiceState("speaking");
-        startVoiceWordProgress();
-      };
-      utterance.onend = () => finish(true);
-      utterance.onerror = () => finish(false);
-      window.speechSynthesis.speak(utterance);
-      window.setTimeout(
-        () => finish(true),
-        Math.max(1800, splitVoiceWords(message).length * 520)
-      );
-    });
-  }, [startVoiceWordProgress, voiceProfile]);
-
   const speakWithBestVoice = useCallback(async (message, requestId) => {
     const cacheKey = getNaturalVoiceKey(message);
     const cached = naturalVoiceCacheRef.current.get(cacheKey);
@@ -609,26 +587,21 @@ export default function TrainMode({
     }
 
     setVoiceState("loading");
-    const naturalVoiceRequest = fetchNaturalVoice(message);
-    const naturalVoice = await Promise.race([
-      naturalVoiceRequest,
-      new Promise((resolve) => {
-        window.setTimeout(() => resolve(null), NATURAL_VOICE_FAST_FALLBACK_MS);
-      })
-    ]);
+    const naturalVoice = await fetchNaturalVoice(message);
 
     if (!naturalVoice || requestId !== voiceRequestIdRef.current) {
-      await playBrowserVoice(message, requestId);
-      naturalVoiceRequest.catch(() => null);
+      setVoiceState("idle");
+      clearVoiceWords();
       return;
     }
 
     const played = await playNaturalAudio(message, naturalVoice, requestId);
 
     if (!played) {
-      await playBrowserVoice(message, requestId);
+      setVoiceState("idle");
+      clearVoiceWords();
     }
-  }, [fetchNaturalVoice, getNaturalVoiceKey, playBrowserVoice, playNaturalAudio]);
+  }, [clearVoiceWords, fetchNaturalVoice, getNaturalVoiceKey, playNaturalAudio]);
 
   const playVoiceQueue = useCallback(async () => {
     if (isSpeakingRef.current || !voiceEnabled) {
@@ -645,6 +618,7 @@ export default function TrainMode({
 
     isSpeakingRef.current = true;
     const requestId = voiceRequestIdRef.current;
+    setCurrentVoiceMessage(nextMessage);
     prepareVoiceWords(nextMessage);
 
     await speakWithBestVoice(nextMessage, requestId);
@@ -655,7 +629,10 @@ export default function TrainMode({
         playVoiceQueue();
       } else {
         setVoiceState("idle");
-        window.setTimeout(clearVoiceWords, 420);
+        window.setTimeout(() => {
+          clearVoiceWords();
+          setCurrentVoiceMessage("");
+        }, 420);
       }
     }
   }, [clearVoiceWords, prepareVoiceWords, speakWithBestVoice, voiceEnabled]);
@@ -677,7 +654,7 @@ export default function TrainMode({
   }, [interruptVoicePlayback, playVoiceQueue]);
 
   useEffect(() => {
-    const message = coachEvent?.message || coachEvent?.summary || "";
+    const message = coachText(coachEvent);
 
     if (
       !voiceEnabled ||
@@ -688,7 +665,9 @@ export default function TrainMode({
       return;
     }
 
-    queueVoiceMessage(message);
+    queueVoiceMessage(message, {
+      interrupt: VOICE_INTERRUPT_ACTIONS.has(coachEvent?.action)
+    });
   }, [coachEvent, queueVoiceMessage, voiceEnabled]);
 
   useEffect(() => {
@@ -900,6 +879,16 @@ export default function TrainMode({
               {isListening ? "Listening" : voiceInputStatus}
             </strong>
           </div>
+          {conversation.length > 2 ? (
+            <button
+              aria-expanded={showConversationHistory}
+              className="conversation-history-toggle"
+              onClick={() => setShowConversationHistory((visible) => !visible)}
+              type="button"
+            >
+              {showConversationHistory ? "Latest only" : `History (${conversation.length})`}
+            </button>
+          ) : null}
         </div>
 
         <div className="conversation-log">
@@ -908,7 +897,7 @@ export default function TrainMode({
           ) : conversation.length === 0 ? (
             <p className="conversation-empty">Ask or answer the master.</p>
           ) : (
-            conversation.slice(-6).map((item, index) => (
+            conversation.slice(showConversationHistory ? -6 : -2).map((item, index) => (
               <p
                 className={`conversation-line conversation-line--${item.role}`}
                 key={`${item.role}-${index}-${item.text}`}

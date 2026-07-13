@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthContext } from "../context/auth";
 import { getCategoryBySlug, slugify } from "../data/techniqueCatalog";
@@ -14,6 +14,24 @@ export default function CategoryPage() {
   const category = getCategoryBySlug(categorySlug);
   const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
   const isAdminStudio = new URLSearchParams(location.search).get("admin") === "1";
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const visibleSubcategories = useMemo(() => {
+    if (!category || !normalizedQuery) return category?.subcategories || [];
+
+    return category.subcategories
+      .map((subcategory) => ({
+        ...subcategory,
+        techniques: subcategory.techniques.filter(
+          (technique) =>
+            subcategory.name.toLowerCase().includes(normalizedQuery) ||
+            technique.name.toLowerCase().includes(normalizedQuery) ||
+            technique.difficulty.toLowerCase().includes(normalizedQuery)
+        )
+      }))
+      .filter((subcategory) => subcategory.techniques.length > 0);
+  }, [category, normalizedQuery]);
 
   if (!category) {
     return <Navigate to="/" replace />;
@@ -22,17 +40,36 @@ export default function CategoryPage() {
   return (
     <main className="page category-page">
       <section className="category-hero">
-        <p className="eyebrow">Main Category</p>
+        <Link className="category-back-link" to={isAdminStudio ? "/admin-studio" : "/studio"}>
+          ← Back to {isAdminStudio ? "Admin Studio" : "Studio"}
+        </Link>
+        <p className="eyebrow">Training discipline</p>
         <h1>{category.category}</h1>
-        <p>
+        <p className="category-hero__copy">
           {isAdminStudio
             ? "Choose a sub category and technique to open Admin Studio research controls."
             : "Choose a sub category, pick a technique, then open Training Studio to train or practice."}
         </p>
+        <div className="category-hero__tools">
+          <span>{category.subcategories.length} programs</span>
+          <span>
+            {category.subcategories.reduce((total, item) => total + item.techniques.length, 0)} techniques
+          </span>
+          <label className="studio-search">
+            <span className="sr-only">Search this discipline</span>
+            <span aria-hidden="true">⌕</span>
+            <input
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search this discipline…"
+              type="search"
+              value={query}
+            />
+          </label>
+        </div>
       </section>
 
       <section className="subcategory-grid">
-        {category.subcategories.map((subcategory) => (
+        {visibleSubcategories.map((subcategory) => (
           <article className="subcategory-card" key={subcategory.name}>
             <div className="panel-heading">
               <div>
@@ -79,7 +116,7 @@ export default function CategoryPage() {
                           subcategory.name
                         )}&technique=${encodeURIComponent(technique.name)}`}
                       >
-                        {isAdminStudio ? "Admin Studio" : "Studio"}
+                        {isAdminStudio ? "Inspect" : "Start training"}
                       </Link>
                     ) : (
                       <Link className="btn btn--ghost btn--small" to="/pricing">
@@ -93,6 +130,14 @@ export default function CategoryPage() {
             </div>
           </article>
         ))}
+        {visibleSubcategories.length === 0 ? (
+          <div className="studio-empty category-empty">
+            <span>00</span>
+            <h3>No matching techniques</h3>
+            <p>Try a technique name or level such as “beginner”.</p>
+            <button className="btn btn--ghost btn--small" onClick={() => setQuery("")} type="button">Clear search</button>
+          </div>
+        ) : null}
       </section>
     </main>
   );

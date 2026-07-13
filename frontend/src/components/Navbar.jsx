@@ -4,47 +4,55 @@ import { AuthContext } from "../context/auth";
 import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
 
 export default function Navbar() {
-  const { token, logout } = useContext(AuthContext);
+  const { token, logout, userName, userRole } = useContext(AuthContext);
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navClass = ({ isActive }) =>
-    isActive ? "navbar__link active" : "navbar__link";
+  const closeMenu = () => setIsMenuOpen(false);
+  const navClass = ({ isActive }) => isActive ? "navbar__link active" : "navbar__link";
   const studioNavClass = () =>
-    location.pathname === "/studio" || location.pathname === "/training"
+    ["/studio", "/training"].includes(location.pathname)
       ? "navbar__link active"
       : "navbar__link";
   const adminStudioNavClass = () =>
-    location.pathname === "/admin-studio" || location.pathname === "/admin-training"
+    ["/admin-studio", "/admin-training"].includes(location.pathname)
       ? "navbar__link active"
       : "navbar__link";
 
   return (
-    <nav className="navbar">
+    <nav className="navbar" aria-label="Main navigation">
       <div className="navbar__menu">
         <button
           aria-expanded={isMenuOpen}
-          aria-label="Open training categories"
+          aria-label={`${isMenuOpen ? "Close" : "Open"} navigation`}
           className={`navbar__menu-toggle ${isMenuOpen ? "is-open" : ""}`}
           onClick={() => setIsMenuOpen((open) => !open)}
           type="button"
         >
-          <span />
-          <span />
-          <span />
+          <span /><span /><span />
         </button>
 
         {isMenuOpen ? (
-          <div className="navbar__menu-panel" aria-label="Training categories">
-            {MAIN_CATEGORIES.map((category) => (
-              <NavLink
-                className={navClass}
-                key={category}
-                onClick={() => setIsMenuOpen(false)}
-                to={`/categories/${slugify(category)}`}
-              >
-                {category}
-              </NavLink>
-            ))}
+          <div className="navbar__menu-panel">
+            <div className="navbar__menu-section">
+              <span>Workspace</span>
+              {token ? <NavLink className={studioNavClass} onClick={closeMenu} to="/studio">Studio</NavLink> : null}
+              <NavLink className={navClass} onClick={closeMenu} to="/pricing">Plans</NavLink>
+              <NavLink className={navClass} onClick={closeMenu} to="/contact">Contact</NavLink>
+              {userRole === "admin" ? (
+                <>
+                  <NavLink className={adminStudioNavClass} onClick={closeMenu} to="/admin-studio">Admin Studio</NavLink>
+                  <NavLink className={navClass} onClick={closeMenu} to="/model-test">Model Test</NavLink>
+                </>
+              ) : null}
+            </div>
+            <div className="navbar__menu-section">
+              <span>Disciplines</span>
+              {MAIN_CATEGORIES.map((category) => (
+                <NavLink className={navClass} key={category} onClick={closeMenu} to={`/categories/${slugify(category)}`}>
+                  {category}
+                </NavLink>
+              ))}
+            </div>
           </div>
         ) : null}
       </div>
@@ -55,53 +63,36 @@ export default function Navbar() {
           <span>Martial Art AI</span>
         </Link>
 
-        {token && (
-          <NavLink to="/studio" className={studioNavClass}>
-            Studio
-          </NavLink>
-        )}
-
-        {token && (
-          <NavLink to="/admin-studio" className={adminStudioNavClass}>
-            Admin Studio
-          </NavLink>
-        )}
-
-        <NavLink to="/pricing" className={navClass}>
-          Pricing
-        </NavLink>
-
-        <NavLink to="/model-test" className={navClass}>
-          Model Test
-        </NavLink>
+        <div className="navbar__primary">
+          {token ? <NavLink to="/studio" className={studioNavClass}>Studio</NavLink> : null}
+          <NavLink to="/pricing" className={navClass}>Plans</NavLink>
+          <NavLink to="/contact" className={navClass}>Contact</NavLink>
+          {userRole === "admin" ? (
+            <>
+              <NavLink to="/admin-studio" className={adminStudioNavClass}>Admin Studio</NavLink>
+              <NavLink to="/model-test" className={navClass}>Model Test</NavLink>
+            </>
+          ) : null}
+        </div>
       </div>
 
-      <div className="navbar__center navbar__categories" aria-label="Training categories">
+      <div className="navbar__center navbar__categories" aria-label="Training disciplines">
         {MAIN_CATEGORIES.map((category) => (
-          <NavLink
-            className={navClass}
-            key={category}
-            to={`/categories/${slugify(category)}`}
-          >
-            {category}
-          </NavLink>
+          <NavLink className={navClass} key={category} to={`/categories/${slugify(category)}`}>{category}</NavLink>
         ))}
       </div>
 
       <div className="navbar__right">
         {!token ? (
           <>
-            <Link to="/login" className="navbar__link">
-              Login
-            </Link>
-            <Link to="/register" className="btn btn--light btn--small">
-              Register
-            </Link>
+            <Link to="/login" className="navbar__link">Sign in</Link>
+            <Link to="/register" className="btn btn--light btn--small">Start free</Link>
           </>
         ) : (
-          <button className="btn btn--ghost btn--small" onClick={logout}>
-            Logout
-          </button>
+          <>
+            {userName ? <span className="navbar__welcome">Hi, {userName.split(" ")[0]}</span> : null}
+            <button className="btn btn--ghost btn--small" onClick={logout}>Sign out</button>
+          </>
         )}
       </div>
     </nav>

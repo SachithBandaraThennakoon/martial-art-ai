@@ -126,6 +126,7 @@ export default function PracticeMode({
   const [situationAwarenessState, setSituationAwarenessState] = useState(null);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showDataLayers, setShowDataLayers] = useState(false);
+  const [showConversationHistory, setShowConversationHistory] = useState(false);
   const [conversation, setConversation] = useState([
     { role: "ai", text: "Choose a count and say start when ready." }
   ]);
@@ -924,11 +925,35 @@ export default function PracticeMode({
           </>
         ) : null}
 
+      </aside>
+
+      <aside className="practice-setup-panel" aria-label="Practice set controls">
+        <div className="panel-block practice-setup-summary">
+          <div className="practice-setup-summary__top">
+            <div>
+              <p className="eyebrow">Set Builder</p>
+              <h2>{session?.status === "completed" ? "Set complete" : isPracticeActive ? "Set in progress" : "Build your set"}</h2>
+            </div>
+            <span className={`practice-state ${isPracticeActive ? "practice-state--active" : ""}`}>
+              {session?.status === "completed" ? "Complete" : isPracticeActive ? "Live" : "Ready"}
+            </span>
+          </div>
+          <p>
+            {isPracticeActive
+              ? `${Math.max(targetReps - repCount, 0)} reps remaining. Hold the target shape and move at a repeatable pace.`
+              : "Choose a rep count and recovery gap. Start when your full movement is visible."}
+          </p>
+        </div>
+
         <div className="panel-block practice-controls">
-          <p className="eyebrow">Count</p>
+          <div className="practice-control-heading">
+            <p className="eyebrow">Repetitions</p>
+            <span>{targetReps} total</span>
+          </div>
           <div className="rep-count-options">
             {COUNT_OPTIONS.map((count) => (
               <button
+                aria-pressed={count === targetReps}
                 className={count === targetReps ? "is-active" : ""}
                 disabled={isPracticeActive}
                 key={count}
@@ -939,10 +964,14 @@ export default function PracticeMode({
               </button>
             ))}
           </div>
-          <p className="eyebrow">Time Gap</p>
+          <div className="practice-control-heading">
+            <p className="eyebrow">Recovery gap</p>
+            <span>{GAP_OPTIONS.find((gap) => gap.value === countGapMs)?.label}</span>
+          </div>
           <div className="rep-count-options">
             {GAP_OPTIONS.map((gap) => (
               <button
+                aria-pressed={gap.value === countGapMs}
                 className={gap.value === countGapMs ? "is-active" : ""}
                 disabled={isPracticeActive}
                 key={gap.value}
@@ -954,8 +983,8 @@ export default function PracticeMode({
             ))}
           </div>
           <div className="practice-actions">
-            <button className="btn btn--light" onClick={startPractice} type="button">
-              Start
+            <button className="btn btn--light" disabled={isPracticeActive} onClick={startPractice} type="button">
+              {isPracticeActive ? "Set running" : session?.status === "completed" ? "Start again" : "Start set"}
             </button>
             <button className="btn btn--ghost" onClick={resetPractice} type="button">
               Reset
@@ -963,7 +992,7 @@ export default function PracticeMode({
           </div>
         </div>
 
-        <div className="practice-stats">
+        <div className="practice-stats practice-stats--side">
           <div>
             <span>Reps</span>
             <strong>{repCount}/{targetReps}</strong>
@@ -989,6 +1018,7 @@ export default function PracticeMode({
         {session?.status === "completed" ? (
           <div className="panel-block coach-card">
             <p className="eyebrow">Practice Assistant</p>
+            <strong>Review this set while the movement is still fresh.</strong>
             <button
               className="btn btn--light btn--full"
               onClick={() => onModeChange?.("analysis")}
@@ -1013,13 +1043,23 @@ export default function PracticeMode({
           >
             {isListening ? "Stop" : "Listen"}
           </button>
+          {conversation.length > 2 ? (
+            <button
+              aria-expanded={showConversationHistory}
+              className="conversation-history-toggle"
+              onClick={() => setShowConversationHistory((visible) => !visible)}
+              type="button"
+            >
+              {showConversationHistory ? "Latest only" : `History (${conversation.length})`}
+            </button>
+          ) : null}
         </div>
 
         <div className="conversation-log">
           {!textEnabled ? (
             <p className="conversation-empty">Text coach is off.</p>
           ) : (
-            conversation.slice(-6).map((item, index) => (
+            conversation.slice(showConversationHistory ? -6 : -2).map((item, index) => (
               <p
                 className={`conversation-line conversation-line--${item.role}`}
                 key={`${item.role}-${index}-${item.text}`}

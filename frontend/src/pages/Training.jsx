@@ -1,5 +1,5 @@
-import { Navigate, useSearchParams } from "react-router-dom";
-import { useState } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
@@ -20,7 +20,9 @@ const MODES = {
 };
 
 export default function TrainingStudio({ studioMode = "student" }) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
   const isAdminStudio = studioMode === "admin";
   const [voiceEnabled, setVoiceEnabled] = useState(
     () => localStorage.getItem("studioVoiceEnabled") !== "false"
@@ -36,22 +38,31 @@ export default function TrainingStudio({ studioMode = "student" }) {
     onnx: false
   });
   const requestedMode = searchParams.get("mode");
-  const mode = MODES[requestedMode] ? requestedMode : "train";
+  const [mode, setMode] = useState(() => MODES[requestedMode] ? requestedMode : "train");
   const selectedTechniqueName = searchParams.get("technique");
   const categorySlug = searchParams.get("category");
   const subcategorySlug = searchParams.get("subcategory");
   const hasTechniqueSelection = Boolean(selectedTechniqueName);
+
+  useEffect(() => {
+    const syncModeFromHistory = () => {
+      const historyMode = new URLSearchParams(window.location.search).get("mode");
+      setMode(MODES[historyMode] ? historyMode : "train");
+    };
+
+    window.addEventListener("popstate", syncModeFromHistory);
+    return () => window.removeEventListener("popstate", syncModeFromHistory);
+  }, []);
 
   if (!hasTechniqueSelection && mode !== "analysis") {
     return <Navigate to={isAdminStudio ? "/admin-studio" : "/studio"} replace />;
   }
 
   const updateMode = (nextMode) => {
-    setSearchParams((currentParams) => {
-      const nextParams = new URLSearchParams(currentParams);
-      nextParams.set("mode", nextMode);
-      return nextParams;
-    });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("mode", nextMode);
+    setMode(nextMode);
+    navigate({ pathname: location.pathname, search: nextParams.toString() });
   };
 
   const toggleVoice = () => {
@@ -94,8 +105,8 @@ export default function TrainingStudio({ studioMode = "student" }) {
       <div className="rotate-prompt" role="status">
         <span className="rotate-prompt__icon" aria-hidden="true" />
         <div>
-          <strong>Rotate for desktop view</strong>
-          <p>Landscape gives more room for skeleton, feedback, chat, and angles.</p>
+          <strong>Want a wider training view?</strong>
+          <p>Rotate your phone to place the camera and coaching panels side by side.</p>
         </div>
       </div>
 
@@ -119,6 +130,14 @@ export default function TrainingStudio({ studioMode = "student" }) {
             </button>
           ))}
         </div>
+
+        <Link
+          aria-label={`Leave ${isAdminStudio ? "Admin Studio" : "training"}`}
+          className="studio-exit-link"
+          to={isAdminStudio ? "/admin-studio" : "/studio"}
+        >
+          ← Library
+        </Link>
 
         <div className="coach-toggles" aria-label="Coach output controls">
           <button

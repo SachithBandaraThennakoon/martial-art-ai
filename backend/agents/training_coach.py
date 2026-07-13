@@ -7,6 +7,7 @@ from agents.movement_agent import analyze_movement
 
 ACCURACY_TO_ADVANCE = 90
 ACCURACY_HOLD_SECONDS = 5
+VOICE_FEEDBACK_COOLDOWN_SECONDS = 6
 TREND_SPEAK_DELTA = 3
 STEADY_REMINDER_FRAMES = 16
 READINESS_TARGETS = {
@@ -62,6 +63,7 @@ class CoachSession:
     last_situation_signature: str = ""
     high_accuracy_started_at: float | None = None
     high_accuracy_last_prompt_second: int | None = None
+    last_spoken_at: float = 0.0
 
     def user_message(self, message):
         text = (message or "").strip()
@@ -650,7 +652,7 @@ class CoachSession:
         if situation_state == "tracking_unclear":
             return "Tracking is unclear. Step fully into camera view."
         if situation_state == "warning":
-            return "Slow the rep down. Keep the guard shape clean before continuing."
+            return "Slow this rep down. Reset your guard, then continue."
         if situation_state == "correcting":
             user_layer = temporal_layers.get("level4_user", {})
             session_layer = temporal_layers.get("level3_session", {})
@@ -660,10 +662,10 @@ class CoachSession:
 
             if body_part_key.startswith("fist_"):
                 side = "left" if body_part_key.endswith("left") else "right"
-                return f"{pacing}make a tighter {side} fist and keep it beside your guard."
+                return f"{pacing}tighten your {side} fist and keep it beside your guard."
             if body_part_key.startswith("hand_"):
                 side = "left" if "left" in body_part_key else "right"
-                return f"{pacing}show your {side} hand clearly, then hold the guard shape."
+                return f"{pacing}show your {side} hand clearly, then hold your guard."
             if "shoulder" in body_part_key:
                 side = "left" if "left" in body_part_key else "right"
                 if issue_key == "too_open":
@@ -674,11 +676,11 @@ class CoachSession:
                 return "Keep your face forward, but fix the guard first."
 
             suffix = " This is your repeated pattern." if repeated else ""
-            return f"{pacing}fix {body_part}: {issue}.{suffix}"
+            return f"{pacing}fix your {body_part}: {issue}.{suffix}"
         if situation_state == "advance_ready" or next_action.get("allow_next_step"):
-            return "Good consistency. Ready for the next step."
+            return "Good control. Hold it steady, then move to the next step."
         if situation_state == "encouraging":
-            return "Good trend. Keep the same rhythm."
+            return "Good correction. Keep the same rhythm."
         return "Observing your movement."
 
     def _best_short_term_focus(self, attention_target):
@@ -856,12 +858,25 @@ class CoachSession:
         cue = item.get("cue")
 
         if item["issue"] == "missing":
-            return item.get("cue") or f"Show your {label}."
+            return item.get("cue") or f"Bring your {label} into view."
+
+        body_part = item["body_part"]
+        if body_part.startswith("fist_"):
+            side = "left" if body_part.endswith("left") else "right"
+            if item["issue"] in {"too_open", "too_closed"}:
+                return f"Tighten your {side} fist and keep it beside your guard."
+
+        if body_part.startswith("hand_"):
+            side = "left" if "left" in body_part else "right"
+            return f"Show your {side} hand clearly, then hold your guard."
+
+        if self._is_face_readiness_target(body_part):
+            return "Keep your face forward. Eyes on the target."
 
         if item["issue"] in {"too_closed", "too_open"} and cue:
             return cue
 
-        return cue or f"Hold {label}."
+        return cue or f"Hold your {label} steady."
 
     def _is_readiness_target(self, body_part):
         return body_part in READINESS_TARGETS
@@ -895,17 +910,30 @@ class CoachSession:
             if self._is_face_readiness_target(item["body_part"])
         ]
 
-        return (
-            sorted(hand_issues, key=lambda entry: self._readiness_priority(entry["body_part"]))
-            or body_issues
-            or sorted(face_issues, key=lambda entry: self._readiness_priority(entry["body_part"]))
+        sorted_face_issues = sorted(
+            face_issues,
+            key=lambda entry: self._readiness_priority(entry["body_part"])
         )
+        sorted_hand_issues = sorted(
+            hand_issues,
+            key=lambda entry: self._readiness_priority(entry["body_part"])
+        )
+
+        return sorted_face_issues or sorted_hand_issues or body_issues
 
     def _should_speak(self, message):
         focus = self.pending_speech_focus
+        now = time.monotonic()
 
         if message == self.last_spoken_message and (
             not focus or focus.get("kind") != "steady"
+        ):
+            return False
+
+        if (
+            self.last_spoken_at
+            and now - self.last_spoken_at < VOICE_FEEDBACK_COOLDOWN_SECONDS
+            and not self._is_priority_voice_message(message)
         ):
             return False
 
@@ -927,7 +955,17 @@ class CoachSession:
             self.last_spoken_corrections[body_part] = delta
 
         self.last_spoken_message = message
+        self.last_spoken_at = now
         return True
+
+    def _is_priority_voice_message(self, message):
+        normalized = (message or "").lower()
+        priority_phrases = {
+            "good. next step.",
+            "practice or train again?",
+            "ready?",
+        }
+        return normalized in priority_phrases or normalized.startswith("next step")
 
     def _trend_cue(self, item, force_short=False):
         if item["issue"] == "missing":
@@ -955,7 +993,7 @@ class CoachSession:
 
         action = "Increase" if direction == "increase" else "Decrease"
         if unit == "score":
-            plain_cue = item.get("cue") or (
+            plain_cue = self._focused_cue(item) if delta <= 25 else (
                 f"Improve {spoken_label} by {delta} points."
             )
         else:

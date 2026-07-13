@@ -15,7 +15,7 @@ import json
 from database import get_db, init_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, training_memory
+from models import user, technique, technique_step, target_angle, training_memory, contact_message
 from models.target_angle import TargetAngle
 from models.training_memory import (
     PracticeRep,
@@ -30,6 +30,7 @@ from models.training_memory import (
 from routers import auth
 from routers import technique as technique_router
 from routers import subscription as subscription_router
+from routers import contact as contact_router
 
 # Services
 from services.angle_service import compare_angles
@@ -72,6 +73,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(technique_router.router)
 app.include_router(subscription_router.router)
+app.include_router(contact_router.router)
 
 
 # -----------------------------
@@ -293,6 +295,41 @@ def get_practice_analysis(
         else:
             recommendation = "Repeat the same count slowly for cleaner reps."
 
+    training_sessions = db.query(TrainingSession).filter(
+        TrainingSession.user_id == user_record.id
+    ).order_by(TrainingSession.started_at.desc()).limit(12).all()
+    training_ids = [session.id for session in training_sessions]
+    training_feedback = []
+    if training_ids:
+        training_feedback = db.query(TrainingFeedbackEvent).filter(
+            TrainingFeedbackEvent.session_id.in_(training_ids)
+        ).order_by(TrainingFeedbackEvent.created_at.desc()).limit(120).all()
+
+    issue_counts = {}
+    body_part_counts = {}
+    for event in training_feedback:
+        if event.issue and event.issue not in {"complete", "hold_good", "observing"}:
+            issue_counts[event.issue] = issue_counts.get(event.issue, 0) + 1
+        if event.body_part:
+            body_part_counts[event.body_part] = body_part_counts.get(event.body_part, 0) + 1
+
+    completed_training = sum(1 for session in training_sessions if session.completed)
+    training_accuracy = (
+        sum((session.final_accuracy or 0) for session in training_sessions) / len(training_sessions)
+        if training_sessions else 0
+    )
+    frequent_focus = max(body_part_counts, key=body_part_counts.get) if body_part_counts else None
+    frequent_issue = max(issue_counts, key=issue_counts.get) if issue_counts else None
+    training_recommendation = "Complete a guided Train session to unlock coaching insights."
+    if training_sessions:
+        if frequent_focus:
+            readable_focus = frequent_focus.replace("_", " ")
+            training_recommendation = f"Your most frequent coaching focus is {readable_focus}. Practice it slowly before adding speed."
+        elif training_accuracy >= 85:
+            training_recommendation = "Your guided form is strong. Use Practice mode to build repeatable reps."
+        else:
+            training_recommendation = "Repeat your latest guided session and hold each target before advancing."
+
     return {
         "summary": {
             "total_sessions": total_sessions,
@@ -307,6 +344,26 @@ def get_practice_analysis(
             "pace_mix": pace_counts,
             "trend": trend,
             "recommendation": recommendation
+        },
+        "training_summary": {
+            "total_sessions": len(training_sessions),
+            "completed_sessions": completed_training,
+            "average_accuracy": round(training_accuracy, 1),
+            "feedback_events": len(training_feedback),
+            "frequent_focus": frequent_focus,
+            "frequent_issue": frequent_issue,
+            "recommendation": training_recommendation,
+            "recent": [
+                {
+                    "id": session.id,
+                    "technique_name": session.technique_name,
+                    "mode": session.mode,
+                    "accuracy": round(session.final_accuracy or 0, 1),
+                    "completed": bool(session.completed),
+                    "started_at": session.started_at.isoformat() if session.started_at else None,
+                }
+                for session in training_sessions[:5]
+            ],
         },
         "sessions": [_practice_session_payload(session) for session in sessions]
     }
