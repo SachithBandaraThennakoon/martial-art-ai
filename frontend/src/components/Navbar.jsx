@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/auth";
 import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
 
@@ -13,16 +13,30 @@ export default function Navbar() {
     ["/studio", "/training"].includes(location.pathname)
       ? "navbar__link active"
       : "navbar__link";
-  const adminStudioNavClass = () =>
+  const adminNavClass = () =>
     ["/admin-studio", "/admin-training"].includes(location.pathname)
       ? "navbar__link active"
       : "navbar__link";
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isMenuOpen]);
 
   return (
     <nav className="navbar" aria-label="Main navigation">
       <div className="navbar__menu">
         <button
           aria-expanded={isMenuOpen}
+          aria-controls="primary-navigation-menu"
           aria-label={`${isMenuOpen ? "Close" : "Open"} navigation`}
           className={`navbar__menu-toggle ${isMenuOpen ? "is-open" : ""}`}
           onClick={() => setIsMenuOpen((open) => !open)}
@@ -32,7 +46,7 @@ export default function Navbar() {
         </button>
 
         {isMenuOpen ? (
-          <div className="navbar__menu-panel">
+          <div className="navbar__menu-panel" id="primary-navigation-menu">
             <div className="navbar__menu-section">
               <span>Workspace</span>
               {token ? <NavLink className={studioNavClass} onClick={closeMenu} to="/studio">Studio</NavLink> : null}
@@ -40,8 +54,8 @@ export default function Navbar() {
               <NavLink className={navClass} onClick={closeMenu} to="/contact">Contact</NavLink>
               {userRole === "admin" ? (
                 <>
-                  <NavLink className={adminStudioNavClass} onClick={closeMenu} to="/admin-studio">Admin Studio</NavLink>
-                  <NavLink className={adminStudioNavClass} onClick={closeMenu} to="/admin-training?mode=analysis">Admin Training</NavLink>
+                  <NavLink className={navClass} onClick={closeMenu} to="/admin-studio">Admin Studio</NavLink>
+                  <NavLink className={navClass} onClick={closeMenu} to="/admin-training?mode=analysis">Admin Training</NavLink>
                   <NavLink className={navClass} onClick={closeMenu} to="/model-test">Model Test</NavLink>
                 </>
               ) : null}
@@ -59,9 +73,9 @@ export default function Navbar() {
       </div>
 
       <div className="navbar__left">
-        <Link to="/" className="navbar__brand">
-          <span className="navbar__brand-mark">MA</span>
-          <span>Martial Art AI</span>
+        <Link to="/" className="navbar__brand" aria-label="XMartialArt home" onClick={closeMenu}>
+          <span className="navbar__brand-mark">XMA</span>
+          <span>XMartialArt</span>
         </Link>
 
         <div className="navbar__primary">
@@ -69,11 +83,7 @@ export default function Navbar() {
           <NavLink to="/pricing" className={navClass}>Plans</NavLink>
           <NavLink to="/contact" className={navClass}>Contact</NavLink>
           {userRole === "admin" ? (
-            <>
-              <NavLink to="/admin-studio" className={adminStudioNavClass}>Admin Studio</NavLink>
-              <NavLink to="/admin-training?mode=analysis" className={adminStudioNavClass}>Admin Training</NavLink>
-              <NavLink to="/model-test" className={navClass}>Model Test</NavLink>
-            </>
+            <NavLink to="/admin-studio" className={adminNavClass}>Admin</NavLink>
           ) : null}
         </div>
       </div>
@@ -92,7 +102,12 @@ export default function Navbar() {
           </>
         ) : (
           <>
-            {userName ? <span className="navbar__welcome">Hi, {userName.split(" ")[0]}</span> : null}
+            {userName ? (
+              <span className="navbar__welcome" title={userName}>
+                <span aria-hidden="true" className="navbar__status-dot" />
+                Hi, {userName.split(" ")[0]}
+              </span>
+            ) : null}
             <button className="btn btn--ghost btn--small" onClick={logout}>Sign out</button>
           </>
         )}

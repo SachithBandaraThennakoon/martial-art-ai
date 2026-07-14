@@ -11,7 +11,11 @@ const CATEGORY_ORDER = [
   "Fighting"
 ];
 
-function buildTechniqueCatalog({ techniques, technique_steps, target_angles }) {
+function buildTechniqueCatalog({
+  techniques = [],
+  technique_steps = [],
+  target_angles = []
+}) {
   const stepAngles = target_angles.reduce((items, angle) => {
     const list = items.get(angle.step_id) || [];
     list.push({
@@ -57,16 +61,28 @@ function buildTechniqueCatalog({ techniques, technique_steps, target_angles }) {
       });
     }
 
-    const steps = techniqueSteps.get(technique.id) || [];
+    const techniqueId = technique.id ?? slugify(technique.name);
+    const steps = Array.isArray(technique.steps)
+      ? technique.steps.map((step, index) => ({
+          id: step.id ?? `${techniqueId}-step-${step.step_number ?? index + 1}`,
+          step_number: step.step_number ?? index + 1,
+          step_name: step.step_name || `Step ${index + 1}`,
+          angles: (step.angles || []).map((angle) => ({
+            body_part: angle.body_part,
+            min: angle.min ?? angle.min_angle,
+            max: angle.max ?? angle.max_angle
+          }))
+        }))
+      : techniqueSteps.get(technique.id) || [];
     steps.sort((first, second) => first.step_number - second.step_number);
 
     category.subcategories.get(subcategoryName).techniques.push({
-      id: technique.id,
+      id: techniqueId,
       name: technique.name,
       category: categoryName,
       subcategory: subcategoryName,
       difficulty: technique.difficulty || "Beginner",
-      price: technique.price || 0,
+      price: technique.price ?? 0,
       requiredPlan: technique.required_plan || "FREE_PLAN",
       description: technique.description || "",
       steps
