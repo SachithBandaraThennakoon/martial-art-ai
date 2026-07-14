@@ -1,6 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+import os
 import time
 from pydantic import BaseModel
 from sqlalchemy import func
@@ -15,7 +17,8 @@ import json
 from database import get_db, init_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, training_memory, contact_message
+from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration
+from models.body_calibration import BodyCalibration
 from models.target_angle import TargetAngle
 from models.training_memory import (
     PracticeRep,
@@ -40,8 +43,7 @@ from agents.voice_agent import generate_voice
 # Security
 from utils.security import SECRET_KEY, ALGORITHM
 
-
-
+logger = logging.getLogger(__name__)
 
 # -----------------------------
 # INIT APP
@@ -55,12 +57,18 @@ DATABASE_READY = init_db()
 # -----------------------------
 # CORS (Frontend Connection)
 # -----------------------------
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -108,6 +116,12 @@ class PracticeCompleteRequest(BaseModel):
     status: str = "completed"
 
 
+class BodyCalibrationRequest(BaseModel):
+    ratios: dict[str, float]
+    sample_count: int
+    stability_score: float
+
+
 # -----------------------------
 # ROOT
 # -----------------------------
@@ -138,6 +152,63 @@ def protected_route(token: str = Depends(oauth2_scheme)):
         return {"message": f"Hello {email}"}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@app.get("/profile/body-calibration")
+def get_body_calibration(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    calibration = db.query(BodyCalibration).filter(
+        BodyCalibration.user_id == user_record.id
+    ).first()
+    return {"calibration": _body_calibration_payload(calibration) if calibration else None}
+
+
+@app.put("/profile/body-calibration")
+def save_body_calibration(
+    request: BodyCalibrationRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    ratios = {
+        str(key)[:64]: round(float(value), 5)
+        for key, value in request.ratios.items()
+        if isinstance(value, (int, float)) and 0.05 <= float(value) <= 8
+    }
+    if len(ratios) < 4:
+        raise HTTPException(status_code=400, detail="A complete body calibration is required")
+
+    calibration = db.query(BodyCalibration).filter(
+        BodyCalibration.user_id == user_record.id
+    ).first()
+    if not calibration:
+        calibration = BodyCalibration(user_id=user_record.id, ratios_json="{}")
+        db.add(calibration)
+
+    calibration.ratios_json = json.dumps(ratios)
+    calibration.sample_count = max(1, min(request.sample_count, 120))
+    calibration.stability_score = max(0, min(float(request.stability_score), 100))
+    db.commit()
+    db.refresh(calibration)
+    return {"calibration": _body_calibration_payload(calibration)}
+
+
+@app.delete("/profile/body-calibration")
+def delete_body_calibration(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    calibration = db.query(BodyCalibration).filter(
+        BodyCalibration.user_id == user_record.id
+    ).first()
+    if calibration:
+        db.delete(calibration)
+        db.commit()
+    return {"deleted": True}
 
 
 @app.post("/voice/speak")
@@ -386,11 +457,13 @@ async def train(websocket: WebSocket):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
-        print("WebSocket token accepted:", email)
+        if not email:
+            await websocket.close(code=1008)
+            return
 
-    except JWTError as e:
-        print("WebSocket token error:", str(e))
-        await websocket.close()
+    except JWTError:
+        logger.warning("Rejected WebSocket connection with an invalid token")
+        await websocket.close(code=1008)
         return
 
     await websocket.accept()
@@ -407,7 +480,7 @@ async def train(websocket: WebSocket):
         db.execute(text("SELECT 1"))
         db_ready = True
     except SQLAlchemyError as exc:
-        print(f"Training persistence disabled: {exc}")
+        logger.warning("Training persistence is unavailable: %s", exc)
 
     if db_ready:
         user_record = db.query(user.User).filter(user.User.email == email).first()
@@ -672,7 +745,7 @@ async def train(websocket: WebSocket):
             await websocket.send_text(json.dumps(coach_event))
 
     except WebSocketDisconnect:
-        print(f"{email} disconnected")
+        logger.debug("Training WebSocket disconnected")
 
     finally:
         if db_ready and db and training_session:
@@ -717,6 +790,20 @@ def _get_user_from_token(db, token):
         raise HTTPException(status_code=401, detail="User not found")
 
     return user_record
+
+
+def _body_calibration_payload(calibration):
+    try:
+        ratios = json.loads(calibration.ratios_json or "{}")
+    except json.JSONDecodeError:
+        ratios = {}
+
+    return {
+        "ratios": ratios,
+        "sample_count": calibration.sample_count or 0,
+        "stability_score": round(calibration.stability_score or 0, 1),
+        "updated_at": calibration.updated_at.isoformat() if calibration.updated_at else None,
+    }
 
 
 def _get_user_practice_session(db, user_id, session_id):

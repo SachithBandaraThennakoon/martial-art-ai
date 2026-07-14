@@ -3,11 +3,14 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import logging
 import os
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -30,7 +33,7 @@ def init_db():
         Base.metadata.create_all(bind=engine)
         return True
     except SQLAlchemyError as exc:
-        print(f"Database unavailable during startup: {exc}")
+        logger.error("Database unavailable during startup: %s", exc)
         return False
 
 

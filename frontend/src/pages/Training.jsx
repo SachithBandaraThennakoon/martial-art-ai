@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
+import useBodyCalibration from "../hooks/useBodyCalibration";
 
 const MODES = {
   train: {
@@ -33,10 +34,14 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const [displayMirrored, setDisplayMirrored] = useState(
     () => localStorage.getItem("studioDisplayMirrored") !== "false"
   );
+  const [stanceTargetDegrees, setStanceTargetDegrees] = useState(
+    () => Number(localStorage.getItem("studioStanceTargetDegrees")) || 0
+  );
   const [skeletonLayers, setSkeletonLayers] = useState({
     level1: false,
     onnx: false
   });
+  const bodyCalibration = useBodyCalibration();
   const requestedMode = searchParams.get("mode");
   const [mode, setMode] = useState(() => MODES[requestedMode] ? requestedMode : "train");
   const selectedTechniqueName = searchParams.get("technique");
@@ -96,9 +101,14 @@ export default function TrainingStudio({ studioMode = "student" }) {
     }));
   };
 
+  const updateStanceTarget = (degrees) => {
+    setStanceTargetDegrees(degrees);
+    localStorage.setItem("studioStanceTargetDegrees", String(degrees));
+  };
+
   const activeSkeletonLayers = isAdminStudio
     ? skeletonLayers
-    : { level1: false, onnx: false, corrections: false };
+    : { level1: false, onnx: false, corrections: true };
 
   return (
     <main className={`training-shell ${mode === "analysis" ? "training-shell--analysis" : ""}`}>
@@ -201,6 +211,9 @@ export default function TrainingStudio({ studioMode = "student" }) {
           isAdminStudio={isAdminStudio}
           performanceProfile={isAdminStudio ? "admin" : "student"}
           skeletonLayers={activeSkeletonLayers}
+          bodyCalibration={bodyCalibration}
+          stanceTargetDegrees={stanceTargetDegrees}
+          onStanceTargetChange={updateStanceTarget}
         />
       ) : mode === "practice" ? (
         <PracticeMode
@@ -215,6 +228,9 @@ export default function TrainingStudio({ studioMode = "student" }) {
           isAdminStudio={isAdminStudio}
           performanceProfile={isAdminStudio ? "admin" : "student"}
           skeletonLayers={activeSkeletonLayers}
+          bodyCalibration={bodyCalibration}
+          stanceTargetDegrees={stanceTargetDegrees}
+          onStanceTargetChange={updateStanceTarget}
         />
       ) : (
         <PracticeAnalysisMode onModeChange={updateMode} />

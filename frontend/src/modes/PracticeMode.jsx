@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ActionSkeletonOverlay from "../components/ActionSkeletonOverlay";
 import AwarenessPanel from "../components/AwarenessPanel";
+import BodyCalibrationPanel from "../components/BodyCalibrationPanel";
 import DataLayersPanel from "../components/DataLayersPanel";
 import Level1DebugPanel from "../components/Level1DebugPanel";
 import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
+import StanceViewPanel from "../components/StanceViewPanel";
 import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
 
@@ -92,7 +94,10 @@ export default function PracticeMode({
   voiceEnabled = true,
   isAdminStudio = false,
   performanceProfile = "student",
-  skeletonLayers = {}
+  skeletonLayers = {},
+  bodyCalibration,
+  stanceTargetDegrees = 0,
+  onStanceTargetChange
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -797,6 +802,11 @@ export default function PracticeMode({
           performanceProfile={performanceProfile}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
+          bodyCalibration={bodyCalibration?.profile}
+          calibrationActive={bodyCalibration?.state?.active}
+          onBodyCalibrationSample={bodyCalibration?.recordSample}
+          onCalibrationStatus={bodyCalibration?.reportFit}
+          stanceTargetDegrees={stanceTargetDegrees}
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
           onAwarenessUpdate={setAwareness}
@@ -879,6 +889,20 @@ export default function PracticeMode({
 
         <div className="panel-block panel-block--awareness">
           <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
+        </div>
+
+        <div className="panel-block panel-block--calibration">
+          <BodyCalibrationPanel
+            calibration={bodyCalibration?.profile}
+            onCancel={bodyCalibration?.cancelCalibration}
+            onReset={bodyCalibration?.resetCalibration}
+            onStart={bodyCalibration?.startCalibration}
+            state={bodyCalibration?.state}
+          />
+        </div>
+
+        <div className="panel-block panel-block--stance">
+          <StanceViewPanel onChange={onStanceTargetChange} value={stanceTargetDegrees} />
         </div>
 
         {isAdminStudio ? (

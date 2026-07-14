@@ -41,6 +41,7 @@ export default function Navbar() {
               {userRole === "admin" ? (
                 <>
                   <NavLink className={adminStudioNavClass} onClick={closeMenu} to="/admin-studio">Admin Studio</NavLink>
+                  <NavLink className={adminStudioNavClass} onClick={closeMenu} to="/admin-training?mode=analysis">Admin Training</NavLink>
                   <NavLink className={navClass} onClick={closeMenu} to="/model-test">Model Test</NavLink>
                 </>
               ) : null}
@@ -70,6 +71,7 @@ export default function Navbar() {
           {userRole === "admin" ? (
             <>
               <NavLink to="/admin-studio" className={adminStudioNavClass}>Admin Studio</NavLink>
+              <NavLink to="/admin-training?mode=analysis" className={adminStudioNavClass}>Admin Training</NavLink>
               <NavLink to="/model-test" className={navClass}>Model Test</NavLink>
             </>
           ) : null}

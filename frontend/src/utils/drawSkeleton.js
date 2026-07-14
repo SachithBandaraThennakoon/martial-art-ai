@@ -14,25 +14,10 @@ const BODY_CONNECTIONS = [
 ];
 
 const KEY_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
-const FACE_CONNECTIONS = [
-  [1, 2],
-  [2, 3],
-  [4, 5],
-  [5, 6],
-  [3, 0],
-  [0, 6],
-  [7, 1],
-  [7, 0],
-  [0, 8],
-  [8, 4],
-  [0, 9],
-  [0, 10],
-  [9, 10]
-];
-const FACE_JOINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const SKELETON_SCALE = 0.7;
 const MIN_VISIBILITY = 0.35;
 const CORRECTION_RED = "#ff3b3b";
+const CORRECT_GREEN = "#60d394";
 const PREDICTION_YELLOW = "#ffd84a";
 const ATTENTION_GREEN = "#60d394";
 
@@ -76,6 +61,7 @@ export function drawSkeleton(
   const onnxPredictedPoints = options.onnxPredictedLandmarks?.map((point) =>
     fitLivePoint(point, options.mirrored)
   );
+  const correctParts = options.correctParts || new Set();
   const drawPredictionLayer = (layerPoints, color, shadowColor, lineWidth = 3) => {
     if (!layerPoints) return;
 
@@ -121,29 +107,17 @@ export function drawSkeleton(
     const from = points[fromIndex];
     const to = points[toIndex];
     const isCorrection = shouldHighlight(connection, correctionParts);
+    const isCorrect = !isCorrection && shouldHighlight(connection, correctParts);
 
     if (!isVisible(from) || !isVisible(to)) return;
 
-    ctx.strokeStyle = isCorrection ? CORRECTION_RED : "#ffffff";
+    ctx.strokeStyle = isCorrection ? CORRECTION_RED : isCorrect ? CORRECT_GREEN : "#ffffff";
     ctx.shadowColor = isCorrection
       ? "rgba(255, 59, 59, 0.55)"
+      : isCorrect
+        ? "rgba(96, 211, 148, 0.55)"
       : "rgba(255, 255, 255, 0.22)";
-    ctx.lineWidth = isCorrection ? 7 : 5;
-    ctx.beginPath();
-    ctx.moveTo(from.x * width, from.y * height);
-    ctx.lineTo(to.x * width, to.y * height);
-    ctx.stroke();
-  });
-
-  ctx.strokeStyle = "#ffffff";
-  ctx.shadowColor = "rgba(255, 255, 255, 0.24)";
-  ctx.lineWidth = 3.6;
-  FACE_CONNECTIONS.forEach(([fromIndex, toIndex]) => {
-    const from = points[fromIndex];
-    const to = points[toIndex];
-
-    if (!isVisible(from) || !isVisible(to)) return;
-
+    ctx.lineWidth = isCorrection || isCorrect ? 7 : 5;
     ctx.beginPath();
     ctx.moveTo(from.x * width, from.y * height);
     ctx.lineTo(to.x * width, to.y * height);
@@ -158,27 +132,22 @@ export function drawSkeleton(
         connection.points.includes(index) &&
         shouldHighlight(connection, correctionParts)
     );
+    const isCorrect = !isCorrection && BODY_CONNECTIONS.some(
+      (connection) =>
+        connection.points.includes(index) &&
+        shouldHighlight(connection, correctParts)
+    );
 
     if (!isVisible(point)) return;
 
-    ctx.fillStyle = isCorrection ? CORRECTION_RED : "#ffffff";
+    ctx.fillStyle = isCorrection ? CORRECTION_RED : isCorrect ? CORRECT_GREEN : "#ffffff";
     ctx.shadowColor = isCorrection
       ? "rgba(255, 59, 59, 0.55)"
+      : isCorrect
+        ? "rgba(96, 211, 148, 0.55)"
       : "rgba(255, 255, 255, 0.22)";
     ctx.beginPath();
-    ctx.arc(point.x * width, point.y * height, isCorrection ? 4 : 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  ctx.fillStyle = "#ffffff";
-  ctx.shadowColor = "rgba(255, 255, 255, 0.26)";
-  FACE_JOINTS.forEach((index) => {
-    const point = points[index];
-
-    if (!isVisible(point)) return;
-
-    ctx.beginPath();
-    ctx.arc(point.x * width, point.y * height, index === 0 ? 3.8 : 3.2, 0, Math.PI * 2);
+    ctx.arc(point.x * width, point.y * height, isCorrection || isCorrect ? 4 : 3, 0, Math.PI * 2);
     ctx.fill();
   });
 

@@ -181,11 +181,13 @@ function FaceMeshPreview({ points = [], visible, mirrored = false, enabled = tru
 function HandMeshPreview({ points = [], visible, mirrored = false }) {
   const pointMap = new Map(points.map((point) => [point.index, point]));
   const { viewPoints, toSvgPoint } = normalizePoints(points, 96, 12, mirrored);
+  const isPoseHand = points.length > 0 && points.length <= 4;
+  const connections = isPoseHand ? [[0, 4], [0, 8], [0, 20]] : HAND_CONNECTIONS;
 
   return (
     <div className={`hand-mesh-preview ${visible ? "is-live" : "is-empty"}`}>
       <svg aria-hidden="true" viewBox="0 0 96 96">
-        {HAND_CONNECTIONS.map(([fromIndex, toIndex]) => {
+        {connections.map(([fromIndex, toIndex]) => {
           const from = pointMap.get(fromIndex);
           const to = pointMap.get(toIndex);
 
@@ -270,6 +272,8 @@ export default function AwarenessPanel({ awareness, mirrored = false }) {
   const faceSource = awareness?.faceSource || face.source || "pose";
   const facePoints = awareness?.facePoints || [];
   const handPoints = awareness?.handPoints || {};
+  const stance = awareness?.stance;
+  const isAngledStance = (stance?.targetDegrees || 0) > 15;
   const leftHand = awareness?.hands?.left;
   const rightHand = awareness?.hands?.right;
 
@@ -288,11 +292,20 @@ export default function AwarenessPanel({ awareness, mirrored = false }) {
           visible={face.visible}
         />
         <div className="awareness-face__main">
-          <span>{faceSource === "mesh" ? "Face mesh" : "Pose face"}</span>
+          <span>{faceSource === "mesh" ? "Face mesh" : "Pose 33 face"}</span>
           <strong>{face.visible ? face.focus : faceEnabled ? "Move face into frame" : "Tracking off"}</strong>
         </div>
         <div className="awareness-face__grid">
-          <FaceScoreTile label="Forward" value={face.forwardScore} />
+          <FaceScoreTile
+            displayValue={isAngledStance && face.visible
+              ? face.focus
+              : Number.isFinite(face.yawDegrees)
+                ? `${face.yawDegrees}°`
+                : undefined}
+            goodAt={isAngledStance ? 0 : 70}
+            label={isAngledStance ? "Gaze" : "Forward"}
+            value={isAngledStance ? null : face.forwardScore}
+          />
           <FaceScoreTile label="Eyes" value={face.eyeScore} />
           <FaceScoreTile
             displayValue={face.visible ? face.expression : "--"}
@@ -300,6 +313,11 @@ export default function AwarenessPanel({ awareness, mirrored = false }) {
             label="Tension"
             value={face.calmScore}
           />
+        </div>
+        <div className={`awareness-stance ${stance?.score >= 70 ? "is-good" : stance?.visible ? "is-low" : "is-waiting"}`}>
+          <span>Stance</span>
+          <strong>{stance?.visible ? `${stance.currentDegrees}° / ${stance.targetDegrees}°` : "Waiting"}</strong>
+          <em>{stance?.guidance || "Choose a stance view."}</em>
         </div>
       </article>
 

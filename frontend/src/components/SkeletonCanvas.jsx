@@ -18,6 +18,7 @@ import {
   getStudioPerformanceConfig
 } from "../performance/studioPerformanceConfig";
 import { WS_BASE_URL } from "../services/api";
+import { getBodyCalibrationSample, getCalibrationFit } from "../utils/bodyCalibration";
 
 const BODY_PART_MAP = {
   elbow_right: [12, 14, 16],
@@ -36,6 +37,10 @@ const BODY_PART_MAP = {
 
 const MIN_LANDMARK_VISIBILITY = 0.45;
 const HAND_TRACKING_KEYWORDS = ["fist", "punch", "jab", "cross", "guard", "hand"];
+const POSE_HAND_POINTS = {
+  left: { wrist: 15, pinky: 17, index: 19, thumb: 21 },
+  right: { wrist: 16, pinky: 18, index: 20, thumb: 22 }
+};
 
 function calculateAngle(a, b, c) {
   const ab = {
@@ -221,10 +226,44 @@ function getFistScore(hand) {
   return Math.round((fingerClosure * 0.65) + (palmClosure * 0.35));
 }
 
+function getPoseHandFallback(poseLandmarks, side) {
+  const indices = POSE_HAND_POINTS[side];
+  const entries = Object.entries(indices)
+    .map(([name, index]) => ({ name, point: poseLandmarks?.[index] }))
+    .filter(({ point }) =>
+      point && (point.visibility == null || point.visibility >= MIN_LANDMARK_VISIBILITY)
+    );
+  const hasWrist = entries.some((entry) => entry.name === "wrist");
+
+  if (!hasWrist || entries.length < 3) {
+    return {
+      visible: false,
+      fistScore: null,
+      openScore: null,
+      state: "Not visible",
+      source: "pose33"
+    };
+  }
+
+  return {
+    visible: true,
+    fistScore: null,
+    openScore: null,
+    state: "Position tracked",
+    source: "pose33"
+  };
+}
+
+function hasVisiblePoseHand(poseLandmarks) {
+  return ["left", "right"].some((side) =>
+    getPoseHandFallback(poseLandmarks, side).visible
+  );
+}
+
 function getHandAwareness(handLandmarksList, poseLandmarks, handednessList) {
   const hands = {
-    left: { visible: false, fistScore: null, state: "Not visible" },
-    right: { visible: false, fistScore: null, state: "Not visible" }
+    left: getPoseHandFallback(poseLandmarks, "left"),
+    right: getPoseHandFallback(poseLandmarks, "right")
   };
 
   getHandEntries(handLandmarksList, poseLandmarks, handednessList).forEach(({ hand, side }) => {
@@ -234,7 +273,8 @@ function getHandAwareness(handLandmarksList, poseLandmarks, handednessList) {
       visible: true,
       fistScore,
       openScore: 100 - fistScore,
-      state: fistScore >= 70 ? "Closed fist" : fistScore <= 35 ? "Open hand" : "Half closed"
+      state: fistScore >= 70 ? "Closed fist" : fistScore <= 35 ? "Open hand" : "Half closed",
+      source: "hand21"
     };
   });
 
@@ -248,7 +288,7 @@ function getHandScores(handLandmarksList, poseLandmarks, handednessList) {
   ["left", "right"].forEach((side) => {
     const hand = awareness[side];
 
-    if (!hand?.visible) return;
+    if (!hand?.visible || !Number.isFinite(hand.fistScore)) return;
 
     scores[`fist_${side}`] = hand.fistScore;
     scores[`hand_${side}_open`] = hand.openScore;
@@ -257,7 +297,7 @@ function getHandScores(handLandmarksList, poseLandmarks, handednessList) {
   return scores;
 }
 
-function getFaceAwareness(faceLandmarks) {
+function getFaceAwareness(faceLandmarks, mirrored = false) {
   if (!faceLandmarks?.length) {
     return {
       visible: false,
@@ -324,11 +364,14 @@ function getFaceAwareness(faceLandmarks) {
     : 0;
   const calmScore = Math.round(clamp(100 - mouthOpen * 260, 0, 100));
   const expression = mouthOpen > 0.16 ? "High tension" : mouthOpen > 0.09 ? "Working" : "Calm";
-  const horizontal = nose.x < eyeCenter.x - eyeWidth * 0.08
+  const rawHorizontal = nose.x < eyeCenter.x - eyeWidth * 0.08
     ? "Turned right"
     : nose.x > eyeCenter.x + eyeWidth * 0.08
       ? "Turned left"
       : "Forward";
+  const horizontal = mirrored && rawHorizontal !== "Forward"
+    ? rawHorizontal === "Turned left" ? "Turned right" : "Turned left"
+    : rawHorizontal;
   const focus = forwardScore >= 70 && eyeScore >= 45 ? "Focused forward" : horizontal;
 
   return {
@@ -374,14 +417,21 @@ function getPoseFaceLandmarks(poseLandmarks = []) {
     .filter(Boolean);
 }
 
-function getPoseFaceAwareness(poseLandmarks) {
+function getPoseFaceAwareness(poseLandmarks, mirrored = false) {
   const points = getPoseFaceLandmarks(poseLandmarks);
   const pointMap = new Map(points.map((point) => [point.index, point]));
   const nose = pointMap.get(0);
-  const leftEye = pointMap.get(2) || pointMap.get(1) || pointMap.get(3);
-  const rightEye = pointMap.get(5) || pointMap.get(4) || pointMap.get(6);
-  const leftEar = pointMap.get(7);
-  const rightEar = pointMap.get(8);
+  const averagePoints = (indices) => {
+    const available = indices.map((index) => pointMap.get(index)).filter(Boolean);
+    if (!available.length) return null;
+    return {
+      x: available.reduce((total, point) => total + point.x, 0) / available.length,
+      y: available.reduce((total, point) => total + point.y, 0) / available.length,
+      z: available.reduce((total, point) => total + (point.z || 0), 0) / available.length
+    };
+  };
+  const leftEye = averagePoints([1, 2, 3]);
+  const rightEye = averagePoints([4, 5, 6]);
   const mouthLeft = pointMap.get(9);
   const mouthRight = pointMap.get(10);
 
@@ -402,9 +452,6 @@ function getPoseFaceAwareness(poseLandmarks) {
     y: (leftEye.y + rightEye.y) / 2
   };
   const eyeWidth = Math.max(distance(leftEye, rightEye), 0.001);
-  const earBalance = leftEar && rightEar
-    ? Math.abs(distance(nose, leftEar) - distance(nose, rightEar)) / Math.max(distance(leftEar, rightEar), 0.001)
-    : 0.12;
   const yawOffset = Math.abs(nose.x - eyeCenter.x) / eyeWidth;
   const mouthCenter = mouthLeft && mouthRight
     ? {
@@ -413,22 +460,32 @@ function getPoseFaceAwareness(poseLandmarks) {
       }
     : { x: eyeCenter.x, y: eyeCenter.y + eyeWidth * 0.75 };
   const pitchOffset = Math.abs(nose.y - (eyeCenter.y + mouthCenter.y) / 2) / eyeWidth;
+  const depthYawDegrees = Math.atan2(
+    Math.abs((leftEye.z || 0) - (rightEye.z || 0)),
+    Math.max(Math.abs(leftEye.x - rightEye.x), 0.001)
+  ) * (180 / Math.PI);
+  const centerYawDegrees = clamp(yawOffset * 75, 0, 90);
+  const yawDegrees = Math.round(clamp(depthYawDegrees * 0.65 + centerYawDegrees * 0.35, 0, 90));
   const forwardScore = Math.round(
-    clamp(100 - yawOffset * 210 - earBalance * 110 - pitchOffset * 55, 0, 100)
+    clamp(100 - Math.max(0, yawDegrees - 7) * 2.25 - Math.max(0, pitchOffset - 0.35) * 18, 0, 100)
   );
   const eyeScore = Math.round(clamp(100 - Math.abs(leftEye.y - rightEye.y) / eyeWidth * 190, 0, 100));
   const mouthWidth = mouthLeft && mouthRight ? distance(mouthLeft, mouthRight) / eyeWidth : 0;
   const calmScore = Math.round(clamp(78 - Math.max(0, mouthWidth - 0.45) * 70, 45, 92));
-  const horizontal = nose.x < eyeCenter.x - eyeWidth * 0.1
+  const rawHorizontal = nose.x < eyeCenter.x - eyeWidth * 0.1
     ? "Turned right"
     : nose.x > eyeCenter.x + eyeWidth * 0.1
       ? "Turned left"
       : "Forward";
+  const horizontal = mirrored && rawHorizontal !== "Forward"
+    ? rawHorizontal === "Turned left" ? "Turned right" : "Turned left"
+    : rawHorizontal;
 
   return {
     visible: true,
-    focus: forwardScore >= 65 ? "Focused forward" : horizontal,
+    focus: yawDegrees <= 15 ? "Focused forward" : yawDegrees <= 28 ? "Slightly turned" : horizontal,
     forwardScore,
+    yawDegrees,
     eyeScore,
     calmScore,
     expression: "Pose face",
@@ -458,7 +515,52 @@ function getPoseFaceDetailPoints(poseLandmarks) {
   }));
 }
 
-function getHandDetailPoints(handEntries = []) {
+function getStanceAwareness(worldPose, targetDegrees = 0) {
+  const leftShoulder = worldPose?.[11];
+  const rightShoulder = worldPose?.[12];
+  if (!leftShoulder || !rightShoulder) {
+    return { visible: false, targetDegrees, currentDegrees: null, score: null, guidance: "Bring both shoulders into view." };
+  }
+
+  const horizontal = Math.abs(leftShoulder.x - rightShoulder.x);
+  const depth = Math.abs((leftShoulder.z || 0) - (rightShoulder.z || 0));
+  if (horizontal < 0.001 && depth < 0.001) {
+    return { visible: false, targetDegrees, currentDegrees: null, score: null, guidance: "Hold your shoulders in view." };
+  }
+
+  const currentDegrees = Math.round(Math.atan2(depth, horizontal) * (180 / Math.PI));
+  const tolerance = targetDegrees === 0 ? 15 : targetDegrees >= 90 ? 12 : 10;
+  const difference = currentDegrees - targetDegrees;
+  const score = Math.round(clamp(100 - Math.abs(difference) / tolerance * 100, 0, 100));
+  const guidance = Math.abs(difference) <= tolerance
+    ? "Stance angle is on target."
+    : targetDegrees === 0
+      ? `Square your shoulders toward the camera about ${currentDegrees}°.`
+      : targetDegrees === 90
+        ? `Turn into a side profile about ${Math.abs(difference)}° more.`
+        : difference < 0
+          ? `Turn your torso about ${Math.abs(difference)}° more.`
+          : `Rotate back about ${Math.abs(difference)}°.`;
+
+  return { visible: true, targetDegrees, currentDegrees, score, guidance };
+}
+
+function getHandDetailPoints(handEntries = [], poseLandmarks = []) {
+  const poseDetails = Object.entries(POSE_HAND_POINTS).reduce((details, [side, indices]) => {
+    details[side] = [
+      [0, indices.wrist],
+      [4, indices.thumb],
+      [8, indices.index],
+      [20, indices.pinky]
+    ]
+      .map(([index, poseIndex]) => ({ index, point: poseLandmarks?.[poseIndex] }))
+      .filter(({ point }) =>
+        point && (point.visibility == null || point.visibility >= MIN_LANDMARK_VISIBILITY)
+      )
+      .map(({ index, point }) => ({ index, x: point.x, y: point.y }));
+    return details;
+  }, {});
+
   return handEntries.reduce((details, entry) => {
     details[entry.side] = entry.hand.map((point, index) => ({
       index,
@@ -466,7 +568,7 @@ function getHandDetailPoints(handEntries = []) {
       y: point.y
     }));
     return details;
-  }, {});
+  }, poseDetails);
 }
 
 function createLandmarkFrame({
@@ -544,6 +646,11 @@ export default function SkeletonCanvas({
   onLevel3Update,
   onLevel4Update,
   onSituationAwarenessUpdate,
+  bodyCalibration,
+  calibrationActive = false,
+  onBodyCalibrationSample,
+  onCalibrationStatus,
+  stanceTargetDegrees = 0,
   enableAwareness = false,
   performanceProfile = "student"
 }) {
@@ -556,6 +663,7 @@ export default function SkeletonCanvas({
   const wsRef = useRef(null);
   const previousPoseRef = useRef(null);
   const previousWorldPoseRef = useRef(null);
+  const previousDisplayPoseRef = useRef(null);
   const previousHandsRef = useRef(null);
   const previousHandednessRef = useRef(null);
   const previousFaceRef = useRef(null);
@@ -589,6 +697,12 @@ export default function SkeletonCanvas({
   const level3SessionRef = useRef(new Level3SessionLayer());
   const level4UserRef = useRef(new Level4UserLayer());
   const situationAwarenessRef = useRef(new SituationAwarenessLayer());
+  const bodyCalibrationRef = useRef(bodyCalibration);
+  const calibrationActiveRef = useRef(calibrationActive);
+  const onBodyCalibrationSampleRef = useRef(onBodyCalibrationSample);
+  const onCalibrationStatusRef = useRef(onCalibrationStatus);
+  const stanceTargetDegreesRef = useRef(stanceTargetDegrees);
+  const lastCalibrationStatusTimeRef = useRef(0);
   const lastLevel1UpdateTimeRef = useRef(0);
   const lastLevel2UpdateTimeRef = useRef(0);
   const lastLevel3UpdateTimeRef = useRef(0);
@@ -631,7 +745,6 @@ export default function SkeletonCanvas({
       performanceConfigRef.current.handMode === "always" ||
       shouldTrackHands(requiredParts, currentStepName);
     shouldTrackFaceRef.current = Boolean(enableAwareness && performanceConfigRef.current.enableFace);
-
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
@@ -653,6 +766,20 @@ export default function SkeletonCanvas({
     sessionConfig,
     performanceProfile
   ]);
+
+  useEffect(() => {
+    onBodyCalibrationSampleRef.current = onBodyCalibrationSample;
+    onCalibrationStatusRef.current = onCalibrationStatus;
+  }, [onBodyCalibrationSample, onCalibrationStatus]);
+
+  useEffect(() => {
+    bodyCalibrationRef.current = bodyCalibration;
+    calibrationActiveRef.current = calibrationActive;
+  }, [bodyCalibration, calibrationActive]);
+
+  useEffect(() => {
+    stanceTargetDegreesRef.current = stanceTargetDegrees;
+  }, [stanceTargetDegrees]);
 
   useEffect(() => {
     if (!enableCoach) {
@@ -791,6 +918,34 @@ export default function SkeletonCanvas({
       );
     };
 
+    // This is a display-only stabilizer. It sits after Level 1 so the white
+    // skeleton is calm at rest, yet releases quickly when the student moves.
+    // Coaching angles continue to use the independent angle landmark stream.
+    const stabilizeDisplayLandmarks = (current, previous, motionEnergy = 0) => {
+      if (!previous || previous.length !== current.length) return current;
+
+      const smoothing = motionEnergy > 0.085 ? 0.6 : motionEnergy > 0.04 ? 0.46 : 0.3;
+      const deadband = motionEnergy > 0.04 ? 0.0015 : 0.0035;
+
+      return current.map((point, index) => {
+        const prior = previous[index];
+        const delta = Math.hypot(
+          point.x - prior.x,
+          point.y - prior.y,
+          (point.z || 0) - (prior.z || 0)
+        );
+
+        if (delta < deadband) return { ...prior, visibility: point.visibility };
+
+        return {
+          x: prior.x * (1 - smoothing) + point.x * smoothing,
+          y: prior.y * (1 - smoothing) + point.y * smoothing,
+          z: (prior.z || 0) * (1 - smoothing) + (point.z || 0) * smoothing,
+          visibility: point.visibility
+        };
+      });
+    };
+
     const sendCoachContextPacket = ({
       level1State,
       level2State,
@@ -904,10 +1059,19 @@ export default function SkeletonCanvas({
         const result = poseRef.current.detectForVideo(videoRef.current, now);
 
         if (result.landmarks.length > 0) {
-          const poseSmoothing = getAdaptiveSmoothing({
+          const liveCalibrationFit = getCalibrationFit(
+            result.landmarks[0],
+            bodyCalibrationRef.current
+          );
+          const baseSmoothing = getAdaptiveSmoothing({
             trackingConfidence: lastMotionQualityRef.current.trackingConfidence,
             motionEnergy: lastMotionQualityRef.current.motionEnergy
           });
+          // A changed camera position can make proportions look different in 2D.
+          // Add a little smoothing for display stability; never change technique scoring.
+          const poseSmoothing = bodyCalibrationRef.current?.ratios && liveCalibrationFit.score < 62
+            ? Math.min(0.76, baseSmoothing + 0.1)
+            : baseSmoothing;
           poseLandmarks = smoothLandmarks(
             result.landmarks[0],
             previousPoseRef.current,
@@ -920,18 +1084,24 @@ export default function SkeletonCanvas({
             angleLandmarks = smoothLandmarks(
               result.worldLandmarks[0],
               previousWorldPoseRef.current,
-              poseSmoothing
+              baseSmoothing
             );
 
             previousWorldPoseRef.current = angleLandmarks;
           } else {
-            angleLandmarks = poseLandmarks;
+            angleLandmarks = smoothLandmarks(
+              result.landmarks[0],
+              previousWorldPoseRef.current,
+              baseSmoothing
+            );
+            previousWorldPoseRef.current = angleLandmarks;
           }
         }
       }
 
       if (
         shouldTrackHandsRef.current &&
+        hasVisiblePoseHand(poseLandmarks) &&
         !handRef.current &&
         !handModelPromiseRef.current
       ) {
@@ -949,7 +1119,11 @@ export default function SkeletonCanvas({
       if (
         shouldTrackHandsRef.current &&
         handRef.current &&
-        now - lastHandTimeRef.current > performanceConfig.handIntervalMs
+        now - lastHandTimeRef.current > (
+          lastMotionQualityRef.current.motionEnergy > 0.045
+            ? Math.max(180, performanceConfig.handIntervalMs - 80)
+            : performanceConfig.handIntervalMs + 80
+        )
       ) {
         lastHandTimeRef.current = now;
         const result = handRef.current.detectForVideo(videoRef.current, now);
@@ -989,6 +1163,15 @@ export default function SkeletonCanvas({
       }
 
       if (poseLandmarks) {
+        const calibrationSample = getBodyCalibrationSample(poseLandmarks);
+        if (calibrationActiveRef.current) {
+          onBodyCalibrationSampleRef.current?.(calibrationSample);
+        }
+        const calibrationFit = getCalibrationFit(poseLandmarks, bodyCalibrationRef.current);
+        if (now - lastCalibrationStatusTimeRef.current > 900) {
+          lastCalibrationStatusTimeRef.current = now;
+          onCalibrationStatusRef.current?.(calibrationFit);
+        }
         const frame = createLandmarkFrame({
           timestamp: now,
           poseLandmarks,
@@ -1101,14 +1284,25 @@ export default function SkeletonCanvas({
           level1State?.debug?.currentLandmarks || frame.pose
         );
 
+        const skeletonSource = level1State?.debug?.currentLandmarks || frame.pose;
+        const displayLandmarks = stabilizeDisplayLandmarks(
+          skeletonSource,
+          previousDisplayPoseRef.current,
+          level2State?.action_context?.motion_energy ?? 0
+        );
+        previousDisplayPoseRef.current = displayLandmarks;
+
         drawSkeleton(
           canvasRef.current,
-          level1State?.debug?.currentLandmarks || frame.pose,
+          displayLandmarks,
           skeletonLayersRef.current.corrections === false
             ? new Set()
             : getCorrectionParts(requiredPartsRef.current, anglesPayload),
           {
             mirrored: displayMirroredRef.current,
+            correctParts: skeletonLayersRef.current.corrections === false
+              ? new Set()
+              : getCorrectParts(requiredPartsRef.current, anglesPayload),
             predictedLandmarks: skeletonLayersRef.current.level1
               ? level1State?.debug?.predictedLandmarks
               : null,
@@ -1158,11 +1352,14 @@ export default function SkeletonCanvas({
               situationContext: situationAwarenessState?.situation_context
             },
             faceEnabled: true,
-            faceSource: frame.face ? "mesh" : "pose",
+            faceSource: frame.face ? "mesh" : "pose33",
             handsEnabled: shouldTrackHandsRef.current,
-            face: frame.face ? getFaceAwareness(frame.face) : getPoseFaceAwareness(frame.pose),
+            face: frame.face
+              ? getFaceAwareness(frame.face, displayMirroredRef.current)
+              : getPoseFaceAwareness(frame.pose, displayMirroredRef.current),
+            stance: getStanceAwareness(frame.worldPose, stanceTargetDegreesRef.current),
             facePoints: frame.face ? getFaceDetailPoints(frame.face) : getPoseFaceDetailPoints(frame.pose),
-            handPoints: getHandDetailPoints(frame.handEntries),
+            handPoints: getHandDetailPoints(frame.handEntries, frame.pose),
             hands: getHandAwareness(frame.hands, frame.pose, frame.handedness)
           });
         }
@@ -1252,10 +1449,23 @@ export default function SkeletonCanvas({
   }, [coachCommand, enableCoach, sendCoachCommand]);
 
   return (
-    <div className="skeleton-canvas">
+    <div className={`skeleton-canvas ${displayMirrored ? "skeleton-canvas--mirrored" : ""}`}>
+      <video aria-hidden="true" ref={videoRef} autoPlay muted playsInline />
       <canvas ref={canvasRef} />
       <div className="skeleton-canvas__overlay" />
-      <video ref={videoRef} autoPlay muted playsInline />
     </div>
+  );
+}
+
+function getCorrectParts(requiredParts = [], anglesPayload = {}) {
+  return new Set(
+    requiredParts
+      .filter((part) => {
+        if (!BODY_PART_MAP[part.body_part]) return false;
+
+        const value = anglesPayload[part.body_part];
+        return Number.isFinite(value) && value >= part.min && value <= part.max;
+      })
+      .map((part) => part.body_part)
   );
 }

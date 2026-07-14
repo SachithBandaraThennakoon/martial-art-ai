@@ -1,9 +1,12 @@
 import os
+import logging
 from openai import OpenAI
 from dotenv import load_dotenv
 import base64
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -42,6 +45,6 @@ def generate_voice(text, voice="cedar"):
 
         return base64.b64encode(audio_bytes).decode("utf-8")
 
-    except Exception as e:
-        print("Voice error:", e)
+    except Exception as exc:
+        logger.warning("Voice generation failed: %s", exc)
         return None
