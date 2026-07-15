@@ -1,4 +1,19 @@
 {
+  "schema_version": "2.0",
+  "measurement_notes": {
+    "joint_angles": "Interior 2D landmark angles in degrees. Straight joints are near 180; deeper flexion produces a smaller angle.",
+    "perception_scores": "face_forward, eyes_forward, face_calm, fist_left/right, and hand_left/right_open are 0-100 confidence scores, not joint angles.",
+    "coaching_policy": "Targets are broad beginner coaching bands for camera feedback, not clinical range-of-motion norms. Stop if movement causes pain, dizziness, or loss of balance.",
+    "capture": "Use the view named in each description, keep the full body visible, and begin with a controlled warm-up. Left/right targets assume an orthodox stance unless stated otherwise."
+  },
+  "research_basis": [
+    {"title": "How to squat? Effects of stance width and foot placement", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6050697/"},
+    {"title": "Biomechanical review of the squat exercise", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10987311/"},
+    {"title": "Biomechanical characteristics of three yoga manoeuvres", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8378959/"},
+    {"title": "Biomechanical analysis of roundhouse kicking", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5571909/"},
+    {"title": "Biomechanical analysis of boxing cross, hook, and uppercut", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7739747/"},
+    {"title": "NCCIH yoga effectiveness and safety guidance", "url": "https://www.nccih.nih.gov/health/yoga-effectiveness-and-safety"}
+  ],
   "techniques": [
     {
       "name": "Jab",
@@ -7,7 +22,7 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "FREE_PLAN",
-      "description": "",
+      "description": "Face the camera in an orthodox stance. Extend the left lead hand without forcing elbow lock, then return immediately to a balanced two-hand guard.",
       "steps": [
         {
           "step_number": 1,
@@ -86,7 +101,7 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "FREE_PLAN",
-      "description": "",
+      "description": "Face the camera in an orthodox stance. Initiate from a compact rear-side guard, extend the right hand through a coordinated turn, and keep the lead hand protecting.",
       "steps": [
         {
           "step_number": 1,
@@ -96,6 +111,16 @@
               "body_part": "shoulder_right",
               "min": 40,
               "max": 85
+            },
+            {
+              "body_part": "elbow_right",
+              "min": 55,
+              "max": 110
+            },
+            {
+              "body_part": "fist_right",
+              "min": 65,
+              "max": 100
             }
           ]
         },
@@ -107,6 +132,21 @@
               "body_part": "elbow_right",
               "min": 155,
               "max": 180
+            },
+            {
+              "body_part": "shoulder_right",
+              "min": 60,
+              "max": 115
+            },
+            {
+              "body_part": "wrist_right",
+              "min": 145,
+              "max": 180
+            },
+            {
+              "body_part": "fist_right",
+              "min": 70,
+              "max": 100
             }
           ]
         }
@@ -119,7 +159,7 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "STARTER_PLAN",
-      "description": "",
+      "description": "Use a side or 30-degree view with the right leg nearer the camera. Lift the knee before extending and keep the supporting leg stable; train below maximal height.",
       "steps": [
         {
           "step_number": 1,
@@ -129,6 +169,16 @@
               "body_part": "knee_right",
               "min": 45,
               "max": 85
+            },
+            {
+              "body_part": "hip_right",
+              "min": 45,
+              "max": 105
+            },
+            {
+              "body_part": "knee_left",
+              "min": 145,
+              "max": 180
             }
           ]
         },
@@ -139,6 +189,16 @@
             {
               "body_part": "knee_right",
               "min": 150,
+              "max": 180
+            },
+            {
+              "body_part": "hip_right",
+              "min": 55,
+              "max": 120
+            },
+            {
+              "body_part": "knee_left",
+              "min": 140,
               "max": 180
             }
           ]
@@ -152,16 +212,16 @@
       "difficulty": "Intermediate",
       "price": 3.99,
       "required_plan": "PRO_PLAN",
-      "description": "",
+      "description": "Use a front-diagonal view with clear space. Chamber the right leg, turn the body, and extend through a proximal-to-distal sequence; the app does not score foot pivot or impact.",
       "steps": [
         {
           "step_number": 1,
           "step_name": "Pivot support foot",
           "angles": [
             {
-              "body_part": "ankle_left",
-              "min": 75,
-              "max": 115
+              "body_part": "knee_left",
+              "min": 145,
+              "max": 180
             }
           ]
         },
@@ -178,6 +238,11 @@
               "body_part": "knee_right",
               "min": 145,
               "max": 180
+            },
+            {
+              "body_part": "knee_left",
+              "min": 140,
+              "max": 180
             }
           ]
         }
@@ -190,7 +255,7 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "FREE_PLAN",
-      "description": "",
+      "description": "Face the camera in a comfortable wide stance. Shift into the left hip and return through center without forcing depth or allowing pain.",
       "steps": [
         {
           "step_number": 1,
@@ -198,8 +263,23 @@
           "angles": [
             {
               "body_part": "hip_left",
-              "min": 90,
-              "max": 130
+              "min": 140,
+              "max": 180
+            },
+            {
+              "body_part": "hip_right",
+              "min": 140,
+              "max": 180
+            },
+            {
+              "body_part": "knee_left",
+              "min": 145,
+              "max": 180
+            },
+            {
+              "body_part": "knee_right",
+              "min": 145,
+              "max": 180
             }
           ]
         },
@@ -211,6 +291,16 @@
               "body_part": "knee_left",
               "min": 80,
               "max": 120
+            },
+            {
+              "body_part": "knee_right",
+              "min": 145,
+              "max": 180
+            },
+            {
+              "body_part": "hip_left",
+              "min": 70,
+              "max": 135
             }
           ]
         }
@@ -223,7 +313,7 @@
       "difficulty": "Intermediate",
       "price": 4.99,
       "required_plan": "STARTER_PLAN",
-      "description": "",
+      "description": "Face the camera for a controlled athletic-stance and right-knee-drive interval. Maintain balance and smooth mechanics before increasing pace.",
       "steps": [
         {
           "step_number": 1,
@@ -231,6 +321,11 @@
           "angles": [
             {
               "body_part": "knee_left",
+              "min": 120,
+              "max": 160
+            },
+            {
+              "body_part": "knee_right",
               "min": 120,
               "max": 160
             }
@@ -244,6 +339,16 @@
               "body_part": "hip_right",
               "min": 50,
               "max": 95
+            },
+            {
+              "body_part": "knee_right",
+              "min": 35,
+              "max": 90
+            },
+            {
+              "body_part": "knee_left",
+              "min": 140,
+              "max": 180
             }
           ]
         }
@@ -256,7 +361,7 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "FREE_PLAN",
-      "description": "",
+      "description": "Face the camera with arms relaxed and knees softly extended. The app checks visible posture, face direction, and calm-expression confidence; it cannot measure breathing quality.",
       "steps": [
         {
           "step_number": 1,
@@ -264,8 +369,43 @@
           "angles": [
             {
               "body_part": "shoulder_left",
-              "min": 75,
-              "max": 105
+              "min": 0,
+              "max": 30
+            },
+            {
+              "body_part": "shoulder_right",
+              "min": 0,
+              "max": 30
+            },
+            {
+              "body_part": "elbow_left",
+              "min": 150,
+              "max": 180
+            },
+            {
+              "body_part": "elbow_right",
+              "min": 150,
+              "max": 180
+            },
+            {
+              "body_part": "knee_left",
+              "min": 145,
+              "max": 180
+            },
+            {
+              "body_part": "knee_right",
+              "min": 145,
+              "max": 180
+            },
+            {
+              "body_part": "face_forward",
+              "min": 60,
+              "max": 100
+            },
+            {
+              "body_part": "face_calm",
+              "min": 50,
+              "max": 100
             }
           ]
         }
@@ -278,16 +418,41 @@
       "difficulty": "Beginner",
       "price": 2.99,
       "required_plan": "STARTER_PLAN",
-      "description": "",
+      "description": "Face the camera and pause at a compact ready position. This beginner checkpoint evaluates the arm frame only, not lineage-specific kata correctness.",
       "steps": [
         {
           "step_number": 1,
           "step_name": "Ready position",
           "angles": [
             {
+              "body_part": "elbow_left",
+              "min": 85,
+              "max": 125
+            },
+            {
               "body_part": "elbow_right",
               "min": 85,
               "max": 125
+            },
+            {
+              "body_part": "fist_left",
+              "min": 60,
+              "max": 100
+            },
+            {
+              "body_part": "fist_right",
+              "min": 60,
+              "max": 100
+            },
+            {
+              "body_part": "knee_left",
+              "min": 140,
+              "max": 180
+            },
+            {
+              "body_part": "knee_right",
+              "min": 140,
+              "max": 180
             }
           ]
         }
@@ -300,16 +465,41 @@
       "difficulty": "Intermediate",
       "price": 6.99,
       "required_plan": "PRO_PLAN",
-      "description": "",
+      "description": "Use a lightweight training staff with clear space and supervision. The camera evaluates the visible arm and wrist frame, not the weapon, grip security, or striking safety.",
       "steps": [
         {
           "step_number": 1,
           "step_name": "Staff guard",
           "angles": [
             {
-              "body_part": "wrist_right",
-              "min": 155,
+              "body_part": "elbow_left",
+              "min": 75,
+              "max": 125
+            },
+            {
+              "body_part": "elbow_right",
+              "min": 75,
+              "max": 125
+            },
+            {
+              "body_part": "wrist_left",
+              "min": 145,
               "max": 180
+            },
+            {
+              "body_part": "wrist_right",
+              "min": 145,
+              "max": 180
+            },
+            {
+              "body_part": "fist_left",
+              "min": 55,
+              "max": 100
+            },
+            {
+              "body_part": "fist_right",
+              "min": 55,
+              "max": 100
             }
           ]
         }
@@ -322,7 +512,7 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "FREE_PLAN",
-      "description": "",
+      "description": "Solo rehearsal only. Keep the left elbow anchored while shaping a compact release path; the camera cannot detect a grab, resistance, partner behavior, or real-world effectiveness.",
       "steps": [
         {
           "step_number": 1,
@@ -332,6 +522,21 @@
               "body_part": "elbow_left",
               "min": 55,
               "max": 95
+            },
+            {
+              "body_part": "shoulder_left",
+              "min": 25,
+              "max": 85
+            },
+            {
+              "body_part": "hand_left_open",
+              "min": 55,
+              "max": 100
+            },
+            {
+              "body_part": "fist_right",
+              "min": 60,
+              "max": 100
             }
           ]
         }
@@ -344,19 +549,321 @@
       "difficulty": "Intermediate",
       "price": 5.99,
       "required_plan": "PRO_PLAN",
-      "description": "",
+      "description": "Face the camera and rehearse a guarded level change with a stable base. Joint angles can score stance readiness, but not opponent distance or tactical timing.",
       "steps": [
         {
           "step_number": 1,
           "step_name": "Outside step",
           "angles": [
             {
-              "body_part": "ankle_left",
-              "min": 85,
-              "max": 125
+              "body_part": "knee_left",
+              "min": 120,
+              "max": 165
+            },
+            {
+              "body_part": "knee_right",
+              "min": 120,
+              "max": 165
+            },
+            {
+              "body_part": "elbow_left",
+              "min": 50,
+              "max": 110
+            },
+            {
+              "body_part": "elbow_right",
+              "min": 50,
+              "max": 110
+            },
+            {
+              "body_part": "fist_left",
+              "min": 60,
+              "max": 100
+            },
+            {
+              "body_part": "fist_right",
+              "min": 60,
+              "max": 100
             }
           ]
         }
+      ]
+    },
+    {
+      "name": "Lead Hook",
+      "category": "Technique Training",
+      "subcategory": "Punching",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Face the camera in an orthodox guard. Turn smoothly and keep the lead elbow near fist height; train shape before speed or impact.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set compact guard", "angles": [{"body_part": "elbow_left", "min": 55, "max": 105}, {"body_part": "elbow_right", "min": 55, "max": 105}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}]},
+        {"step_number": 2, "step_name": "Turn lead hook", "angles": [{"body_part": "elbow_left", "min": 75, "max": 110}, {"body_part": "shoulder_left", "min": 65, "max": 115}, {"body_part": "wrist_left", "min": 145, "max": 180}, {"body_part": "fist_left", "min": 70, "max": 100}]},
+        {"step_number": 3, "step_name": "Recover guard", "angles": [{"body_part": "elbow_left", "min": 55, "max": 110}, {"body_part": "elbow_right", "min": 55, "max": 110}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Rear Uppercut",
+      "category": "Technique Training",
+      "subcategory": "Punching",
+      "difficulty": "Beginner",
+      "price": 1.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Face the camera in an orthodox guard. Use a short upward path with the rear elbow below the fist; avoid leaning or overextending.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set compact guard", "angles": [{"body_part": "elbow_left", "min": 55, "max": 105}, {"body_part": "elbow_right", "min": 55, "max": 105}, {"body_part": "fist_right", "min": 65, "max": 100}]},
+        {"step_number": 2, "step_name": "Drive rear uppercut", "angles": [{"body_part": "elbow_right", "min": 45, "max": 90}, {"body_part": "shoulder_right", "min": 35, "max": 85}, {"body_part": "wrist_right", "min": 145, "max": 180}, {"body_part": "fist_right", "min": 70, "max": 100}]},
+        {"step_number": 3, "step_name": "Recover guard", "angles": [{"body_part": "elbow_right", "min": 55, "max": 110}, {"body_part": "fist_right", "min": 65, "max": 100}, {"body_part": "face_forward", "min": 55, "max": 100}]}
+      ]
+    },
+    {
+      "name": "High Cover",
+      "category": "Technique Training",
+      "subcategory": "Defense",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Face the camera. Bring both closed hands beside the temples, keep elbows compact, and look through the guard without pressing on the head.",
+      "steps": [
+        {"step_number": 1, "step_name": "Build high cover", "angles": [{"body_part": "elbow_left", "min": 35, "max": 85}, {"body_part": "elbow_right", "min": 35, "max": 85}, {"body_part": "shoulder_left", "min": 35, "max": 90}, {"body_part": "shoulder_right", "min": 35, "max": 90}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}, {"body_part": "eyes_forward", "min": 55, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Front Knee Strike",
+      "category": "Technique Training",
+      "subcategory": "Knee & Elbow Strikes",
+      "difficulty": "Beginner",
+      "price": 2.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Use a front or slight diagonal view with the full body visible. Balance on the left leg and lift the right knee under control; do not strike a person while using camera coaching.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set balanced guard", "angles": [{"body_part": "knee_left", "min": 150, "max": 180}, {"body_part": "knee_right", "min": 145, "max": 180}, {"body_part": "elbow_left", "min": 55, "max": 110}, {"body_part": "elbow_right", "min": 55, "max": 110}]},
+        {"step_number": 2, "step_name": "Lift right knee", "angles": [{"body_part": "hip_right", "min": 45, "max": 100}, {"body_part": "knee_right", "min": 35, "max": 85}, {"body_part": "knee_left", "min": 145, "max": 180}]},
+        {"step_number": 3, "step_name": "Return with balance", "angles": [{"body_part": "knee_left", "min": 150, "max": 180}, {"body_part": "knee_right", "min": 145, "max": 180}, {"body_part": "face_forward", "min": 55, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Side Kick",
+      "category": "Technique Training",
+      "subcategory": "Kicking",
+      "difficulty": "Intermediate",
+      "price": 4.99,
+      "required_plan": "PRO_PLAN",
+      "description": "Use a side-on view with the right leg nearer the camera. Chamber first, extend below your comfortable maximum, and keep the supporting knee soft.",
+      "steps": [
+        {"step_number": 1, "step_name": "Chamber side kick", "angles": [{"body_part": "hip_right", "min": 45, "max": 105}, {"body_part": "knee_right", "min": 35, "max": 80}, {"body_part": "knee_left", "min": 145, "max": 180}]},
+        {"step_number": 2, "step_name": "Extend heel line", "angles": [{"body_part": "hip_right", "min": 60, "max": 130}, {"body_part": "knee_right", "min": 145, "max": 180}, {"body_part": "knee_left", "min": 140, "max": 180}]},
+        {"step_number": 3, "step_name": "Re-chamber safely", "angles": [{"body_part": "hip_right", "min": 45, "max": 110}, {"body_part": "knee_right", "min": 35, "max": 90}, {"body_part": "knee_left", "min": 145, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Outside Forearm Block",
+      "category": "Technique Training",
+      "subcategory": "Defense",
+      "difficulty": "Beginner",
+      "price": 1.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Face the camera. Move the left forearm across a compact arc while the right hand remains in guard; keep the wrist aligned and avoid locking the elbow.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set guard", "angles": [{"body_part": "elbow_left", "min": 55, "max": 105}, {"body_part": "elbow_right", "min": 55, "max": 105}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}]},
+        {"step_number": 2, "step_name": "Shape outside block", "angles": [{"body_part": "elbow_left", "min": 80, "max": 125}, {"body_part": "shoulder_left", "min": 60, "max": 115}, {"body_part": "wrist_left", "min": 145, "max": 180}, {"body_part": "fist_left", "min": 65, "max": 100}]},
+        {"step_number": 3, "step_name": "Return to guard", "angles": [{"body_part": "elbow_left", "min": 55, "max": 110}, {"body_part": "elbow_right", "min": 55, "max": 110}, {"body_part": "face_forward", "min": 55, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Bodyweight Squat",
+      "category": "Conditioning & Fitness",
+      "subcategory": "Strength Fundamentals",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Use a front or 30-degree view with feet comfortable and knees tracking in the same direction as the feet. Choose a pain-free depth; the app does not prescribe one universal squat style.",
+      "steps": [
+        {"step_number": 1, "step_name": "Stand tall", "angles": [{"body_part": "hip_left", "min": 155, "max": 180}, {"body_part": "hip_right", "min": 155, "max": 180}, {"body_part": "knee_left", "min": 155, "max": 180}, {"body_part": "knee_right", "min": 155, "max": 180}]},
+        {"step_number": 2, "step_name": "Reach controlled depth", "angles": [{"body_part": "hip_left", "min": 65, "max": 125}, {"body_part": "hip_right", "min": 65, "max": 125}, {"body_part": "knee_left", "min": 80, "max": 130}, {"body_part": "knee_right", "min": 80, "max": 130}]},
+        {"step_number": 3, "step_name": "Stand with control", "angles": [{"body_part": "hip_left", "min": 150, "max": 180}, {"body_part": "hip_right", "min": 150, "max": 180}, {"body_part": "knee_left", "min": 150, "max": 180}, {"body_part": "knee_right", "min": 150, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Reverse Lunge",
+      "category": "Conditioning & Fitness",
+      "subcategory": "Strength Fundamentals",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Use a side or 30-degree view. Step the right leg back, lower only to a stable pain-free depth, and keep the front knee controlled over the foot.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set split stance", "angles": [{"body_part": "knee_left", "min": 145, "max": 180}, {"body_part": "knee_right", "min": 140, "max": 180}, {"body_part": "hip_left", "min": 145, "max": 180}]},
+        {"step_number": 2, "step_name": "Lower right leg back", "angles": [{"body_part": "knee_left", "min": 80, "max": 120}, {"body_part": "knee_right", "min": 70, "max": 125}, {"body_part": "hip_right", "min": 115, "max": 180}]},
+        {"step_number": 3, "step_name": "Drive to stand", "angles": [{"body_part": "knee_left", "min": 145, "max": 180}, {"body_part": "knee_right", "min": 140, "max": 180}, {"body_part": "hip_left", "min": 145, "max": 180}]}
+      ]
+    },
+    {
+      "name": "High Knee March",
+      "category": "Conditioning & Fitness",
+      "subcategory": "Cardio Conditioning",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Face the camera with the full body visible. Alternate controlled knee drives while keeping the standing leg stable; use marching speed before running speed.",
+      "steps": [
+        {"step_number": 1, "step_name": "Drive right knee", "angles": [{"body_part": "hip_right", "min": 45, "max": 100}, {"body_part": "knee_right", "min": 40, "max": 95}, {"body_part": "knee_left", "min": 145, "max": 180}]},
+        {"step_number": 2, "step_name": "Drive left knee", "angles": [{"body_part": "hip_left", "min": 45, "max": 100}, {"body_part": "knee_left", "min": 40, "max": 95}, {"body_part": "knee_right", "min": 145, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Incline Push-Up",
+      "category": "Conditioning & Fitness",
+      "subcategory": "Upper Body Strength",
+      "difficulty": "Beginner",
+      "price": 2.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Use a side view and a stable elevated surface. Keep shoulders, hips, and knees in one long line; stop before the shoulders roll forward or any pain appears.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set long plank", "angles": [{"body_part": "elbow_left", "min": 155, "max": 180}, {"body_part": "hip_left", "min": 155, "max": 180}, {"body_part": "knee_left", "min": 155, "max": 180}]},
+        {"step_number": 2, "step_name": "Lower with control", "angles": [{"body_part": "elbow_left", "min": 70, "max": 115}, {"body_part": "hip_left", "min": 150, "max": 180}, {"body_part": "knee_left", "min": 150, "max": 180}]},
+        {"step_number": 3, "step_name": "Press to plank", "angles": [{"body_part": "elbow_left", "min": 150, "max": 180}, {"body_part": "hip_left", "min": 150, "max": 180}, {"body_part": "knee_left", "min": 150, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Warrior II",
+      "category": "Flexibility & Mobility",
+      "subcategory": "Yoga Foundations",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Face the camera in a wide stance with the left knee bent and arms level. Work within a comfortable range; beginners do not need a perfect 90-degree front knee bend.",
+      "steps": [
+        {"step_number": 1, "step_name": "Hold warrior frame", "angles": [{"body_part": "knee_left", "min": 80, "max": 125}, {"body_part": "knee_right", "min": 150, "max": 180}, {"body_part": "shoulder_left", "min": 70, "max": 110}, {"body_part": "shoulder_right", "min": 70, "max": 110}, {"body_part": "elbow_left", "min": 155, "max": 180}, {"body_part": "elbow_right", "min": 155, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Chair Pose",
+      "category": "Flexibility & Mobility",
+      "subcategory": "Yoga Foundations",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Use a side or 30-degree view. Sit back to a comfortable depth and raise the arms only as far as the ribs and shoulders remain controlled.",
+      "steps": [
+        {"step_number": 1, "step_name": "Sit into chair pose", "angles": [{"body_part": "hip_left", "min": 75, "max": 130}, {"body_part": "hip_right", "min": 75, "max": 130}, {"body_part": "knee_left", "min": 90, "max": 140}, {"body_part": "knee_right", "min": 90, "max": 140}, {"body_part": "shoulder_left", "min": 125, "max": 180}, {"body_part": "elbow_left", "min": 150, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Low Lunge",
+      "category": "Flexibility & Mobility",
+      "subcategory": "Yoga Foundations",
+      "difficulty": "Beginner",
+      "price": 1.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Use a side view with the left foot forward. Keep a stable front knee and lengthen the rear leg only within a pain-free hip range; use padding if the rear knee lowers.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set left low lunge", "angles": [{"body_part": "knee_left", "min": 80, "max": 120}, {"body_part": "knee_right", "min": 135, "max": 180}, {"body_part": "hip_right", "min": 115, "max": 180}, {"body_part": "elbow_left", "min": 150, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Standing Side Reach",
+      "category": "Flexibility & Mobility",
+      "subcategory": "Shoulder Mobility",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Face the camera. Reach one straight arm overhead without forcing the neck or shoulder, then switch sides; keep both knees softly extended.",
+      "steps": [
+        {"step_number": 1, "step_name": "Reach left overhead", "angles": [{"body_part": "shoulder_left", "min": 140, "max": 180}, {"body_part": "elbow_left", "min": 150, "max": 180}, {"body_part": "knee_left", "min": 145, "max": 180}, {"body_part": "knee_right", "min": 145, "max": 180}]},
+        {"step_number": 2, "step_name": "Reach right overhead", "angles": [{"body_part": "shoulder_right", "min": 140, "max": 180}, {"body_part": "elbow_right", "min": 150, "max": 180}, {"body_part": "knee_left", "min": 145, "max": 180}, {"body_part": "knee_right", "min": 145, "max": 180}]}
+      ]
+    },
+    {
+      "name": "Mountain Posture",
+      "category": "Meditation & Posture",
+      "subcategory": "Breath & Alignment",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Face the camera and stand naturally tall with arms relaxed, knees unlocked, eyes level, and calm breathing. The camera scores visible alignment, not the breath itself.",
+      "steps": [
+        {"step_number": 1, "step_name": "Stack neutral posture", "angles": [{"body_part": "shoulder_left", "min": 0, "max": 30}, {"body_part": "shoulder_right", "min": 0, "max": 30}, {"body_part": "elbow_left", "min": 150, "max": 180}, {"body_part": "elbow_right", "min": 150, "max": 180}, {"body_part": "knee_left", "min": 150, "max": 180}, {"body_part": "knee_right", "min": 150, "max": 180}, {"body_part": "face_forward", "min": 65, "max": 100}, {"body_part": "face_calm", "min": 50, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Seated Alignment",
+      "category": "Meditation & Posture",
+      "subcategory": "Breath & Alignment",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Use a side view on a stable chair with feet supported. Sit near a right angle at hips and knees without forcing a rigid spine; the app checks only visible joint organization.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set supported seat", "angles": [{"body_part": "hip_left", "min": 75, "max": 115}, {"body_part": "knee_left", "min": 75, "max": 115}, {"body_part": "elbow_left", "min": 145, "max": 180}, {"body_part": "face_forward", "min": 55, "max": 100}, {"body_part": "face_calm", "min": 50, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Basic Form Two",
+      "category": "Forms",
+      "subcategory": "Beginner Forms",
+      "difficulty": "Beginner",
+      "price": 3.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Face the camera. Practice a compact three-position sequence: horse stance, chamber, and balanced twin forearm frame. Move slowly and pause at each checkpoint.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set horse stance", "angles": [{"body_part": "knee_left", "min": 95, "max": 145}, {"body_part": "knee_right", "min": 95, "max": 145}, {"body_part": "hip_left", "min": 105, "max": 165}, {"body_part": "hip_right", "min": 105, "max": 165}]},
+        {"step_number": 2, "step_name": "Chamber both hands", "angles": [{"body_part": "elbow_left", "min": 45, "max": 95}, {"body_part": "elbow_right", "min": 45, "max": 95}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}]},
+        {"step_number": 3, "step_name": "Set twin forearm frame", "angles": [{"body_part": "elbow_left", "min": 80, "max": 130}, {"body_part": "elbow_right", "min": 80, "max": 130}, {"body_part": "shoulder_left", "min": 60, "max": 120}, {"body_part": "shoulder_right", "min": 60, "max": 120}]}
+      ]
+    },
+    {
+      "name": "Staff Overhead Guard",
+      "category": "Weapons",
+      "subcategory": "Staff",
+      "difficulty": "Intermediate",
+      "price": 6.99,
+      "required_plan": "PRO_PLAN",
+      "description": "Use a lightweight training staff only, with clear space and qualified supervision. The camera evaluates the arm frame and closed-hand confidence; it does not detect the staff or certify weapon safety.",
+      "steps": [
+        {"step_number": 1, "step_name": "Raise overhead frame", "angles": [{"body_part": "shoulder_left", "min": 120, "max": 180}, {"body_part": "shoulder_right", "min": 120, "max": 180}, {"body_part": "elbow_left", "min": 90, "max": 145}, {"body_part": "elbow_right", "min": 90, "max": 145}, {"body_part": "wrist_left", "min": 140, "max": 180}, {"body_part": "wrist_right", "min": 140, "max": 180}, {"body_part": "fist_left", "min": 55, "max": 100}, {"body_part": "fist_right", "min": 55, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Protective Cover and Palm Exit",
+      "category": "Self-Defense",
+      "subcategory": "Protective Movement",
+      "difficulty": "Beginner",
+      "price": 0,
+      "required_plan": "FREE_PLAN",
+      "description": "Solo practice only: cover the head, create an open-palm frame, and return to a protected stance. The app cannot assess an attacker, contact, force, distance, or real-world safety.",
+      "steps": [
+        {"step_number": 1, "step_name": "Cover and protect", "angles": [{"body_part": "elbow_left", "min": 35, "max": 85}, {"body_part": "elbow_right", "min": 35, "max": 85}, {"body_part": "fist_left", "min": 60, "max": 100}, {"body_part": "fist_right", "min": 60, "max": 100}]},
+        {"step_number": 2, "step_name": "Build open-palm frame", "angles": [{"body_part": "elbow_left", "min": 120, "max": 175}, {"body_part": "shoulder_left", "min": 55, "max": 115}, {"body_part": "hand_left_open", "min": 60, "max": 100}, {"body_part": "fist_right", "min": 60, "max": 100}]},
+        {"step_number": 3, "step_name": "Recover protected stance", "angles": [{"body_part": "elbow_left", "min": 50, "max": 105}, {"body_part": "elbow_right", "min": 50, "max": 105}, {"body_part": "face_forward", "min": 55, "max": 100}]}
+      ]
+    },
+    {
+      "name": "Bob and Weave",
+      "category": "Fighting",
+      "subcategory": "Defense & Movement",
+      "difficulty": "Intermediate",
+      "price": 4.99,
+      "required_plan": "PRO_PLAN",
+      "description": "Face the camera and practice without a partner. Keep the hands in guard, lower through hips and knees, then rise under control; the camera cannot judge opponent timing.",
+      "steps": [
+        {"step_number": 1, "step_name": "Set guarded stance", "angles": [{"body_part": "elbow_left", "min": 50, "max": 105}, {"body_part": "elbow_right", "min": 50, "max": 105}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}]},
+        {"step_number": 2, "step_name": "Lower under the line", "angles": [{"body_part": "knee_left", "min": 95, "max": 145}, {"body_part": "knee_right", "min": 95, "max": 145}, {"body_part": "hip_left", "min": 100, "max": 165}, {"body_part": "hip_right", "min": 100, "max": 165}, {"body_part": "fist_left", "min": 60, "max": 100}, {"body_part": "fist_right", "min": 60, "max": 100}]},
+        {"step_number": 3, "step_name": "Rise into guard", "angles": [{"body_part": "knee_left", "min": 140, "max": 180}, {"body_part": "knee_right", "min": 140, "max": 180}, {"body_part": "elbow_left", "min": 50, "max": 110}, {"body_part": "elbow_right", "min": 50, "max": 110}]}
+      ]
+    },
+    {
+      "name": "Guard Recovery",
+      "category": "Fighting",
+      "subcategory": "Defense & Movement",
+      "difficulty": "Beginner",
+      "price": 1.99,
+      "required_plan": "STARTER_PLAN",
+      "description": "Face the camera. Extend one hand as a range-finding frame, then recover both hands to a compact guard while keeping visual attention forward.",
+      "steps": [
+        {"step_number": 1, "step_name": "Post lead frame", "angles": [{"body_part": "elbow_left", "min": 120, "max": 175}, {"body_part": "shoulder_left", "min": 55, "max": 110}, {"body_part": "hand_left_open", "min": 55, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}]},
+        {"step_number": 2, "step_name": "Recover full guard", "angles": [{"body_part": "elbow_left", "min": 50, "max": 105}, {"body_part": "elbow_right", "min": 50, "max": 105}, {"body_part": "fist_left", "min": 65, "max": 100}, {"body_part": "fist_right", "min": 65, "max": 100}, {"body_part": "eyes_forward", "min": 55, "max": 100}]}
       ]
     },
     {
@@ -366,21 +873,21 @@
       "difficulty": "Beginner",
       "price": 0,
       "required_plan": "FREE_PLAN",
-      "description": "",
+      "description": "Camera diagnostic for face, eye, and hand perception. Use it to confirm visibility and confidence scores before selecting a full technique.",
       "steps": [
         {
           "step_number": 1,
           "step_name": "Hands up shoulders",
           "angles": [
             {
-              "body_part": "shoulder_left",
+              "body_part": "elbow_left",
               "min": 15,
-              "max": 40
+              "max": 90
             },
             {
-              "body_part": "shoulder_right",
+              "body_part": "elbow_right",
               "min": 10,
-              "max": 40
+              "max": 90
             },
             {
               "body_part": "face_forward",
@@ -415,8 +922,8 @@
           "angles": [
             {
               "body_part": "elbow_right",
-              "min": 20,
-              "max": 95
+              "min": 90,
+              "max": 105
             },
             {
               "body_part": "face_forward",

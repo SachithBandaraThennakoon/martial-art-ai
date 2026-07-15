@@ -1,9 +1,10 @@
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
 import useBodyCalibration from "../hooks/useBodyCalibration";
+import { STUDIO_PERFORMANCE_MODES } from "../performance/studioPerformanceConfig";
 
 const MODES = {
   train: {
@@ -37,27 +38,21 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const [stanceTargetDegrees, setStanceTargetDegrees] = useState(
     () => Number(localStorage.getItem("studioStanceTargetDegrees")) || 0
   );
+  const [performanceMode, setPerformanceMode] = useState(() => {
+    const storedMode = localStorage.getItem("studioPerformanceMode") || "auto";
+    return STUDIO_PERFORMANCE_MODES[storedMode] ? storedMode : "auto";
+  });
   const [skeletonLayers, setSkeletonLayers] = useState({
     level1: false,
     onnx: false
   });
   const bodyCalibration = useBodyCalibration();
   const requestedMode = searchParams.get("mode");
-  const [mode, setMode] = useState(() => MODES[requestedMode] ? requestedMode : "train");
+  const mode = MODES[requestedMode] ? requestedMode : "train";
   const selectedTechniqueName = searchParams.get("technique");
   const categorySlug = searchParams.get("category");
   const subcategorySlug = searchParams.get("subcategory");
   const hasTechniqueSelection = Boolean(selectedTechniqueName);
-
-  useEffect(() => {
-    const syncModeFromHistory = () => {
-      const historyMode = new URLSearchParams(window.location.search).get("mode");
-      setMode(MODES[historyMode] ? historyMode : "train");
-    };
-
-    window.addEventListener("popstate", syncModeFromHistory);
-    return () => window.removeEventListener("popstate", syncModeFromHistory);
-  }, []);
 
   if (!hasTechniqueSelection && mode !== "analysis") {
     return <Navigate to={isAdminStudio ? "/admin-studio" : "/studio"} replace />;
@@ -66,7 +61,6 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const updateMode = (nextMode) => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("mode", nextMode);
-    setMode(nextMode);
     navigate({ pathname: location.pathname, search: nextParams.toString() });
   };
 
@@ -104,6 +98,12 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const updateStanceTarget = (degrees) => {
     setStanceTargetDegrees(degrees);
     localStorage.setItem("studioStanceTargetDegrees", String(degrees));
+  };
+
+  const updatePerformanceMode = (nextMode) => {
+    if (!STUDIO_PERFORMANCE_MODES[nextMode]) return;
+    setPerformanceMode(nextMode);
+    localStorage.setItem("studioPerformanceMode", nextMode);
   };
 
   const activeSkeletonLayers = isAdminStudio
@@ -149,7 +149,21 @@ export default function TrainingStudio({ studioMode = "student" }) {
           ← Library
         </Link>
 
+        {mode !== "analysis" ? (
         <div className="coach-toggles" aria-label="Coach output controls">
+          <label className="studio-performance-control">
+            <span>Performance</span>
+            <select
+              aria-label="Studio performance mode"
+              onChange={(event) => updatePerformanceMode(event.target.value)}
+              title={STUDIO_PERFORMANCE_MODES[performanceMode].description}
+              value={performanceMode}
+            >
+              {Object.entries(STUDIO_PERFORMANCE_MODES).map(([key, option]) => (
+                <option key={key} value={key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
           <button
             aria-pressed={voiceEnabled}
             className={`coach-toggle-button ${voiceEnabled ? "is-active" : ""}`}
@@ -175,8 +189,9 @@ export default function TrainingStudio({ studioMode = "student" }) {
             Mirror {displayMirrored ? "On" : "Off"}
           </button>
         </div>
+        ) : null}
 
-        {isAdminStudio ? (
+        {isAdminStudio && mode !== "analysis" ? (
           <div className="coach-toggles coach-toggles--skeleton" aria-label="Research skeleton layers">
             <button
               aria-pressed={activeSkeletonLayers.level1}
@@ -210,6 +225,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           voiceEnabled={voiceEnabled}
           isAdminStudio={isAdminStudio}
           performanceProfile={isAdminStudio ? "admin" : "student"}
+          performanceMode={performanceMode}
           skeletonLayers={activeSkeletonLayers}
           bodyCalibration={bodyCalibration}
           stanceTargetDegrees={stanceTargetDegrees}
@@ -227,13 +243,18 @@ export default function TrainingStudio({ studioMode = "student" }) {
           voiceEnabled={voiceEnabled}
           isAdminStudio={isAdminStudio}
           performanceProfile={isAdminStudio ? "admin" : "student"}
+          performanceMode={performanceMode}
           skeletonLayers={activeSkeletonLayers}
           bodyCalibration={bodyCalibration}
           stanceTargetDegrees={stanceTargetDegrees}
           onStanceTargetChange={updateStanceTarget}
         />
       ) : (
-        <PracticeAnalysisMode onModeChange={updateMode} />
+        <PracticeAnalysisMode
+          hasTechniqueSelection={hasTechniqueSelection}
+          onModeChange={updateMode}
+          onOpenLibrary={() => navigate(isAdminStudio ? "/admin-studio" : "/studio")}
+        />
       )}
     </main>
   );

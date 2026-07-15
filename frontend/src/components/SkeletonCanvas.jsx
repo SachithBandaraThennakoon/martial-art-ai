@@ -6,6 +6,7 @@ import {
   FilesetResolver
 } from "@mediapipe/tasks-vision";
 
+import ExpectedPoseGuide from "./ExpectedPoseGuide";
 import { drawSkeleton } from "../utils/drawSkeleton";
 import { Level1MotionLayer } from "../temporal/level1MotionLayer";
 import { Level2ActionLayer } from "../temporal/level2ActionLayer";
@@ -14,6 +15,7 @@ import { Level4UserLayer } from "../temporal/level4UserLayer";
 import { SituationAwarenessLayer } from "../situationAwareness/SituationAwarenessLayer";
 import { buildCoachContextPacket } from "../situationAwareness/buildCoachContextPacket";
 import {
+  applyStudioPerformanceMode,
   getAdaptiveSmoothing,
   getStudioPerformanceConfig
 } from "../performance/studioPerformanceConfig";
@@ -652,7 +654,8 @@ export default function SkeletonCanvas({
   onCalibrationStatus,
   stanceTargetDegrees = 0,
   enableAwareness = false,
-  performanceProfile = "student"
+  performanceProfile = "student",
+  performanceMode = "auto"
 }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -684,7 +687,15 @@ export default function SkeletonCanvas({
   const currentStepNameRef = useRef(currentStepName);
   const requiredPartsRef = useRef(requiredParts);
   const sessionConfigRef = useRef(sessionConfig);
-  const performanceConfigRef = useRef(getStudioPerformanceConfig(performanceProfile));
+  const basePerformanceConfigRef = useRef(getStudioPerformanceConfig(performanceProfile));
+  const adaptiveTierRef = useRef("balanced");
+  const performanceModeRef = useRef(performanceMode);
+  const performanceConfigRef = useRef(
+    applyStudioPerformanceMode(
+      getStudioPerformanceConfig(performanceProfile),
+      performanceMode
+    )
+  );
   const shouldTrackHandsRef = useRef(false);
   const shouldTrackFaceRef = useRef(false);
   const enableAwarenessRef = useRef(enableAwareness);
@@ -733,9 +744,15 @@ export default function SkeletonCanvas({
     enableAwarenessRef.current = enableAwareness;
     displayMirroredRef.current = displayMirrored;
     skeletonLayersRef.current = skeletonLayers;
-    performanceConfigRef.current = getStudioPerformanceConfig(performanceProfile, {
+    performanceModeRef.current = performanceMode;
+    basePerformanceConfigRef.current = getStudioPerformanceConfig(performanceProfile, {
       onnxEnabled: Boolean(skeletonLayers?.onnx)
     });
+    performanceConfigRef.current = applyStudioPerformanceMode(
+      basePerformanceConfigRef.current,
+      performanceMode,
+      adaptiveTierRef.current
+    );
     level2ActionRef.current.config = {
       ...level2ActionRef.current.config,
       onnxEnabled: performanceConfigRef.current.onnxEnabled,
@@ -764,7 +781,8 @@ export default function SkeletonCanvas({
     requiredParts,
     skeletonLayers,
     sessionConfig,
-    performanceProfile
+    performanceProfile,
+    performanceMode
   ]);
 
   useEffect(() => {
@@ -787,9 +805,10 @@ export default function SkeletonCanvas({
     }
 
     const token = localStorage.getItem("token");
-    wsRef.current = new WebSocket(`${WS_BASE_URL}/ws/train?token=${token}`);
+    wsRef.current = new WebSocket(`${WS_BASE_URL}/ws/train`);
 
     wsRef.current.onopen = () => {
+      wsRef.current.send(JSON.stringify({ type: "authenticate", token }));
       wsRef.current.send(
         JSON.stringify({
           type: "session_config",
@@ -836,6 +855,46 @@ export default function SkeletonCanvas({
     let animationFrameId;
     let cameraStream;
     let isDisposed = false;
+    let processingSamples = [];
+    let lastPerformanceTuneTime = 0;
+
+    const updateAdaptivePerformance = (processingMs, timestamp) => {
+      if (performanceModeRef.current !== "auto") return;
+
+      processingSamples.push(processingMs);
+      processingSamples = processingSamples.slice(-36);
+      if (processingSamples.length < 18 || timestamp - lastPerformanceTuneTime < 3000) {
+        return;
+      }
+
+      const averageProcessingMs =
+        processingSamples.reduce((total, value) => total + value, 0) /
+        processingSamples.length;
+      const currentTier = adaptiveTierRef.current;
+      let nextTier = currentTier;
+
+      if (averageProcessingMs > 48) {
+        nextTier = "eco";
+      } else if (averageProcessingMs > 32) {
+        nextTier = "balanced";
+      } else if (
+        averageProcessingMs < 23 ||
+        (currentTier === "eco" && averageProcessingMs < 27)
+      ) {
+        nextTier = "quality";
+      }
+
+      lastPerformanceTuneTime = timestamp;
+      processingSamples = [];
+      if (nextTier === currentTier) return;
+
+      adaptiveTierRef.current = nextTier;
+      performanceConfigRef.current = applyStudioPerformanceMode(
+        basePerformanceConfigRef.current,
+        "auto",
+        nextTier
+      );
+    };
 
     const smoothLandmarks = (current, previous, smoothing = 0.6) => {
       if (!previous || previous.length !== current.length) return current;
@@ -858,7 +917,7 @@ export default function SkeletonCanvas({
         {
           baseOptions: {
             modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
+              "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
           },
           runningMode: "VIDEO",
           numHands: 2
@@ -882,7 +941,7 @@ export default function SkeletonCanvas({
         {
           baseOptions: {
             modelAssetPath:
-              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
           },
           runningMode: "VIDEO",
           numFaces: 1
@@ -1040,6 +1099,7 @@ export default function SkeletonCanvas({
 
       lastFrameTimeRef.current = now;
       const performanceConfig = performanceConfigRef.current;
+      const processingStartedAt = performance.now();
 
       let poseLandmarks = null;
       let angleLandmarks = null;
@@ -1365,6 +1425,8 @@ export default function SkeletonCanvas({
         }
       }
 
+      updateAdaptivePerformance(performance.now() - processingStartedAt, now);
+
       animationFrameId = requestAnimationFrame(detect);
     };
 
@@ -1395,14 +1457,14 @@ export default function SkeletonCanvas({
 
     const init = async () => {
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm"
       );
       visionRef.current = vision;
 
       poseRef.current = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
         },
         runningMode: "VIDEO",
         numPoses: 1
@@ -1452,6 +1514,11 @@ export default function SkeletonCanvas({
     <div className={`skeleton-canvas ${displayMirrored ? "skeleton-canvas--mirrored" : ""}`}>
       <video aria-hidden="true" ref={videoRef} autoPlay muted playsInline />
       <canvas ref={canvasRef} />
+      <ExpectedPoseGuide
+        mirrored={displayMirrored}
+        requiredParts={requiredParts}
+        stepName={currentStepName}
+      />
       <div className="skeleton-canvas__overlay" />
     </div>
   );

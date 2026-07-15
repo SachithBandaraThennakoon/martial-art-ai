@@ -58,11 +58,67 @@ export const STUDIO_PERFORMANCE_PROFILES = {
   }
 };
 
+export const STUDIO_PERFORMANCE_MODES = {
+  auto: { label: "Auto", description: "Adjusts tracking load to this device." },
+  eco: { label: "Eco", description: "Best for older laptops and mobile devices." },
+  balanced: { label: "Balanced", description: "Smooth coaching with moderate detail." },
+  quality: { label: "Quality", description: "Maximum detail for faster devices." }
+};
+
+const PERFORMANCE_MODE_OVERRIDES = {
+  eco: {
+    poseFps: 15,
+    handIntervalMs: 480,
+    awarenessIntervalMs: 650,
+    coachFrameIntervalMs: 500,
+    coachContextIntervalMs: 4500,
+    level1UiIntervalMs: 750,
+    level2UiIntervalMs: 900,
+    level3UiIntervalMs: 1400,
+    level4UiIntervalMs: 2400,
+    situationUiIntervalMs: 1400
+  },
+  balanced: {
+    poseFps: 20,
+    handIntervalMs: 340,
+    awarenessIntervalMs: 480,
+    coachFrameIntervalMs: 400,
+    coachContextIntervalMs: 3600,
+    level1UiIntervalMs: 600,
+    level2UiIntervalMs: 750,
+    level3UiIntervalMs: 1100,
+    level4UiIntervalMs: 2000,
+    situationUiIntervalMs: 1100
+  },
+  quality: {
+    poseFps: 24,
+    handIntervalMs: 240,
+    awarenessIntervalMs: 340,
+    coachFrameIntervalMs: 300,
+    coachContextIntervalMs: 2800,
+    level1UiIntervalMs: 450,
+    level2UiIntervalMs: 550,
+    level3UiIntervalMs: 850,
+    level4UiIntervalMs: 1600,
+    situationUiIntervalMs: 850
+  }
+};
+
 export function getStudioPerformanceConfig(profile = "student", overrides = {}) {
   return {
     ...STUDIO_PERFORMANCE_PROFILES.student,
     ...(STUDIO_PERFORMANCE_PROFILES[profile] || {}),
     ...overrides
+  };
+}
+
+export function applyStudioPerformanceMode(config, mode = "auto", autoTier = "balanced") {
+  const resolvedMode = mode === "auto" ? autoTier : mode;
+  return {
+    ...config,
+    ...(PERFORMANCE_MODE_OVERRIDES[resolvedMode] || PERFORMANCE_MODE_OVERRIDES.balanced),
+    performanceMode: mode,
+    resolvedPerformanceMode: resolvedMode
   };
 }
 

@@ -11,6 +11,9 @@ if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY is required when APP_ENV=production")
     SECRET_KEY = "development-only-secret-change-before-production"
 
+if APP_ENV == "production" and len(SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY must contain at least 32 characters in production")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 

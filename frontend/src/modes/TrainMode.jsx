@@ -37,6 +37,9 @@ const ACTION_LABELS = {
   hold_good: "Hold good form",
   advance_step: "Next step",
   confirm_next: "Step complete",
+  attention_prompt: "Reply needed",
+  clarify: "Choose a reply",
+  repeat_step: "Repeating step",
   restart_training: "Restarting",
   wait: "Waiting",
   waiting: "Waiting",
@@ -52,7 +55,9 @@ const VOICE_INTERRUPT_ACTIONS = new Set([
   "restart_training",
   "switch_practice",
   "ask_ready",
-  "ask_focus"
+  "ask_focus",
+  "confirm_next",
+  "attention_prompt"
 ]);
 
 const splitVoiceWords = (message) =>
@@ -84,6 +89,7 @@ export default function TrainMode({
   voiceEnabled = true,
   isAdminStudio = false,
   performanceProfile = "student",
+  performanceMode = "auto",
   skeletonLayers = {},
   bodyCalibration,
   stanceTargetDegrees = 0,
@@ -165,6 +171,8 @@ export default function TrainMode({
   const focusLabel = formatBodyPart(
     coachEvent?.focus_body_part || coachEvent?.body_part
   );
+  const replyOptions = coachEvent?.question?.options || [];
+  const requiresResponse = Boolean(coachEvent?.requires_response && replyOptions.length);
   const sessionConfig = useMemo(
     () => ({
       technique_name: currentTechnique?.name || "this technique",
@@ -793,6 +801,7 @@ export default function TrainMode({
           enableCoach={textEnabled}
           enableAwareness
           performanceProfile={performanceProfile}
+          performanceMode={performanceMode}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
           bodyCalibration={bodyCalibration?.profile}
@@ -872,8 +881,11 @@ export default function TrainMode({
         </div>
       </aside>
 
-      <div className="feedback-banner">
-        <div className="feedback-banner__message">
+      <div
+        aria-live={requiresResponse ? "assertive" : "polite"}
+        className={`feedback-banner ${requiresResponse ? "feedback-banner--attention" : ""}`}
+      >
+        <div className="feedback-banner__message" role={requiresResponse ? "alert" : "status"}>
           <div className="master-status-row">
             <p className="eyebrow">Master Guidance</p>
             <span className="master-status">{coachStateLabel}</span>
@@ -934,6 +946,19 @@ export default function TrainMode({
         </div>
 
         <div className="coach-actions">
+          {textEnabled && requiresResponse ? (
+            <div className="quick-replies" aria-label="Suggested replies">
+              {replyOptions.map((option) => (
+                <button
+                  key={`${coachEvent?.question?.kind}-${option.value}`}
+                  onClick={() => sendCoachMessage(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <form
             className="coach-command"
             onSubmit={(event) => {

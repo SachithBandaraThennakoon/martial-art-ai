@@ -2,6 +2,7 @@ import time
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
+from agents.conversation_intent_agent import ConversationIntentAgent
 from agents.movement_agent import analyze_movement
 
 
@@ -64,22 +65,41 @@ class CoachSession:
     high_accuracy_started_at: float | None = None
     high_accuracy_last_prompt_second: int | None = None
     last_spoken_at: float = 0.0
+    question_asked_at: float = 0.0
+    question_reminders: int = 0
+    intent_agent: ConversationIntentAgent = field(default_factory=ConversationIntentAgent)
 
     def user_message(self, message):
         text = (message or "").strip()
         if not text:
             return self.panel_event(
-                "Say ready or practice.",
+                "I did not hear an answer. Use one of the choices below.",
                 action="listening"
             )
 
-        normalized = text.lower()
         self.recent_user_messages = (self.recent_user_messages + [text])[-6:]
-        if normalized in {"no", "nope", "no thanks", "not now"}:
-            intent = "train" if self.pending_question == "practice" else "not_ready"
-        else:
-            intent = self._classify_user_intent(normalized)
+        intent = self.intent_agent.classify(text, self.pending_question).name
         self.last_user_intent = intent
+
+        if intent == "finish":
+            self.is_ready = False
+            self.is_paused = True
+            self._clear_pending_question()
+            self.state = "session_complete"
+            return self.panel_event(
+                "Session finished. Good work today.",
+                action="complete"
+            )
+
+        if self.state == "confirm_step_complete" and intent == "repeat_step":
+            self.is_ready = True
+            self.is_paused = False
+            self._clear_pending_question()
+            self.state = "observe_pose"
+            return self.panel_event(
+                f"Good choice. Repeat {self.current_step_name}.",
+                action="repeat_step"
+            )
 
         if self.state in {"confirm_session_complete", "session_complete"} and intent in {"ready", "next", "train", "repeat"}:
             self.completed_steps.clear()
@@ -93,7 +113,7 @@ class CoachSession:
         if self.state == "confirm_step_complete" and intent in {"ready", "next", "train"}:
             self.is_ready = True
             self.is_paused = False
-            self.pending_question = None
+            self._clear_pending_question()
             return self.panel_event(
                 "Good. Next step.",
                 action="advance_step",
@@ -123,7 +143,7 @@ class CoachSession:
         if self.pending_question == "practice" and intent in {"ready", "train", "next"}:
             self.is_ready = True
             self.is_paused = False
-            self.pending_question = None
+            self._clear_pending_question()
             self.state = "observe_pose"
             return self.panel_event(
                 f"Good. Focus {self._active_label()}.",
@@ -133,7 +153,7 @@ class CoachSession:
         if intent in {"ready", "train"}:
             self.is_ready = True
             self.is_paused = False
-            self.pending_question = None
+            self._clear_pending_question()
             self.readiness_prompted = False
             self.state = "observe_pose"
             if self.active_body_part:
@@ -150,17 +170,18 @@ class CoachSession:
         if intent == "not_ready":
             self.is_ready = False
             self.is_paused = True
-            self.pending_question = "ready"
-            self.state = "waiting"
+            if not self.pending_question:
+                self._set_pending_question("ready")
+                self.state = "waiting"
             return self.panel_event(
-                "No rush. I wait.",
+                "No rush. I will wait for your answer.",
                 action="wait"
             )
 
         if intent == "next":
             self.is_ready = True
             self.is_paused = False
-            self.pending_question = None
+            self._clear_pending_question()
 
             if self._is_final_step():
                 self.state = "confirm_session_complete"
@@ -195,32 +216,23 @@ class CoachSession:
                 action="confirm_incorrect"
             )
 
-        return self.panel_event(
-            "Ready or practice?",
-            action="acknowledge"
+        choices = self._question_option_labels()
+        message = (
+            f"Please choose: {', '.join(choices)}."
+            if choices
+            else "Say ready, wait, practice, or help."
         )
+        return self.panel_event(message, action="clarify", speak=False)
 
     def movement_event(self, step_key, step_name, required_parts, live_angles):
         self.current_step_key = step_key
         self.current_step_name = step_name or self.current_step_name
 
         if self.state == "confirm_session_complete":
-            return self.panel_event(
-                "Practice or train again?",
-                accuracy=self.last_accuracy,
-                action="session_complete_prompt",
-                issue="complete",
-                speak=False
-            )
+            return self._waiting_for_answer_event(self.last_accuracy, issue="complete")
 
         if self.state == "confirm_step_complete":
-            return self.panel_event(
-                "Move into the next step.",
-                accuracy=self.last_accuracy,
-                action="waiting",
-                issue="complete",
-                speak=False
-            )
+            return self._waiting_for_answer_event(self.last_accuracy, issue="complete")
 
         if not required_parts:
             return self.panel_event(
@@ -252,11 +264,14 @@ class CoachSession:
         ordered_issues = self._ordered_focus_issues(readiness_issues, body_issues)
 
         if self.is_paused and self.pending_question == "practice":
+            if self._question_reminder_due():
+                return self._waiting_for_answer_event(accuracy, analysis=analysis)
+
             sustained_event = self._sustained_accuracy_event(step_key, accuracy, readiness_issues, analysis)
             if sustained_event:
                 if sustained_event.get("action") in {"advance_step", "session_complete_prompt"}:
                     self.is_paused = False
-                    self.pending_question = None
+                    self._clear_pending_question()
                     self.practice_suggested = False
                 return sustained_event
 
@@ -284,7 +299,7 @@ class CoachSession:
         if self.is_paused:
             if not self.readiness_prompted:
                 self.readiness_prompted = True
-                self.pending_question = "ready"
+                self._set_pending_question("ready")
                 return self.panel_event(
                     "Ready?",
                     accuracy=accuracy,
@@ -292,18 +307,12 @@ class CoachSession:
                     analysis=analysis
                 )
 
-            return self.panel_event(
-                "Waiting for ready.",
-                accuracy=accuracy,
-                action="waiting",
-                analysis=analysis,
-                speak=False
-            )
+            return self._waiting_for_answer_event(accuracy, analysis=analysis)
 
         if not self.is_ready:
             self.is_ready = True
             self.is_paused = False
-            self.pending_question = None
+            self._clear_pending_question()
 
         self._update_attention_memory(analysis)
         self._update_plateau_memory(accuracy)
@@ -365,9 +374,9 @@ class CoachSession:
                 message = self._trend_cue(focus)
                 if self._should_offer_practice():
                     self.practice_suggested = True
-                    self.pending_question = "practice"
+                    self._set_pending_question("practice")
                     self.is_paused = True
-                    message = f"{message} Practice mode?"
+                    message = f"{message} Would you like focused practice?"
                     body_part = focus["body_part"]
                     issue_name = "practice_suggested"
                 elif (
@@ -401,10 +410,12 @@ class CoachSession:
         )
 
     def complete_session(self):
-        self.state = "session_complete"
+        self.state = "confirm_session_complete"
+        self.is_paused = True
+        self._set_pending_question("session_complete")
         return self.panel_event(
-            "Practice or train again?",
-            action="complete"
+            "Session complete. Practice, train again, or finish?",
+            action="session_complete_prompt"
         )
 
     def intelligence_context_event(self, packet):
@@ -494,9 +505,14 @@ class CoachSession:
 
     def initial_greeting(self):
         name_prefix = f"Hello {self.student_name}. " if self.student_name else ""
+        self.is_ready = False
+        self.is_paused = True
+        self.readiness_prompted = True
+        self.state = "confirm_start"
+        self._set_pending_question("ready")
         return (
-            f"{name_prefix}I will guide one step at a time. "
-            "I will keep corrections short and use angles only when needed."
+            f"{name_prefix}I will guide one step at a time and keep corrections short. "
+            "Are you ready to begin?"
         )
 
     def panel_event(
@@ -527,6 +543,8 @@ class CoachSession:
             "speak": speak,
             "focus_body_part": self.active_body_part,
             "analysis": analysis or [],
+            "requires_response": bool(self.pending_question),
+            "question": self._question_payload(),
             "memory": {
                 "recent_user_messages": self.recent_user_messages,
                 "recent_feedback": self.recent_feedback,
@@ -594,14 +612,98 @@ class CoachSession:
             elif hasattr(self, key):
                 setattr(self, key, value)
 
+        if self.pending_question:
+            self.question_asked_at = time.monotonic()
+            self.question_reminders = 0
+
+    def _set_pending_question(self, question):
+        if self.pending_question == question:
+            return
+
+        self.pending_question = question
+        self.question_asked_at = time.monotonic()
+        self.question_reminders = 0
+
+    def _clear_pending_question(self):
+        self.pending_question = None
+        self.question_asked_at = 0.0
+        self.question_reminders = 0
+
+    def _question_options(self):
+        return {
+            "ready": [
+                {"label": "I'm ready", "value": "ready"},
+                {"label": "Wait", "value": "wait"},
+                {"label": "Need help", "value": "help"},
+            ],
+            "next_step": [
+                {"label": "Next step", "value": "next step"},
+                {"label": "Repeat step", "value": "no, repeat step"},
+                {"label": "Wait", "value": "wait"},
+            ],
+            "practice": [
+                {"label": "Practice", "value": "practice mode"},
+                {"label": "Keep training", "value": "no, continue training"},
+                {"label": "Need help", "value": "help"},
+            ],
+            "session_complete": [
+                {"label": "Practice", "value": "practice mode"},
+                {"label": "Train again", "value": "train again"},
+                {"label": "Finish", "value": "finish session"},
+            ],
+        }.get(self.pending_question, [])
+
+    def _question_option_labels(self):
+        return [option["label"] for option in self._question_options()]
+
+    def _question_payload(self):
+        if not self.pending_question:
+            return None
+
+        return {
+            "kind": self.pending_question,
+            "options": self._question_options(),
+            "reminders": self.question_reminders,
+        }
+
+    def _question_reminder_due(self):
+        return bool(
+            self.pending_question
+            and self.question_reminders < 2
+            and self.question_asked_at
+            and time.monotonic() - self.question_asked_at >= 8
+        )
+
+    def _waiting_for_answer_event(self, accuracy=0, analysis=None, issue="waiting"):
+        messages = {
+            "ready": "Are you ready to begin?",
+            "next_step": "Would you like the next step or repeat this one?",
+            "practice": "Would you like focused practice or keep training?",
+            "session_complete": "Choose practice, train again, or finish.",
+        }
+        reminder = self._question_reminder_due()
+        if reminder:
+            self.question_reminders += 1
+            self.question_asked_at = time.monotonic()
+
+        return self.panel_event(
+            messages.get(self.pending_question, "I am waiting for your answer."),
+            accuracy=accuracy,
+            action="attention_prompt" if reminder else "waiting",
+            analysis=analysis,
+            issue=issue,
+            speak=reminder,
+        )
+
     def _complete_step_event(self, step_key, accuracy, analysis):
         self.completed_steps.add(str(step_key))
         self.state = "confirm_step_complete"
 
         if self._is_final_step():
-            self.pending_question = "session_complete"
+            self.is_paused = True
+            self._set_pending_question("session_complete")
             self.state = "confirm_session_complete"
-            message = "Practice or train again?"
+            message = "Session complete. Practice, train again, or finish?"
             return self.panel_event(
                 message,
                 accuracy=accuracy,
@@ -611,15 +713,16 @@ class CoachSession:
                 speak=self._should_speak(message)
             )
 
-        message = "Good. Next step."
+        self.is_paused = True
+        self._set_pending_question("next_step")
+        message = "Good work. Are you ready to move to the next step?"
         return self.panel_event(
             message,
             accuracy=accuracy,
-            action="advance_step",
+            action="confirm_next",
             analysis=analysis,
             issue="complete",
-            speak=self._should_speak(message),
-            next_step_index=self._next_step_index()
+            speak=self._should_speak(message)
         )
 
     def _is_final_step(self):
@@ -706,33 +809,6 @@ class CoachSession:
         if command == "repeat_step" or situation_state == "correcting":
             return "correct"
         return "observe"
-
-    def _classify_user_intent(self, text):
-        if any(word in text for word in ["practice", "practice mode", "free mode", "free practice"]):
-            return "practice"
-
-        if any(word in text for word in ["again", "restart", "start over", "reset", "train again", "repeat"]):
-            return "repeat"
-
-        if any(word in text for word in ["not ready", "wait", "pause", "stop", "hold on"]):
-            return "not_ready"
-
-        if any(word in text for word in ["next", "next step", "move on", "skip", "done", "finish", "finished", "complete", "completed"]):
-            return "next"
-
-        if any(word in text for word in ["keep training", "training mode", "train mode", "train", "continue training"]):
-            return "train"
-
-        if any(word in text for word in ["yes", "start", "begin", "ok", "okay", "ready", "please", "go"]):
-            return "ready"
-
-        if any(word in text for word in ["focus", "confused", "hard", "can't", "cannot", "help"]):
-            return "focus_help"
-
-        if any(word in text for word in ["correct", "right", "good", "ok now"]):
-            return "check_correct"
-
-        return "unknown"
 
     def _update_attention_memory(self, analysis):
         missing_count = sum(
@@ -826,7 +902,7 @@ class CoachSession:
         self.missing_pose_frames = 0
         self.plateau_frames = 0
         self.practice_suggested = False
-        self.pending_question = None
+        self._clear_pending_question()
         self.body_part_trends = {}
         self.last_spoken_corrections = {}
         self.pending_speech_focus = None

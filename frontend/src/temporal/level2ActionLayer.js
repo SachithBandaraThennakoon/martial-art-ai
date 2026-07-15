@@ -1,5 +1,3 @@
-import { StgatOnnxPredictor } from "./stgatOnnxPredictor";
-
 const DEFAULT_CONFIG = {
   updateIntervalMs: 160,
   motionThreshold: 0.03,
@@ -103,7 +101,22 @@ export class Level2ActionLayer {
     this.motionFrames = [];
     this.previousStepId = null;
     this.lastOnnxUpdateMs = 0;
-    this.onnxPredictor = new StgatOnnxPredictor();
+    this.onnxPredictor = null;
+    this.onnxPredictorPromise = null;
+  }
+
+  ensureOnnxPredictor() {
+    if (this.onnxPredictor || this.onnxPredictorPromise || !this.config.onnxEnabled) {
+      return;
+    }
+
+    this.onnxPredictorPromise = import("./stgatOnnxPredictor")
+      .then(({ StgatOnnxPredictor }) => {
+        this.onnxPredictor = new StgatOnnxPredictor();
+      })
+      .finally(() => {
+        this.onnxPredictorPromise = null;
+      });
   }
 
   update({
@@ -227,9 +240,13 @@ export class Level2ActionLayer {
     };
     const shouldUpdateOnnx =
       this.config.onnxEnabled &&
+      this.onnxPredictor &&
       timestampMs - this.lastOnnxUpdateMs >= this.config.onnxIntervalMs;
-    const onnxPrediction = shouldUpdateOnnx
-      ? this.onnxPredictor.update({
+    if (this.config.onnxEnabled) {
+      this.ensureOnnxPredictor();
+    }
+    const onnxPrediction = this.config.onnxEnabled && shouldUpdateOnnx
+      ? this.onnxPredictor?.update({
           frames: this.motionFrames,
           currentLandmarks: level1State.debug?.currentLandmarks || [],
           actionContext: {
@@ -237,7 +254,9 @@ export class Level2ActionLayer {
             attention_prediction_horizon_ms: this.config.attentionPredictionHorizonMs
           }
         })
-      : this.onnxPredictor.latestPrediction;
+      : this.config.onnxEnabled
+        ? this.onnxPredictor?.latestPrediction || null
+        : null;
 
     if (shouldUpdateOnnx) {
       this.lastOnnxUpdateMs = timestampMs;
@@ -253,7 +272,9 @@ export class Level2ActionLayer {
           status: modelPrediction?.status,
           source: modelPrediction?.source || "none",
           error: modelPrediction?.error || null,
-          onnx_status: onnxPrediction?.status || this.onnxPredictor.status,
+          onnx_status: onnxPrediction?.status || this.onnxPredictor?.status || (
+            this.config.onnxEnabled ? "loading" : "disabled"
+          ),
           onnx_error: onnxPrediction?.error || null,
           input_names: modelPrediction?.input_names || [],
           output_names: modelPrediction?.output_names || [],

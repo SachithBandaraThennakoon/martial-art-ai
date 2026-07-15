@@ -6,38 +6,56 @@ const formatBodyPart = (bodyPart) =>
     ? bodyPart.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "None yet";
 
-export default function PracticeAnalysisMode({ onModeChange }) {
+export default function PracticeAnalysisMode({
+  hasTechniqueSelection = false,
+  onModeChange,
+  onOpenLibrary
+}) {
   const [analysis, setAnalysis] = useState(null);
   const [status, setStatus] = useState("Loading analysis.");
+  const [loadState, setLoadState] = useState("loading");
 
-  const loadAnalysis = useCallback(async () => {
+  const loadAnalysis = useCallback(async (signal) => {
     const token = localStorage.getItem("token");
     if (!token) {
       setStatus("Log in to view practice analysis.");
+      setLoadState("error");
       return;
     }
 
+    setLoadState("loading");
+    setStatus("Loading your latest training patterns.");
     try {
       const response = await fetch(`${API_BASE_URL}/practice/analysis`, {
         headers: {
           Authorization: `Bearer ${token}`
-        }
+        },
+        signal
       });
 
       if (!response.ok) {
-        throw new Error("Analysis request failed");
+        throw new Error(response.status === 401 ? "session" : "request");
       }
 
       const data = await response.json();
       setAnalysis(data);
+      setLoadState("ready");
       setStatus(data.sessions.length ? "Recent practice sets" : "No practice sets yet.");
-    } catch {
-      setStatus("Analysis is unavailable right now.");
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      setLoadState("error");
+      setStatus(
+        error.message === "session"
+          ? "Your session expired. Sign in again to view analysis."
+          : "Analysis is unavailable right now. Your saved training data is safe."
+      );
     }
   }, []);
 
   useEffect(() => {
-    loadAnalysis();
+    const controller = new AbortController();
+    loadAnalysis(controller.signal);
+    return () => controller.abort();
   }, [loadAnalysis]);
 
   const summary = analysis?.summary;
@@ -47,23 +65,49 @@ export default function PracticeAnalysisMode({ onModeChange }) {
   const paceText = Object.entries(paceMix)
     .map(([label, value]) => `${label}: ${value}`)
     .join(" / ");
+  const hasSessions = sessions.length > 0;
+
+  if (loadState === "error") {
+    return (
+      <section className="analysis-panel analysis-panel--state" aria-live="polite">
+        <div className="panel-block analysis-state-card">
+          <p className="eyebrow">Practice Analysis</p>
+          <h1>Analysis needs attention</h1>
+          <p className="practice-copy">{status}</p>
+          <div className="analysis-state-actions">
+            <button className="btn btn--light" onClick={() => loadAnalysis()} type="button">
+              Try again
+            </button>
+            <button className="btn btn--ghost" onClick={onOpenLibrary} type="button">
+              Open library
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="analysis-panel">
+    <section className="analysis-panel" aria-busy={loadState === "loading"}>
       <div className="panel-block analysis-hero">
         <p className="eyebrow">Practice Analysis</p>
-        <h1>Rep History</h1>
+        <h1>{loadState === "loading" ? "Reading your sessions" : "Rep History"}</h1>
         <p className="practice-copy">{status}</p>
+        {loadState === "ready" ? (
+          <button className="analysis-refresh" onClick={() => loadAnalysis()} type="button">
+            Refresh analysis
+          </button>
+        ) : null}
       </div>
 
       <div className="practice-stats analysis-summary">
         <div>
           <span>Sessions</span>
-          <strong>{summary?.total_sessions ?? 0}</strong>
+          <strong>{summary?.total_sessions ?? (loadState === "loading" ? "--" : 0)}</strong>
         </div>
         <div>
           <span>Total reps</span>
-          <strong>{summary?.total_reps ?? 0}</strong>
+          <strong>{summary?.total_reps ?? (loadState === "loading" ? "--" : 0)}</strong>
         </div>
         <div>
           <span>Avg form</span>
@@ -94,15 +138,22 @@ export default function PracticeAnalysisMode({ onModeChange }) {
       <div className="panel-block coach-card analysis-recommendation">
         <p className="eyebrow">Recommendation</p>
         <p className="coach-feedback">
-          {summary?.recommendation || "Start a fixed-count practice set."}
+          {summary?.recommendation || "Complete a fixed-count practice set to receive a personal recommendation."}
         </p>
         <button
           className="btn btn--light btn--full"
-          onClick={() => onModeChange?.("practice")}
+          onClick={() => hasTechniqueSelection ? onModeChange?.("practice") : onOpenLibrary?.()}
           type="button"
         >
-          Start Practice
+          {hasTechniqueSelection
+            ? (hasSessions ? "Practice recommendation" : "Start first practice")
+            : "Choose a technique"}
         </button>
+        {hasTechniqueSelection ? (
+          <button className="btn btn--ghost btn--full" onClick={() => onModeChange?.("train")} type="button">
+            Return to guided training
+          </button>
+        ) : null}
       </div>
 
       <div className="panel-block analysis-training-card">

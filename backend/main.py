@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 import logging
 import os
 import time
@@ -450,8 +451,25 @@ async def train(websocket: WebSocket):
 
     token = websocket.query_params.get("token")
 
+    await websocket.accept()
+
     if not token:
-        await websocket.close()
+        try:
+            auth_payload = json.loads(
+                await asyncio.wait_for(websocket.receive_text(), timeout=8)
+            )
+            if auth_payload.get("type") != "authenticate":
+                await websocket.close(code=1008, reason="Authentication required")
+                return
+            token = auth_payload.get("token")
+        except WebSocketDisconnect:
+            return
+        except (asyncio.TimeoutError, json.JSONDecodeError):
+            await websocket.close(code=1008, reason="Authentication required")
+            return
+
+    if not token:
+        await websocket.close(code=1008, reason="Authentication required")
         return
 
     try:
@@ -465,8 +483,6 @@ async def train(websocket: WebSocket):
         logger.warning("Rejected WebSocket connection with an invalid token")
         await websocket.close(code=1008)
         return
-
-    await websocket.accept()
 
     db = None
     db_ready = False

@@ -84,6 +84,38 @@ function parseCountCommand(message) {
   return null;
 }
 
+function classifyPracticeCommand(message) {
+  const normalized = message.toLowerCase().replace(/\s+/g, " ").trim();
+  const requestedCount = parseCountCommand(normalized);
+
+  if (requestedCount && /\b(count|reps?|repetitions?)\b/.test(normalized)) {
+    return { intent: "set_count", count: requestedCount };
+  }
+  if (/\b(not ready|wait|pause|hold on|not now)\b/.test(normalized)) {
+    return { intent: "wait" };
+  }
+  if (/\b(reset|stop|cancel)\b/.test(normalized)) {
+    return { intent: "reset" };
+  }
+  if (/\b(analysis|results?|review)\b/.test(normalized)) {
+    return { intent: "analysis" };
+  }
+  if (/\b(train|training mode|guided training)\b/.test(normalized)) {
+    return { intent: "train" };
+  }
+  if (/\b(previous|back|prior step)\b/.test(normalized)) {
+    return { intent: "previous" };
+  }
+  if (/\b(next|next step|move on)\b/.test(normalized)) {
+    return { intent: "next" };
+  }
+  if (/\b(start|begin|go|ready|yes|practice again|again)\b/.test(normalized)) {
+    return { intent: "start" };
+  }
+
+  return { intent: "unknown" };
+}
+
 export default function PracticeMode({
   categorySlug,
   displayMirrored = true,
@@ -94,6 +126,7 @@ export default function PracticeMode({
   voiceEnabled = true,
   isAdminStudio = false,
   performanceProfile = "student",
+  performanceMode = "auto",
   skeletonLayers = {},
   bodyCalibration,
   stanceTargetDegrees = 0,
@@ -140,6 +173,19 @@ export default function PracticeMode({
   const [isListening, setIsListening] = useState(false);
   const [isReadyForRep, setIsReadyForRep] = useState(true);
   const isPracticeActive = session?.status === "active";
+  const practiceNeedsReply = !isPracticeActive;
+  const practiceReplyOptions = session?.status === "completed"
+    ? [
+        { label: "Practice again", value: "start" },
+        { label: "View analysis", value: "analysis" },
+        { label: "Training mode", value: "train" }
+      ]
+    : [
+        { label: "Start set", value: "start" },
+        { label: "3 reps", value: "count 3" },
+        { label: "5 reps", value: "count 5" },
+        { label: "10 reps", value: "count 10" }
+      ];
   const repStartedAtRef = useRef(null);
   const sessionRef = useRef(null);
   const repCountRef = useRef(0);
@@ -162,6 +208,7 @@ export default function PracticeMode({
   const voiceRequestIdRef = useRef(0);
   const voiceCacheRef = useRef(new Map());
   const greetedTechniqueRef = useRef("");
+  const attentionReminderTimerRef = useRef(null);
 
   const appendConversation = useCallback((item) => {
     if (!textEnabled) return;
@@ -497,31 +544,35 @@ export default function PracticeMode({
     const trimmed = message.trim();
     if (!trimmed) return;
 
-    const normalized = trimmed.toLowerCase();
     if (textEnabled) {
       appendConversation({ role: "user", text: trimmed });
     }
 
-    const requestedCount = parseCountCommand(trimmed);
-    if (requestedCount && normalized.includes("count")) {
-      setTargetReps(requestedCount);
-      sayPractice(`Count set to ${requestedCount}. Say start when ready.`, {
+    const command = classifyPracticeCommand(trimmed);
+    if (command.intent === "set_count") {
+      setTargetReps(command.count);
+      sayPractice(`Count set to ${command.count}. Say start when ready.`, {
         speak: true
       });
       return;
     }
 
-    if (["start", "begin", "go", "ready"].some((word) => normalized.includes(word))) {
-      startPractice();
+    if (command.intent === "wait") {
+      sayPractice("No rush. I will wait. Say start when you are ready.", { speak: true });
       return;
     }
 
-    if (["reset", "stop", "cancel"].some((word) => normalized.includes(word))) {
+    if (command.intent === "reset") {
       resetPractice();
       return;
     }
 
-    if (normalized.includes("next")) {
+    if (command.intent === "start") {
+      startPractice();
+      return;
+    }
+
+    if (command.intent === "next") {
       if (!moveToPracticeStep(selectedStepIndex + 1)) {
         sayPractice("This is the last practice step. Practice again or view analysis.", {
           speak: true
@@ -530,19 +581,19 @@ export default function PracticeMode({
       return;
     }
 
-    if (normalized.includes("previous") || normalized.includes("back")) {
+    if (command.intent === "previous") {
       if (!moveToPracticeStep(selectedStepIndex - 1)) {
         sayPractice("This is the first practice step.", { speak: true });
       }
       return;
     }
 
-    if (normalized.includes("train")) {
+    if (command.intent === "train") {
       onModeChange?.("train");
       return;
     }
 
-    if (normalized.includes("analysis")) {
+    if (command.intent === "analysis") {
       onModeChange?.("analysis");
       return;
     }
@@ -634,7 +685,7 @@ export default function PracticeMode({
       sessionRef.current = { ...sessionRef.current, status: "completed" };
       await completePracticeSession("completed");
       sayPractice(
-        "Good work. All reps complete. Would you like to train again or view analysis?",
+        "Good work. All reps complete. Practice again, return to training, or view analysis?",
         { speak: true }
       );
       return;
@@ -771,7 +822,34 @@ export default function PracticeMode({
   }, [currentTechnique]);
 
   useEffect(() => {
+    if (attentionReminderTimerRef.current) {
+      window.clearTimeout(attentionReminderTimerRef.current);
+      attentionReminderTimerRef.current = null;
+    }
+
+    if (isPracticeActive || !currentTechnique) return undefined;
+
+    attentionReminderTimerRef.current = window.setTimeout(() => {
+      const reminder = session?.status === "completed"
+        ? "Still with me? Choose practice again, training mode, or analysis."
+        : "Still with me? Choose your reps, then say start when ready.";
+      sayPractice(reminder, { speak: true });
+      attentionReminderTimerRef.current = null;
+    }, 10000);
+
     return () => {
+      if (attentionReminderTimerRef.current) {
+        window.clearTimeout(attentionReminderTimerRef.current);
+        attentionReminderTimerRef.current = null;
+      }
+    };
+  }, [currentTechnique, isPracticeActive, sayPractice, session?.status]);
+
+  useEffect(() => {
+    return () => {
+      if (attentionReminderTimerRef.current) {
+        window.clearTimeout(attentionReminderTimerRef.current);
+      }
       clearCountBeatTimers();
       stopVoiceInput();
       stopPracticeVoice();
@@ -800,6 +878,7 @@ export default function PracticeMode({
           enableCoach={false}
           enableAwareness
           performanceProfile={performanceProfile}
+          performanceMode={performanceMode}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
           bodyCalibration={bodyCalibration?.profile}
@@ -807,6 +886,8 @@ export default function PracticeMode({
           onBodyCalibrationSample={bodyCalibration?.recordSample}
           onCalibrationStatus={bodyCalibration?.reportFit}
           stanceTargetDegrees={stanceTargetDegrees}
+          currentStepId={selectedStep?.id}
+          currentStepName={selectedStep?.step_name}
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
           onAwarenessUpdate={setAwareness}
@@ -821,8 +902,11 @@ export default function PracticeMode({
         />
       </section>
 
-      <div className="feedback-banner feedback-banner--practice">
-        <div className="feedback-banner__message">
+      <div
+        aria-live={practiceNeedsReply ? "assertive" : "polite"}
+        className={`feedback-banner feedback-banner--practice ${practiceNeedsReply ? "feedback-banner--attention" : ""}`}
+      >
+        <div className="feedback-banner__message" role={practiceNeedsReply ? "alert" : "status"}>
           <div className="master-status-row">
             <p className="eyebrow">Practice Guidance</p>
             <span className="master-status">
@@ -1096,6 +1180,19 @@ export default function PracticeMode({
         </div>
 
         <div className="coach-actions">
+          {textEnabled && practiceNeedsReply ? (
+            <div className="quick-replies" aria-label="Suggested practice replies">
+              {practiceReplyOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handlePracticeCommand(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <form
             className="coach-command"
             onSubmit={(event) => {
