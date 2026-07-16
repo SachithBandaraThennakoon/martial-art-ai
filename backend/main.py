@@ -15,7 +15,7 @@ from jose import JWTError, jwt
 import json
 
 # DB
-from database import get_db, init_db, SessionLocal
+from database import engine, get_db, init_db, SessionLocal
 
 # Models
 from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration
@@ -35,9 +35,11 @@ from routers import auth
 from routers import technique as technique_router
 from routers import subscription as subscription_router
 from routers import contact as contact_router
+from routers import dashboard as dashboard_router
 
 # Services
 from services.angle_service import compare_angles
+from services.catalog_sync import ensure_session_technique_columns, sync_technique_catalog
 from agents.master_orchestrator import MasterOrchestrator
 from agents.voice_agent import generate_voice
 
@@ -53,6 +55,13 @@ app = FastAPI(title="AI Martial Platform")
 
 # Create DB tables
 DATABASE_READY = init_db()
+if DATABASE_READY:
+    try:
+        ensure_session_technique_columns(engine)
+        with SessionLocal() as catalog_db:
+            sync_technique_catalog(catalog_db)
+    except (SQLAlchemyError, OSError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning("Technique catalog synchronization failed: %s", exc)
 
 
 # -----------------------------
@@ -83,6 +92,7 @@ app.include_router(auth.router)
 app.include_router(technique_router.router)
 app.include_router(subscription_router.router)
 app.include_router(contact_router.router)
+app.include_router(dashboard_router.router)
 
 
 # -----------------------------
@@ -242,9 +252,14 @@ def create_practice_session(
 ):
     user_record = _get_user_from_token(db, token)
     target_reps = max(1, min(request.target_reps, 50))
+    technique_name = request.technique_name.strip()[:160] or "Practice"
+    technique_record = db.query(technique.Technique).filter(
+        func.lower(technique.Technique.name) == technique_name.lower()
+    ).first()
     session = PracticeSession(
         user_id=user_record.id,
-        technique_name=request.technique_name.strip()[:160] or "Practice",
+        technique_id=technique_record.id if technique_record else None,
+        technique_name=technique_name,
         step_key=str(request.step_key) if request.step_key is not None else None,
         step_name=(request.step_name or "").strip()[:160] or None,
         target_reps=target_reps,
@@ -506,16 +521,6 @@ async def train(websocket: WebSocket):
         _restore_coach_memory(db, user_record.id, coach)
         coach.student_name = _display_student_name(user_record)
 
-    if db_ready:
-        training_session = TrainingSession(
-            user_id=user_record.id if user_record else None,
-            technique_name=coach.technique_name,
-            mode=coach.mode
-        )
-        db.add(training_session)
-        db.commit()
-        db.refresh(training_session)
-
     # -----------------------------
     # MEMORY (PAST 5 SECONDS)
     # -----------------------------
@@ -555,10 +560,24 @@ async def train(websocket: WebSocket):
                 coach.current_step_name = parsed.get("step_name") or coach.current_step_name
                 coach.current_step_index = parsed.get("step_index", coach.current_step_index) or 0
                 coach.total_steps = parsed.get("total_steps", coach.total_steps) or 0
-                if db_ready and training_session:
-                    training_session.technique_name = coach.technique_name
-                    training_session.mode = coach.mode
+                if db_ready:
+                    technique_record = db.query(technique.Technique).filter(
+                        func.lower(technique.Technique.name) == coach.technique_name.lower()
+                    ).first()
+                    if not training_session:
+                        training_session = TrainingSession(
+                            user_id=user_record.id if user_record else None,
+                            technique_id=technique_record.id if technique_record else None,
+                            technique_name=coach.technique_name,
+                            mode=coach.mode,
+                        )
+                        db.add(training_session)
+                    else:
+                        training_session.technique_name = coach.technique_name
+                        training_session.technique_id = technique_record.id if technique_record else None
+                        training_session.mode = coach.mode
                     db.commit()
+                    db.refresh(training_session)
 
                 if not sent_initial_greeting:
                     if coach.state in {"confirm_session_complete", "session_complete"}:
@@ -877,6 +896,7 @@ def _practice_consistency_score(reps):
 def _practice_session_payload(session):
     return {
         "id": session.id,
+        "technique_id": session.technique_id,
         "technique_name": session.technique_name,
         "step_key": session.step_key,
         "step_name": session.step_name,

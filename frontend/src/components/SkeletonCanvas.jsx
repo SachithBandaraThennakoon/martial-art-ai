@@ -21,6 +21,7 @@ import {
 } from "../performance/studioPerformanceConfig";
 import { WS_BASE_URL } from "../services/api";
 import { getBodyCalibrationSample, getCalibrationFit } from "../utils/bodyCalibration";
+import { assignHandSides } from "../utils/handSideAssignment";
 
 const BODY_PART_MAP = {
   elbow_right: [12, 14, 16],
@@ -149,47 +150,7 @@ function syncCanvasToVideo(canvas, video) {
 }
 
 function getHandEntries(handLandmarksList, poseLandmarks, handednessList = []) {
-  if (!handLandmarksList?.length) return [];
-
-  const leftWrist = poseLandmarks?.[15];
-  const rightWrist = poseLandmarks?.[16];
-  const canUsePoseWrists = leftWrist && rightWrist;
-  const entries = handLandmarksList.map((hand, index) => {
-    const handednessLabel =
-      handednessList?.[index]?.[0]?.categoryName?.toLowerCase?.() || "";
-
-    if (!canUsePoseWrists) {
-      return {
-        hand,
-        side: handednessLabel === "left" ? "left" : "right",
-        confidence: 1
-      };
-    }
-
-    const handWrist = hand[0];
-    const leftDistance = distance(handWrist, leftWrist);
-    const rightDistance = distance(handWrist, rightWrist);
-
-    return {
-      hand,
-      side: leftDistance <= rightDistance ? "left" : "right",
-      confidence: Math.abs(leftDistance - rightDistance)
-    };
-  });
-  const usedSides = new Set();
-
-  return entries
-    .sort((first, second) => second.confidence - first.confidence)
-    .map((entry) => {
-      if (!usedSides.has(entry.side)) {
-        usedSides.add(entry.side);
-        return entry;
-      }
-
-      const fallbackSide = entry.side === "left" ? "right" : "left";
-      usedSides.add(fallbackSide);
-      return { ...entry, side: fallbackSide };
-    });
+  return assignHandSides(handLandmarksList, poseLandmarks, handednessList);
 }
 
 function getFistScore(hand) {
@@ -1101,8 +1062,9 @@ export default function SkeletonCanvas({
       const performanceConfig = performanceConfigRef.current;
       const processingStartedAt = performance.now();
 
-      let poseLandmarks = null;
-      let angleLandmarks = null;
+      try {
+        let poseLandmarks = null;
+        let angleLandmarks = null;
       const hasFreshHands =
         shouldTrackHandsRef.current &&
         previousHandsRef.current &&
@@ -1352,25 +1314,30 @@ export default function SkeletonCanvas({
         );
         previousDisplayPoseRef.current = displayLandmarks;
 
-        drawSkeleton(
-          canvasRef.current,
-          displayLandmarks,
-          skeletonLayersRef.current.corrections === false
-            ? new Set()
-            : getCorrectionParts(requiredPartsRef.current, anglesPayload),
-          {
-            mirrored: displayMirroredRef.current,
-            correctParts: skeletonLayersRef.current.corrections === false
+        if (skeletonLayersRef.current.live === false) {
+          const context = canvasRef.current?.getContext("2d", { alpha: true });
+          context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        } else {
+          drawSkeleton(
+            canvasRef.current,
+            displayLandmarks,
+            skeletonLayersRef.current.corrections === false
               ? new Set()
-              : getCorrectParts(requiredPartsRef.current, anglesPayload),
-            predictedLandmarks: skeletonLayersRef.current.level1
-              ? level1State?.debug?.predictedLandmarks
-              : null,
-            onnxPredictedLandmarks: skeletonLayersRef.current.onnx
-              ? latencyCompensatedOnnxLandmarks
-              : null
-          }
-        );
+              : getCorrectionParts(requiredPartsRef.current, anglesPayload),
+            {
+              mirrored: displayMirroredRef.current,
+              correctParts: skeletonLayersRef.current.corrections === false
+                ? new Set()
+                : getCorrectParts(requiredPartsRef.current, anglesPayload),
+              predictedLandmarks: skeletonLayersRef.current.level1
+                ? level1State?.debug?.predictedLandmarks
+                : null,
+              onnxPredictedLandmarks: skeletonLayersRef.current.onnx
+                ? latencyCompensatedOnnxLandmarks
+                : null
+            }
+          );
+        }
 
         emitAngleUpdate(anglesPayload);
         sendCoachFrame(anglesPayload);
@@ -1425,9 +1392,14 @@ export default function SkeletonCanvas({
         }
       }
 
-      updateAdaptivePerformance(performance.now() - processingStartedAt, now);
-
-      animationFrameId = requestAnimationFrame(detect);
+        updateAdaptivePerformance(performance.now() - processingStartedAt, now);
+      } catch (error) {
+        console.error("Studio tracking frame failed", error);
+      } finally {
+        if (!isDisposed) {
+          animationFrameId = requestAnimationFrame(detect);
+        }
+      }
     };
 
     const startCamera = async () => {
@@ -1514,11 +1486,13 @@ export default function SkeletonCanvas({
     <div className={`skeleton-canvas ${displayMirrored ? "skeleton-canvas--mirrored" : ""}`}>
       <video aria-hidden="true" ref={videoRef} autoPlay muted playsInline />
       <canvas ref={canvasRef} />
-      <ExpectedPoseGuide
-        mirrored={displayMirrored}
-        requiredParts={requiredParts}
-        stepName={currentStepName}
-      />
+      {skeletonLayers.expected !== false ? (
+        <ExpectedPoseGuide
+          mirrored={displayMirrored}
+          requiredParts={requiredParts}
+          stepName={currentStepName}
+        />
+      ) : null}
       <div className="skeleton-canvas__overlay" />
     </div>
   );

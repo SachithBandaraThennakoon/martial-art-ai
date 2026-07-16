@@ -9,6 +9,7 @@ class TrainingSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    technique_id = Column(Integer, ForeignKey("techniques.id"), nullable=True, index=True)
     technique_name = Column(String, index=True)
     mode = Column(String, default="train")
     started_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -58,6 +59,7 @@ class PracticeSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    technique_id = Column(Integer, ForeignKey("techniques.id"), nullable=True, index=True)
     technique_name = Column(String, index=True)
     step_key = Column(String, nullable=True, index=True)
     step_name = Column(String, nullable=True)

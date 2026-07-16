@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ActionSkeletonOverlay from "../components/ActionSkeletonOverlay";
-import AwarenessPanel from "../components/AwarenessPanel";
-import BodyCalibrationPanel from "../components/BodyCalibrationPanel";
 import DataLayersPanel from "../components/DataLayersPanel";
 import Level1DebugPanel from "../components/Level1DebugPanel";
 import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
-import StanceViewPanel from "../components/StanceViewPanel";
 import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
 
@@ -25,6 +22,19 @@ const formatBodyPart = (bodyPart) =>
   bodyPart
     ? bodyPart.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "Whole form";
+
+const formatSessionTimestamp = (value) => {
+  if (!value) return "No completed set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Time unavailable";
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
+};
 
 function scorePracticeAngles(requiredParts, liveAngles) {
   if (!requiredParts.length) {
@@ -128,9 +138,7 @@ export default function PracticeMode({
   performanceProfile = "student",
   performanceMode = "auto",
   skeletonLayers = {},
-  bodyCalibration,
-  stanceTargetDegrees = 0,
-  onStanceTargetChange
+  bodyCalibration
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -150,13 +158,11 @@ export default function PracticeMode({
   const [session, setSession] = useState(null);
   const [repCount, setRepCount] = useState(0);
   const [cleanReps, setCleanReps] = useState(0);
-  const [completedStepCount, setCompletedStepCount] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [focusBodyPart, setFocusBodyPart] = useState(null);
   const [assistantMessage, setAssistantMessage] = useState(
     "Choose a count and start practice."
   );
-  const [awareness, setAwareness] = useState(null);
   const [level1State, setLevel1State] = useState(null);
   const [level2State, setLevel2State] = useState(null);
   const [level3State, setLevel3State] = useState(null);
@@ -172,7 +178,12 @@ export default function PracticeMode({
   const [voiceInputStatus, setVoiceInputStatus] = useState("Say start to begin.");
   const [isListening, setIsListening] = useState(false);
   const [isReadyForRep, setIsReadyForRep] = useState(true);
+  const [practiceAnalysis, setPracticeAnalysis] = useState(null);
   const isPracticeActive = session?.status === "active";
+  const practiceSkeletonLayers = useMemo(
+    () => ({ ...skeletonLayers, live: false, expected: false }),
+    [skeletonLayers]
+  );
   const practiceNeedsReply = !isPracticeActive;
   const practiceReplyOptions = session?.status === "completed"
     ? [
@@ -214,6 +225,31 @@ export default function PracticeMode({
     if (!textEnabled) return;
     setConversation((items) => [...items.slice(-7), item]);
   }, [textEnabled]);
+
+  const loadPracticeAnalysis = useCallback(async (signal) => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/practice/analysis`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal
+      });
+      if (response.ok) {
+        setPracticeAnalysis(await response.json());
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        // Practice remains usable when historical analysis is temporarily offline.
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadPracticeAnalysis(controller.signal);
+    return () => controller.abort();
+  }, [loadPracticeAnalysis]);
 
   const fetchPracticeVoice = useCallback(async (message) => {
     const trimmed = message.trim();
@@ -392,11 +428,12 @@ export default function PracticeMode({
         const data = await response.json();
         setSession(data);
         sessionRef.current = data;
+        await loadPracticeAnalysis();
       }
     } catch {
       sayPractice("Set complete locally. Analysis storage did not update.");
     }
-  }, [sayPractice]);
+  }, [loadPracticeAnalysis, sayPractice]);
 
   const clearCountBeatTimers = useCallback(() => {
     countBeatTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
@@ -417,7 +454,6 @@ export default function PracticeMode({
     setSelectedStepIndex(startIndex);
     setRepCount(0);
     setCleanReps(0);
-    setCompletedStepCount(0);
     repCountRef.current = 0;
     cycleStepResultsRef.current = [];
     repStartedAtRef.current = performance.now();
@@ -495,7 +531,6 @@ export default function PracticeMode({
     sessionRef.current = null;
     setRepCount(0);
     setCleanReps(0);
-    setCompletedStepCount(0);
     repCountRef.current = 0;
     cycleStepResultsRef.current = [];
     numberAudioRef.current = [];
@@ -526,7 +561,6 @@ export default function PracticeMode({
     setSelectedStepIndex(nextIndex);
     setRepCount(0);
     setCleanReps(0);
-    setCompletedStepCount(0);
     repCountRef.current = 0;
     cycleStepResultsRef.current = [];
     setIsReadyForRep(true);
@@ -627,7 +661,6 @@ export default function PracticeMode({
 
     const stepIndex = selectedStepIndex;
     cycleStepResultsRef.current[stepIndex] = result;
-    setCompletedStepCount(Math.min(stepIndex + 1, steps.length));
     setIsReadyForRep(false);
     isReadyForRepRef.current = false;
 
@@ -693,7 +726,6 @@ export default function PracticeMode({
 
     const timerId = window.setTimeout(() => {
       cycleStepResultsRef.current = [];
-      setCompletedStepCount(0);
       setSelectedStepIndex(0);
       setIsReadyForRep(true);
       isReadyForRepRef.current = true;
@@ -868,29 +900,32 @@ export default function PracticeMode({
     );
   }
 
+  const overallKpi = practiceAnalysis?.summary;
+  const recentSet = practiceAnalysis?.sessions?.find(
+    (practiceSession) => practiceSession.status === "completed"
+  ) || practiceAnalysis?.sessions?.[0];
+
   return (
     <>
       <section
         className="training-stage training-stage--practice"
-        aria-label="Practice mode live skeleton"
+        aria-label="Practice mode camera tracking"
       >
         <SkeletonCanvas
           enableCoach={false}
-          enableAwareness
+          enableAwareness={false}
           performanceProfile={performanceProfile}
           performanceMode={performanceMode}
           displayMirrored={displayMirrored}
-          skeletonLayers={skeletonLayers}
+          skeletonLayers={practiceSkeletonLayers}
           bodyCalibration={bodyCalibration?.profile}
           calibrationActive={bodyCalibration?.state?.active}
           onBodyCalibrationSample={bodyCalibration?.recordSample}
           onCalibrationStatus={bodyCalibration?.reportFit}
-          stanceTargetDegrees={stanceTargetDegrees}
           currentStepId={selectedStep?.id}
           currentStepName={selectedStep?.step_name}
           requiredParts={requiredParts}
           onAngleUpdate={handleAngleUpdate}
-          onAwarenessUpdate={setAwareness}
           onLevel1Update={setLevel1State}
           onLevel2Update={setLevel2State}
           onLevel3Update={setLevel3State}
@@ -920,122 +955,15 @@ export default function PracticeMode({
         </div>
       </div>
 
-      <aside className="practice-panel">
-        <div className="panel-block">
+      <aside className="practice-setup-panel practice-workspace-panel" aria-label="Practice workspace controls">
+        <div className="panel-block practice-technique-card">
           <p className="eyebrow">Practice Mode</p>
           <h1>{currentTechnique.name}</h1>
-          <p className="practice-copy">
-            Fixed-count reps with form quality, pace, and set summaries stored
-            for analysis.
+          <p className="technique-meta">
+            {currentTechnique.subcategory} / {currentTechnique.difficulty}
           </p>
         </div>
 
-        <div className="panel-block">
-          <div className="panel-heading">
-            <p className="eyebrow">Practice Step</p>
-            <span>{requiredParts.length} targets</span>
-          </div>
-          <div className="step-list">
-            {steps.map((step, index) => (
-              <button
-                className={`step-button ${
-                  index === selectedStepIndex ? "step-button--active" : ""
-                } ${index < completedStepCount ? "step-button--complete" : ""}`}
-                disabled={isPracticeActive}
-                key={step.id}
-                onClick={() => {
-                  if (index !== selectedStepIndex) {
-                    moveToPracticeStep(index);
-                  }
-                }}
-                type="button"
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                {step.step_name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="panel-block practice-sequence">
-          <div>
-            <p className="eyebrow">Sequence</p>
-            <strong>{completedStepCount}/{steps.length}</strong>
-          </div>
-          <div>
-            <p className="eyebrow">Current rep</p>
-            <strong>{Math.min(repCount + 1, targetReps)}/{targetReps}</strong>
-          </div>
-          <div className="practice-progress" aria-hidden="true">
-            <span style={{ width: `${steps.length ? (completedStepCount / steps.length) * 100 : 0}%` }} />
-          </div>
-        </div>
-
-        <div className="panel-block panel-block--awareness">
-          <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
-        </div>
-
-        <div className="panel-block panel-block--calibration">
-          <BodyCalibrationPanel
-            calibration={bodyCalibration?.profile}
-            onCancel={bodyCalibration?.cancelCalibration}
-            onReset={bodyCalibration?.resetCalibration}
-            onStart={bodyCalibration?.startCalibration}
-            state={bodyCalibration?.state}
-          />
-        </div>
-
-        <div className="panel-block panel-block--stance">
-          <StanceViewPanel onChange={onStanceTargetChange} value={stanceTargetDegrees} />
-        </div>
-
-        {isAdminStudio ? (
-          <>
-            <div className="panel-block advanced-analysis-toggle">
-              <button
-                aria-expanded={showAdvancedAnalysis}
-                className="advanced-analysis-button"
-                onClick={() => setShowAdvancedAnalysis((isVisible) => !isVisible)}
-                type="button"
-              >
-                Advanced Analysis
-                <span>{showAdvancedAnalysis ? "Hide" : "Expand"}</span>
-              </button>
-              {showAdvancedAnalysis ? (
-                <>
-                  <ActionSkeletonOverlay level2State={level2State} variant="panel" />
-                  <Level1DebugPanel state={level1State} />
-                  <Level2DebugPanel state={level2State} />
-                </>
-              ) : null}
-            </div>
-
-            <div className="panel-block advanced-analysis-toggle">
-              <button
-                aria-expanded={showDataLayers}
-                className="advanced-analysis-button"
-                onClick={() => setShowDataLayers((isVisible) => !isVisible)}
-                type="button"
-              >
-                Data Layers
-                <span>{showDataLayers ? "Hide" : "Expand"}</span>
-              </button>
-              {showDataLayers ? (
-                <DataLayersPanel
-                  level1State={level1State}
-                  level2State={level2State}
-                  level3State={level3State}
-                  level4State={level4State}
-                  situationAwarenessState={situationAwarenessState}
-                />
-              ) : null}
-            </div>
-          </>
-        ) : null}
-
-      </aside>
-
-      <aside className="practice-setup-panel" aria-label="Practice set controls">
         <div className="panel-block practice-setup-summary">
           <div className="practice-setup-summary__top">
             <div>
@@ -1123,19 +1051,108 @@ export default function PracticeMode({
           </div>
         </div>
 
-        {session?.status === "completed" ? (
-          <div className="panel-block coach-card">
-            <p className="eyebrow">Practice Assistant</p>
-            <strong>Review this set while the movement is still fresh.</strong>
-            <button
-              className="btn btn--light btn--full"
-              onClick={() => onModeChange?.("analysis")}
-              type="button"
-            >
-              View Analysis
-            </button>
-          </div>
+      </aside>
+
+      <aside className="training-panel training-panel--right practice-analysis-panel" aria-label="Practice analysis">
+        <div className="panel-block practice-analysis-heading">
+          <p className="eyebrow">Practice Analysis</p>
+          <h2>Performance overview</h2>
+          <p>Saved set quality and your latest completed result.</p>
+        </div>
+
+        {isAdminStudio ? (
+          <>
+            <div className="panel-block advanced-analysis-toggle">
+              <button
+                aria-expanded={showAdvancedAnalysis}
+                className="advanced-analysis-button"
+                onClick={() => setShowAdvancedAnalysis((isVisible) => !isVisible)}
+                type="button"
+              >
+                Advanced Analysis
+                <span>{showAdvancedAnalysis ? "Hide" : "Expand"}</span>
+              </button>
+              {showAdvancedAnalysis ? (
+                <>
+                  <ActionSkeletonOverlay level2State={level2State} variant="panel" />
+                  <Level1DebugPanel state={level1State} />
+                  <Level2DebugPanel state={level2State} />
+                </>
+              ) : null}
+            </div>
+
+            <div className="panel-block advanced-analysis-toggle">
+              <button
+                aria-expanded={showDataLayers}
+                className="advanced-analysis-button"
+                onClick={() => setShowDataLayers((isVisible) => !isVisible)}
+                type="button"
+              >
+                Data Layers
+                <span>{showDataLayers ? "Hide" : "Expand"}</span>
+              </button>
+              {showDataLayers ? (
+                <DataLayersPanel
+                  level1State={level1State}
+                  level2State={level2State}
+                  level3State={level3State}
+                  level4State={level4State}
+                  situationAwarenessState={situationAwarenessState}
+                />
+              ) : null}
+            </div>
+          </>
         ) : null}
+
+        <div className="panel-block practice-kpi-card">
+          <div className="panel-heading">
+            <p className="eyebrow">Overall KPI</p>
+            <span>Last 12 sets</span>
+          </div>
+          <div className="practice-kpi-grid">
+            <div><span>Avg form</span><strong>{overallKpi ? `${overallKpi.average_accuracy}%` : "--"}</strong></div>
+            <div><span>Clean rate</span><strong>{overallKpi ? `${overallKpi.clean_rate}%` : "--"}</strong></div>
+            <div><span>Consistency</span><strong>{overallKpi ? `${overallKpi.consistency_score}%` : "--"}</strong></div>
+            <div><span>Total reps</span><strong>{overallKpi?.total_reps ?? "--"}</strong></div>
+          </div>
+        </div>
+
+        <div className="panel-block practice-recent-set">
+          <div className="panel-heading">
+            <p className="eyebrow">Recent Set</p>
+            <time dateTime={recentSet?.ended_at || recentSet?.started_at || undefined}>
+              {formatSessionTimestamp(recentSet?.ended_at || recentSet?.started_at)}
+            </time>
+          </div>
+          {recentSet ? (
+            <>
+              <strong className="practice-recent-set__name">{recentSet.technique_name}</strong>
+              <div className="practice-recent-set__metrics">
+                <span><small>Reps</small><strong>{recentSet.completed_reps}/{recentSet.target_reps}</strong></span>
+                <span><small>Average</small><strong>{recentSet.average_accuracy}%</strong></span>
+                <span><small>Clean</small><strong>{recentSet.clean_reps}</strong></span>
+              </div>
+            </>
+          ) : (
+            <p className="empty-state">Complete a set to create your first analysis.</p>
+          )}
+        </div>
+
+        <div className="panel-block coach-card practice-analysis-action">
+          <p className="eyebrow">Next action</p>
+          <strong>
+            {session?.status === "completed"
+              ? "Review this set while the movement is still fresh."
+              : overallKpi?.recommendation || "Complete a set to unlock your recommendation."}
+          </strong>
+          <button
+            className="btn btn--light btn--full"
+            onClick={() => onModeChange?.("analysis")}
+            type="button"
+          >
+            Open full analysis
+          </button>
+        </div>
       </aside>
 
       <aside className="conversation-crate conversation-crate--practice" aria-label="Talk to practice assistant">

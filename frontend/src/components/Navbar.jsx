@@ -17,6 +17,10 @@ export default function Navbar() {
     ["/admin-studio", "/admin-training"].includes(location.pathname)
       ? "navbar__link active"
       : "navbar__link";
+  const dashboardNavClass = () =>
+    location.pathname.startsWith("/dashboard")
+      ? "navbar__link active"
+      : "navbar__link";
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -50,6 +54,7 @@ export default function Navbar() {
             <div className="navbar__menu-section">
               <span>Workspace</span>
               {token ? <NavLink className={studioNavClass} onClick={closeMenu} to="/studio">Studio</NavLink> : null}
+              {token ? <NavLink className={dashboardNavClass} onClick={closeMenu} to="/dashboard/overview">Dashboard</NavLink> : null}
               <NavLink className={navClass} onClick={closeMenu} to="/pricing">Plans</NavLink>
               <NavLink className={navClass} onClick={closeMenu} to="/contact">Contact</NavLink>
               {userRole === "admin" ? (
@@ -80,6 +85,7 @@ export default function Navbar() {
 
         <div className="navbar__primary">
           {token ? <NavLink to="/studio" className={studioNavClass}>Studio</NavLink> : null}
+          {token ? <NavLink to="/dashboard/overview" className={dashboardNavClass}>Dashboard</NavLink> : null}
           <NavLink to="/pricing" className={navClass}>Plans</NavLink>
           <NavLink to="/contact" className={navClass}>Contact</NavLink>
           {userRole === "admin" ? (

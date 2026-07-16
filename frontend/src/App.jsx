@@ -16,11 +16,13 @@ import Contact from "./pages/Contact";
 
 const Training = lazy(() => import("./pages/Training"));
 const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 function AppRoutes() {
   const location = useLocation();
   const isStudio =
     location.pathname === "/training" || location.pathname === "/admin-training";
+  const isDashboard = location.pathname.startsWith("/dashboard");
 
   return (
     <div className={`app-shell ${isStudio ? "app-shell--studio" : ""}`}>
@@ -62,6 +64,15 @@ function AppRoutes() {
         />
 
         <Route
+          path="/dashboard/:page?"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/admin-studio"
           element={
             <ProtectedRoute requiredRole="admin">
@@ -91,7 +102,7 @@ function AppRoutes() {
           </Routes>
         </Suspense>
       </div>
-      {!isStudio ? <Footer /> : null}
+      {!isStudio && !isDashboard ? <Footer /> : null}
     </div>
   );
 }

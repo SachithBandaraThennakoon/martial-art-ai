@@ -246,8 +246,6 @@ export default function TrainingStudio({ studioMode = "student" }) {
           performanceMode={performanceMode}
           skeletonLayers={activeSkeletonLayers}
           bodyCalibration={bodyCalibration}
-          stanceTargetDegrees={stanceTargetDegrees}
-          onStanceTargetChange={updateStanceTarget}
         />
       ) : (
         <PracticeAnalysisMode
