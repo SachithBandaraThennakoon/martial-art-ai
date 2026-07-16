@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/auth";
+import QuoteDojo from "../components/QuoteDojo";
 import { techniqueCatalog, slugify } from "../data/techniqueCatalog";
 
 const totalTechniques = techniqueCatalog.reduce(
@@ -20,11 +21,11 @@ export default function Home() {
           <p className="hero__lead">
             {token
               ? "Continue with guided targets, focused practice sets, and an analysis view that turns sessions into your next action."
-              : "Martial Art AI reads body, face, and hand position in real time, then gives one useful correction at a time—right in your browser."}
+              : "XMartialArt reads body, face, and hand position in real time, then gives one useful correction at a time—right in your browser."}
           </p>
           <div className="hero__actions">
             <Link to={token ? "/studio" : "/register"} className="btn btn--light">{token ? "Open my Studio" : "Start free"}</Link>
-            <Link to={token ? "/training?mode=analysis" : "/pricing"} className="btn btn--ghost">{token ? "Review progress" : "Compare plans"}</Link>
+            <Link to={token ? "/dashboard/overview" : "/pricing"} className="btn btn--ghost">{token ? "Review my progress" : "Compare plans"}</Link>
           </div>
           <div className="hero__proof" aria-label="Platform summary">
             <span><strong>{techniqueCatalog.length}</strong> disciplines</span>
@@ -33,16 +34,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="hero__panel hero__panel--studio" aria-label="Live coaching preview">
-          <div className="hero__panel-top"><span><i /> Live form tracking</span><strong>Guard stance</strong></div>
-          <div className="hero__canvas">
-            <span className="pose-dot pose-dot--head" /><span className="pose-line pose-line--torso" />
-            <span className="pose-line pose-line--arm-left" /><span className="pose-line pose-line--arm-right" />
-            <span className="pose-line pose-line--leg-left" /><span className="pose-line pose-line--leg-right" />
-            <div className="hero__coach-cue"><small>MASTER FOCUS</small><strong>Raise your left guard</strong><span>Hold the elbow near your ribs.</span></div>
-          </div>
-          <div className="hero__stats"><div><span>Form match</span><strong>92%</strong></div><div><span>Tracking</span><strong>Body · Face · Hands</strong></div></div>
-        </div>
+        <QuoteDojo />
       </section>
 
       <section className="home-loop">

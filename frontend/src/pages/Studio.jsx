@@ -201,7 +201,7 @@ export default function Studio({ isAdminStudio = false }) {
 
         <footer className="studio-footer-note">
           <span>{isAdminStudio ? "ACP-STGAT research workspace" : "Camera-based coaching · No wearables required"}</span>
-          <span>Martial Art AI / Studio</span>
+          <span>XMartialArt / Studio</span>
         </footer>
       </section>
     </main>

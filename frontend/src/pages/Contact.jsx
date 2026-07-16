@@ -37,7 +37,7 @@ export default function Contact() {
     <main className="page contact-page">
       <section className="contact-hero">
         <div>
-          <p className="eyebrow">Contact Martial Art AI</p>
+          <p className="eyebrow">Contact XMartialArt</p>
           <h1>Let’s improve your training experience.</h1>
           <p>Questions about coaching, memberships, studio access, or partnerships? Send the right context and our team can help faster.</p>
         </div>
