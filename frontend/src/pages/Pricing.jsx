@@ -83,7 +83,7 @@ export default function Pricing() {
 
       <section className="pricing-grid">
         {subscriptionPlans.map((plan) => {
-          const isActivePlan = userPlan === plan.code;
+          const isActivePlan = Boolean(token) && userPlan === plan.code;
 
           return (
           <article
@@ -129,8 +129,8 @@ export default function Pricing() {
                   </Link>
                 </div>
               ) : plan.price === 0 ? (
-                <Link className="btn btn--light btn--full" to="/studio">
-                  {plan.cta}
+                <Link className="btn btn--light btn--full" to={token ? "/studio" : "/register"}>
+                  {token ? plan.cta : "Start Free"}
                 </Link>
               ) : !token ? (
                 <div className="pricing-login-box">
@@ -152,14 +152,20 @@ export default function Pricing() {
               )}
             </div>
 
-            <dl className="plan-features">
-              {planFeatureNames.map((featureName) => (
-                <div key={featureName}>
-                  <dt>{featureName}</dt>
-                  <dd>{formatFeature(plan.features[featureName])}</dd>
-                </div>
-              ))}
-            </dl>
+            <details className="pricing-details">
+              <summary>
+                <span>View plan details</span>
+                <b aria-hidden="true">+</b>
+              </summary>
+              <dl className="plan-features">
+                {planFeatureNames.map((featureName) => (
+                  <div key={featureName}>
+                    <dt>{featureName}</dt>
+                    <dd>{formatFeature(plan.features[featureName])}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
           </article>
           );
         })}

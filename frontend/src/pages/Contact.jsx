@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { XCEED_COMPANY } from "../data/companyInfo";
 import { API_BASE_URL } from "../services/api";
 
 const initialForm = { name: "", email: "", topic: "General question", message: "", company: "" };
@@ -37,7 +38,7 @@ export default function Contact() {
     <main className="page contact-page">
       <section className="contact-hero">
         <div>
-          <p className="eyebrow">Contact XMartialArt</p>
+          <p className="eyebrow">XMartialArt support · By Xceed</p>
           <h1>Let’s improve your training experience.</h1>
           <p>Questions about coaching, memberships, studio access, or partnerships? Send the right context and our team can help faster.</p>
         </div>
@@ -76,6 +77,18 @@ export default function Contact() {
         </form>
 
         <aside className="contact-options">
+          <article className="contact-company-card">
+            <span>Built and supported by</span>
+            <h2>{XCEED_COMPANY.name}</h2>
+            <p>Connect directly with the team behind XMartialArt.</p>
+            <div className="contact-company-links">
+              <a href={`mailto:${XCEED_COMPANY.email}`}><small>Email</small><strong>{XCEED_COMPANY.email}</strong></a>
+              <a href={XCEED_COMPANY.phoneHref}><small>Phone</small><strong>{XCEED_COMPANY.phoneDisplay}</strong></a>
+              <a href={XCEED_COMPANY.whatsappHref} rel="noreferrer" target="_blank"><small>WhatsApp</small><strong>{XCEED_COMPANY.phoneDisplay} ↗</strong></a>
+              <a href={XCEED_COMPANY.website} rel="noreferrer" target="_blank"><small>Website</small><strong>xceed.live ↗</strong></a>
+              <a href={XCEED_COMPANY.linkedin} rel="noreferrer" target="_blank"><small>LinkedIn</small><strong>Follow Xceed ↗</strong></a>
+            </div>
+          </article>
           <article><span>01</span><h2>Studio support</h2><p>Include the technique, mode, browser, and the exact coaching message you saw.</p></article>
           <article><span>02</span><h2>Membership help</h2><p>Use the email on your account. Do not send payment credentials.</p><Link to="/pricing">Review plans →</Link></article>
           <article><span>03</span><h2>Training safety</h2><p>AI feedback supports practice—it does not replace qualified instruction or medical advice.</p></article>

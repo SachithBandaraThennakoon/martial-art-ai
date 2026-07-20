@@ -18,7 +18,7 @@ import json
 from database import engine, get_db, init_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration
+from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration, password_reset_token
 from models.body_calibration import BodyCalibration
 from models.target_angle import TargetAngle
 from models.training_memory import (

@@ -1,7 +1,6 @@
 import { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/auth";
-import QuoteDojo from "../components/QuoteDojo";
 import { techniqueCatalog, slugify } from "../data/techniqueCatalog";
 
 const totalTechniques = techniqueCatalog.reduce(
@@ -25,7 +24,11 @@ export default function Home() {
           </p>
           <div className="hero__actions">
             <Link to={token ? "/studio" : "/register"} className="btn btn--light">{token ? "Open my Studio" : "Start free"}</Link>
-            <Link to={token ? "/dashboard/overview" : "/pricing"} className="btn btn--ghost">{token ? "Review my progress" : "Compare plans"}</Link>
+            {token ? (
+              <Link to="/dashboard/overview" className="btn btn--ghost">Review my progress</Link>
+            ) : (
+              <a href="#training-loop" className="btn btn--ghost">See how it works</a>
+            )}
           </div>
           <div className="hero__proof" aria-label="Platform summary">
             <span><strong>{techniqueCatalog.length}</strong> disciplines</span>
@@ -34,10 +37,16 @@ export default function Home() {
           </div>
         </div>
 
-        <QuoteDojo />
+        <div className="hero-motion" aria-hidden="true">
+          <span className="hero-motion__label">XMA · Movement intelligence</span>
+          <strong className="hero-motion__word">XCEED</strong>
+          <div className="hero-motion__orbit hero-motion__orbit--outer"><i /></div>
+          <div className="hero-motion__orbit hero-motion__orbit--inner"><i /></div>
+
+        </div>
       </section>
 
-      <section className="home-loop">
+      <section className="home-loop" id="training-loop">
         <div className="section-heading"><p className="eyebrow">One training loop</p><h2>Learn it. Repeat it. Understand it.</h2><p>Each Studio mode has one job, so the screen stays focused while your training builds into a useful history.</p></div>
         <div className="home-loop__grid">
           <article><span>01 / Train</span><h3>Follow clear targets</h3><p>Work through technique steps with live angles and short coaching cues.</p><strong>Best for learning</strong></article>
@@ -63,7 +72,7 @@ export default function Home() {
         <div className="home-categories" aria-label="Main categories">
           {techniqueCatalog.map((category, index) => (
             <Link className="home-category-link" key={category.category} to={`/categories/${slugify(category.category)}`}>
-              <span>{String(index + 1).padStart(2, "0")} · {category.subcategories.length} programs</span><strong>{category.category}</strong><b aria-hidden="true">↗</b>
+              <span>{String(index + 1).padStart(2, "0")} · {category.subcategories.length} {category.subcategories.length === 1 ? "program" : "programs"}</span><strong>{category.category}</strong><b aria-hidden="true">↗</b>
             </Link>
           ))}
         </div>

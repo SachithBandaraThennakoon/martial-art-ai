@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { XCEED_COMPANY } from "../data/companyInfo";
 import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
 
 export default function Footer() {
@@ -32,16 +33,21 @@ export default function Footer() {
             ))}
           </div>
           <div>
-            <strong>Develop</strong>
-            {MAIN_CATEGORIES.slice(4).map((category) => (
-              <Link key={category} to={`/categories/${slugify(category)}`}>{category}</Link>
-            ))}
+            <strong>Developed by Xceed</strong>
+            <a href={XCEED_COMPANY.website} rel="noreferrer" target="_blank">Website ↗</a>
+            <a href={XCEED_COMPANY.linkedin} rel="noreferrer" target="_blank">LinkedIn ↗</a>
+            <a href={`mailto:${XCEED_COMPANY.email}`}>{XCEED_COMPANY.email}</a>
+            <a href={XCEED_COMPANY.phoneHref}>{XCEED_COMPANY.phoneDisplay}</a>
+            <a href={XCEED_COMPANY.whatsappHref} rel="noreferrer" target="_blank">WhatsApp</a>
           </div>
         </div>
       </div>
       <div className="site-footer__bottom">
         <span>© {new Date().getFullYear()} XMartialArt</span>
-        <span className="site-footer__signature"><i aria-hidden="true" /> Move with intent · Progress with proof</span>
+        <span className="site-footer__signature">
+          <i aria-hidden="true" /> Developed by&nbsp;
+          <a href={XCEED_COMPANY.website} rel="noreferrer" target="_blank">Xceed</a>
+        </span>
       </div>
     </footer>
   );

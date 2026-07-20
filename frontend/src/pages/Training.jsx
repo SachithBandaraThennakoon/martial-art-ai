@@ -112,14 +112,6 @@ export default function TrainingStudio({ studioMode = "student" }) {
 
   return (
     <main className={`training-shell ${mode === "analysis" ? "training-shell--analysis" : ""}`}>
-      <div className="rotate-prompt" role="status">
-        <span className="rotate-prompt__icon" aria-hidden="true" />
-        <div>
-          <strong>Want a wider training view?</strong>
-          <p>Rotate your phone to place the camera and coaching panels side by side.</p>
-        </div>
-      </div>
-
       <div className="studio-mode-switch" aria-label="Training Studio mode">
         <div>
           <p className="eyebrow">{isAdminStudio ? "Admin Studio" : "Training Studio"}</p>

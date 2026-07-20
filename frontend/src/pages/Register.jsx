@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../services/api";
+import AuthStory from "../components/AuthStory";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function Register() {
 
   return (
     <main className="page auth-page">
+      <AuthStory mode="register" />
       <form className="auth-card" onSubmit={handleRegister}>
         <p className="eyebrow">Your first session starts here</p>
         <h1>Create Account</h1>

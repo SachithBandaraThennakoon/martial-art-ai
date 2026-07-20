@@ -154,7 +154,9 @@ export default function Studio({ isAdminStudio = false }) {
                   >
                     <div className="studio-category-card__top">
                       <span className="studio-category-card__code">{detail.code}</span>
-                      <span className="studio-category-card__count">{techniqueCount} techniques</span>
+                      <span className="studio-category-card__count">
+                        {techniqueCount} {techniqueCount === 1 ? "technique" : "techniques"}
+                      </span>
                     </div>
                     <div className="studio-category-card__body">
                       <strong>{category.category}</strong>
@@ -164,7 +166,9 @@ export default function Studio({ isAdminStudio = false }) {
                       ) : null}
                     </div>
                     <div className="studio-category-card__footer">
-                      <span>{category.subcategories.length} programs</span>
+                      <span>
+                        {category.subcategories.length} {category.subcategories.length === 1 ? "program" : "programs"}
+                      </span>
                       <b aria-hidden="true">↗</b>
                     </div>
                   </Link>

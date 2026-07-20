@@ -13,6 +13,8 @@ import CategoryPage from "./pages/CategoryPage";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import Contact from "./pages/Contact";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const Training = lazy(() => import("./pages/Training"));
 const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
@@ -53,6 +55,8 @@ function AppRoutes() {
         />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/studio"

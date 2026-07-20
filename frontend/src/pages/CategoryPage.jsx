@@ -47,11 +47,11 @@ export default function CategoryPage() {
         <h1>{category.category}</h1>
         <p className="category-hero__copy">
           {isAdminStudio
-            ? "Choose a sub category and technique to open Admin Studio research controls."
-            : "Choose a sub category, pick a technique, then open Training Studio to train or practice."}
+            ? "Choose a subcategory and technique to open Admin Studio research controls."
+            : "Choose a subcategory, pick a technique, then open Training Studio to train or practice."}
         </p>
         <div className="category-hero__tools">
-          <span>{category.subcategories.length} programs</span>
+          <span>{category.subcategories.length} {category.subcategories.length === 1 ? "program" : "programs"}</span>
           <span>
             {category.subcategories.reduce((total, item) => total + item.techniques.length, 0)} techniques
           </span>
@@ -73,10 +73,10 @@ export default function CategoryPage() {
           <article className="subcategory-card" key={subcategory.name}>
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Sub Category</p>
+                <p className="eyebrow">Subcategory</p>
                 <h2>{subcategory.name}</h2>
               </div>
-              <span>{subcategory.techniques.length} techniques</span>
+              <span>{subcategory.techniques.length} {subcategory.techniques.length === 1 ? "technique" : "techniques"}</span>
             </div>
 
             <div className="technique-list">

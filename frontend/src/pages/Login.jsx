@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/auth";
 import { API_BASE_URL } from "../services/api";
+import AuthStory from "../components/AuthStory";
 
 export default function Login() {
   const { login } = useContext(AuthContext);
@@ -51,6 +52,7 @@ export default function Login() {
 
   return (
     <main className="page auth-page">
+      <AuthStory mode="login" />
       <form className="auth-card" onSubmit={handleLogin}>
         <p className="eyebrow">Welcome back</p>
         <h1>Continue Training</h1>
@@ -74,7 +76,10 @@ export default function Login() {
         </label>
 
         <label className="field">
-          <span>Password</span>
+          <span className="field__label-row">
+            <span>Password</span>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </span>
           <span className="field__input-wrap">
             <input
               autoComplete="current-password"
