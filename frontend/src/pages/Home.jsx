@@ -2,49 +2,17 @@ import { useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/auth";
 import { techniqueCatalog, slugify } from "../data/techniqueCatalog";
-
-const totalTechniques = techniqueCatalog.reduce(
-  (total, category) => total + category.subcategories.reduce((count, item) => count + item.techniques.length, 0),
-  0
-);
+import MeditationHero from "../components/MeditationHero/MeditationHero";
 
 export default function Home() {
   const { token, userName } = useContext(AuthContext);
 
   return (
     <main className="page page--home">
-      <section className="hero hero--next">
-        <div className="hero__copy">
-          <p className="eyebrow">{token ? `Welcome back${userName ? `, ${userName.split(" ")[0]}` : ""}` : "Your camera becomes the coach"}</p>
-          <h1>{token ? "Build the next clean rep." : "See your form. Fix the detail. Own the movement."}</h1>
-          <p className="hero__lead">
-            {token
-              ? "Continue with guided targets, focused practice sets, and an analysis view that turns sessions into your next action."
-              : "XMartialArt reads body, face, and hand position in real time, then gives one useful correction at a time—right in your browser."}
-          </p>
-          <div className="hero__actions">
-            <Link to={token ? "/studio" : "/register"} className="btn btn--light">{token ? "Open my Studio" : "Start free"}</Link>
-            {token ? (
-              <Link to="/dashboard/overview" className="btn btn--ghost">Review my progress</Link>
-            ) : (
-              <a href="#training-loop" className="btn btn--ghost">See how it works</a>
-            )}
-          </div>
-          <div className="hero__proof" aria-label="Platform summary">
-            <span><strong>{techniqueCatalog.length}</strong> disciplines</span>
-            <span><strong>{totalTechniques}</strong> guided techniques</span>
-            <span><strong>0</strong> wearables</span>
-          </div>
-        </div>
-
-        <div className="hero-motion" aria-hidden="true">
-          <span className="hero-motion__label">XMA · Movement intelligence</span>
-          <strong className="hero-motion__word">XCEED</strong>
-          <div className="hero-motion__orbit hero-motion__orbit--outer"><i /></div>
-          <div className="hero-motion__orbit hero-motion__orbit--inner"><i /></div>
-
-        </div>
-      </section>
+      <MeditationHero
+        primaryTo={token ? "/studio" : "/register"}
+        welcomeName={token && userName ? userName.split(" ")[0] : ""}
+      />
 
       <section className="home-loop" id="training-loop">
         <div className="section-heading"><p className="eyebrow">One training loop</p><h2>Learn it. Repeat it. Understand it.</h2><p>Each Studio mode has one job, so the screen stays focused while your training builds into a useful history.</p></div>
