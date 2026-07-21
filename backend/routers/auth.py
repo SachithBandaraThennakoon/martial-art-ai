@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.password_reset_token import PasswordResetToken
 from models.user import User
-from services.password_reset_email import RESEND_API_KEY, send_password_reset_email
+from services.password_reset_email import email_delivery_configured, send_password_reset_email
 from utils.security import hash_password, verify_password, create_access_token
 
 router = APIRouter()
@@ -173,7 +173,7 @@ def forgot_password(
     delivered = send_password_reset_email(clean_email, reset_url)
 
     # Local development remains testable without exposing reset tokens in production.
-    if APP_ENV != "production" and not RESEND_API_KEY and not delivered:
+    if APP_ENV != "production" and not email_delivery_configured() and not delivered:
         response["development_reset_url"] = reset_url
 
     return response

@@ -40,7 +40,7 @@ export default function Login() {
         role: data.role
       });
       const destination = location.state?.from;
-      navigate(destination ? `${destination.pathname}${destination.search || ""}` : "/studio", {
+      navigate(destination ? `${destination.pathname}${destination.search || ""}` : "/", {
         replace: true
       });
     } catch {

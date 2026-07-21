@@ -40,8 +40,13 @@ class PasswordResetFlowTests(unittest.TestCase):
         self.db.close()
         self.engine.dispose()
 
+    @patch("routers.auth.email_delivery_configured", return_value=False)
     @patch("routers.auth.send_password_reset_email", return_value=False)
-    def test_reset_token_is_hashed_single_use_and_changes_password(self, _send_email):
+    def test_reset_token_is_hashed_single_use_and_changes_password(
+        self,
+        _send_email,
+        _email_configured,
+    ):
         response = forgot_password(
             ForgotPasswordRequest(email="student@example.com"),
             self.request,
