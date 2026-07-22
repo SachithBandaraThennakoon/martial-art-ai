@@ -3,12 +3,20 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../context/auth";
 import { techniqueCatalog, slugify } from "../data/techniqueCatalog";
 import MeditationHero from "../components/MeditationHero/MeditationHero";
+import FloatingParticles from "../components/MeditationHero/components/FloatingParticles";
 
 export default function Home() {
   const { token, userName } = useContext(AuthContext);
 
   return (
     <main className="page page--home">
+      <FloatingParticles
+        className="meditation-particles--page"
+        count={180}
+        seed={73}
+        area="home-page"
+      />
+
       <MeditationHero
         primaryTo={token ? "/studio" : "/register"}
         welcomeName={token && userName ? userName.split(" ")[0] : ""}

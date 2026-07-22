@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
+import FloatingParticles from "./components/MeditationHero/components/FloatingParticles";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -24,6 +25,12 @@ function AppRoutes() {
   const location = useLocation();
   const isStudio =
     location.pathname === "/training" || location.pathname === "/admin-training";
+  const isLiveStudioRoute = [
+    "/admin-studio",
+    "/training",
+    "/admin-training",
+  ].includes(location.pathname);
+  const showSharedParticles = location.pathname !== "/" && !isLiveStudioRoute;
   const isDashboard = location.pathname.startsWith("/dashboard");
 
   return (
@@ -32,6 +39,14 @@ function AppRoutes() {
       <Navbar />
 
       <div id="main-content" tabIndex="-1">
+        {showSharedParticles ? (
+          <FloatingParticles
+            className="meditation-particles--app"
+            count={140}
+            seed={97}
+            area="app-page"
+          />
+        ) : null}
         <Suspense
           fallback={
             <main className="route-loader" role="status">

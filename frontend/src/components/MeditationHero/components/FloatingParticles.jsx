@@ -1,10 +1,15 @@
 import { generateParticles } from "../particleUtils";
 
-const particles = generateParticles(78, 41, "ambient");
+export default function FloatingParticles({
+  className = "",
+  count = 78,
+  seed = 41,
+  area = "ambient",
+}) {
+  const particles = generateParticles(count, seed, area);
 
-export default function FloatingParticles() {
   return (
-    <div className="meditation-particles" aria-hidden="true">
+    <div className={`meditation-particles ${className}`.trim()} aria-hidden="true">
       {particles.map((particle) => (
         <i
           className={`meditation-particle meditation-particle--${particle.tone}`}

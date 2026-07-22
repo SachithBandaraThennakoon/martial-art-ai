@@ -907,19 +907,18 @@ export default function TrainMode({
             <span className="master-status">{coachStateLabel}</span>
             {focusLabel ? <span className="master-focus">Focus: {focusLabel}</span> : null}
           </div>
-          <span>{masterMessage}</span>
-          {textEnabled && voiceWords.length > 0 ? (
-            <div className={`voice-word-strip voice-word-strip--${voiceState}`}>
-              {voiceWords.map((word, index) => (
-                <span
-                  className={index === activeVoiceWord ? "is-active" : ""}
-                  key={`${word}-${index}`}
-                >
-                  {word}
-                </span>
-              ))}
-            </div>
-          ) : null}
+          <span className="master-feedback-text">
+            {textEnabled && currentVoiceMessage === masterMessage && voiceWords.length > 0
+              ? voiceWords.map((word, index) => (
+                  <span
+                    className={`master-feedback-word ${index === activeVoiceWord ? "is-active" : ""}`}
+                    key={`${word}-${index}`}
+                  >
+                    {word}{index < voiceWords.length - 1 ? " " : ""}
+                  </span>
+                ))
+              : masterMessage}
+          </span>
         </div>
       </div>
 

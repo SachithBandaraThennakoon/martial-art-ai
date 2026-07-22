@@ -642,7 +642,6 @@ class CoachSession:
             "ready": [
                 {"label": "I'm ready", "value": "ready"},
                 {"label": "Wait", "value": "wait"},
-                {"label": "Need help", "value": "help"},
             ],
             "next_step": [
                 {"label": "Next step", "value": "next step"},
@@ -652,7 +651,6 @@ class CoachSession:
             "practice": [
                 {"label": "Practice", "value": "practice mode"},
                 {"label": "Keep training", "value": "no, continue training"},
-                {"label": "Need help", "value": "help"},
             ],
             "session_complete": [
                 {"label": "Practice", "value": "practice mode"},
@@ -690,9 +688,9 @@ class CoachSession:
             "session_complete": "Choose practice, train again, or finish.",
         }
         reminder_messages = {
-            "ready": "Take your time. Choose I'm ready, Wait, or Need help.",
+            "ready": "Take your time. Choose I'm ready or Wait.",
             "next_step": "Choose Next step, Repeat step, or Wait.",
-            "practice": "Choose Practice, Keep training, or Need help.",
+            "practice": "Choose Practice or Keep training.",
             "session_complete": "Choose Practice, Train again, or Finish.",
         }
         reminder = self._question_reminder_due()

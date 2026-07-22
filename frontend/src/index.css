@@ -2861,58 +2861,23 @@ select:focus {
   background: rgba(106, 168, 255, 0.12);
 }
 
-.voice-word-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-  min-height: 28px;
+.feedback-banner .master-feedback-word {
+  display: inline;
+  border-radius: 0.18em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
-.feedback-banner .voice-word-strip span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1;
-  background: rgba(255, 255, 255, 0.06);
-  text-shadow: none;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
-}
-
-.feedback-banner .voice-word-strip span.is-active {
-  border-color: rgba(96, 211, 148, 0.72);
-  color: #050505;
-  background: rgba(255, 255, 255, 0.92);
-  transform: translateY(-1px);
+.feedback-banner .master-feedback-word.is-active {
+  background: transparent;
+  box-shadow: none;
+  color: var(--accent-green);
+  text-shadow: 0 0 12px rgba(96, 211, 148, 0.38);
 }
 
 .app-shell--studio .feedback-banner--practice {
   left: 50%;
-}
-
-.voice-word-strip--loading span:first-child {
-  animation: voicePulse 900ms ease-in-out infinite;
-}
-
-@keyframes voicePulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-
-  50% {
-    opacity: 1;
-  }
 }
 
 .conversation-crate {
