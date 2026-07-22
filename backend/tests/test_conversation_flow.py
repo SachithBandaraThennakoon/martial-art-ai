@@ -1,7 +1,8 @@
 import unittest
+import time
 
 from agents.conversation_intent_agent import ConversationIntentAgent
-from agents.training_coach import CoachSession
+from agents.training_coach import CoachSession, QUESTION_REMINDER_SECONDS
 
 
 class ConversationIntentAgentTests(unittest.TestCase):
@@ -34,6 +35,36 @@ class CoachConversationFlowTests(unittest.TestCase):
         self.assertEqual(event["question"]["kind"], "ready")
         self.assertTrue(coach.is_paused)
         self.assertEqual(coach.user_message("yes")["action"], "observe")
+
+    def test_ready_question_is_one_semantic_feedback_until_reminder(self):
+        coach = CoachSession(current_step_name="Guard stance", total_steps=2)
+        greeting = coach.panel_event(coach.initial_greeting(), action="confirm_start")
+        waiting = coach.movement_event(
+            "guard",
+            "Guard stance",
+            [{"body_part": "elbow_left", "min": 70, "max": 105}],
+            {"elbow_left": 60},
+        )
+
+        self.assertEqual(greeting["feedback_intent"], "question:ready")
+        self.assertEqual(waiting["feedback_intent"], "question:ready")
+        self.assertFalse(waiting["speak"])
+
+        coach.question_asked_at = time.monotonic() - QUESTION_REMINDER_SECONDS - 1
+        reminder = coach.movement_event(
+            "guard",
+            "Guard stance",
+            [{"body_part": "elbow_left", "min": 70, "max": 105}],
+            {"elbow_left": 60},
+        )
+        self.assertEqual(reminder["feedback_intent"], "question:ready:reminder")
+        self.assertEqual(reminder["action"], "attention_prompt")
+        self.assertNotEqual(reminder["message"], "Are you ready to begin?")
+
+    def test_live_intelligence_does_not_compete_with_pending_question(self):
+        coach = CoachSession()
+        coach.initial_greeting()
+        self.assertIsNone(coach.intelligence_context_event({"situation_awareness": {}}))
 
     def test_step_completion_waits_for_user(self):
         coach = CoachSession(

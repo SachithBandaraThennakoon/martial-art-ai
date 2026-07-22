@@ -12,18 +12,26 @@ import MetricsPanel from "../components/MetricsPanel";
 import { AuthContext } from "../context/auth";
 import { canAccessPlan, formatPlanName } from "../data/planAccess";
 import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
-import { API_BASE_URL } from "../services/api";
+import {
+  createBrowserAudio,
+  playBrowserAudio,
+  prepareBrowserSpeech
+} from "../services/browserVoice";
+import {
+  getCoachFeedbackIntent,
+  repeatsPendingQuestion
+} from "../services/feedbackReasoning";
 
 const VOICE_PROFILES = {
   calmMale: {
     label: "Master Male",
-    openAiVoice: "cedar",
-    pitch: 0.82,
-    rate: 0.86
+    gender: "male",
+    pitch: 0.72,
+    rate: 0.82
   },
   calmFemale: {
     label: "Master Female",
-    openAiVoice: "marin",
+    gender: "female",
     pitch: 1.04,
     rate: 0.88
   }
@@ -47,19 +55,20 @@ const ACTION_LABELS = {
   repeat: "Repeat step"
 };
 
-const NATURAL_VOICE_CACHE_LIMIT = 24;
-const NATURAL_VOICE_REQUEST_TIMEOUT_MS = 8000;
+// These events make the current instruction obsolete. Live pose corrections do
+// not interrupt speech; only the newest pending correction is kept instead.
 const VOICE_INTERRUPT_ACTIONS = new Set([
   "advance_step",
   "session_complete_prompt",
   "restart_training",
   "switch_practice",
   "ask_ready",
-  "ask_focus",
+  "confirm_start",
   "confirm_next",
-  "attention_prompt"
+  "repeat_step"
 ]);
 
+const NATURAL_VOICE_CACHE_LIMIT = 24;
 const splitVoiceWords = (message) =>
   message
     .trim()
@@ -141,7 +150,9 @@ export default function TrainMode({
   const lastTechniqueIdRef = useRef(null);
   const lastCoachChatRef = useRef("");
   const lastCoachChatPatternRef = useRef("");
+  const lastCoachIntentRef = useRef("");
   const lastSpokenMessageRef = useRef("");
+  const lastSpokenIntentRef = useRef("");
   const announcedEntryRef = useRef(false);
   const currentAudioRef = useRef(null);
   const voiceRequestIdRef = useRef(0);
@@ -217,12 +228,15 @@ export default function TrainMode({
 
     const message = coachText(event);
     const messagePattern = normalizeCoachMessage(message);
+    const feedbackIntent = getCoachFeedbackIntent(event);
+    const repeatsQuestion = repeatsPendingQuestion(event, lastCoachIntentRef.current);
     const isRepeatedCorrection =
       event?.action === "correct" &&
       messagePattern === lastCoachChatPatternRef.current;
     const shouldAddCoachMessage =
       message &&
       message !== lastCoachChatRef.current &&
+      !repeatsQuestion &&
       !isRepeatedCorrection &&
       (
         messagePattern !== lastCoachChatPatternRef.current ||
@@ -233,6 +247,7 @@ export default function TrainMode({
     if (textEnabled && shouldAddCoachMessage) {
       lastCoachChatRef.current = message;
       lastCoachChatPatternRef.current = messagePattern;
+      lastCoachIntentRef.current = feedbackIntent;
       appendConversation({ role: "ai", text: message });
     }
 
@@ -329,9 +344,10 @@ export default function TrainMode({
     clearVoiceWords();
 
     if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.src = "";
+      const audio = currentAudioRef.current;
       currentAudioRef.current = null;
+      audio.pause();
+      audio.src = "";
     }
   }, [clearVoiceWords]);
 
@@ -342,9 +358,10 @@ export default function TrainMode({
     setCurrentVoiceMessage("");
 
     if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.src = "";
+      const audio = currentAudioRef.current;
       currentAudioRef.current = null;
+      audio.pause();
+      audio.src = "";
     }
   }, []);
 
@@ -480,7 +497,7 @@ export default function TrainMode({
 
   const getNaturalVoiceKey = useCallback((message) => {
     const profile = VOICE_PROFILES[voiceProfile];
-    return `${profile.openAiVoice}:${message}`;
+    return `${profile.gender}:${profile.rate}:${profile.pitch}:${message}`;
   }, [voiceProfile]);
 
   const cacheNaturalVoice = useCallback((key, data) => {
@@ -499,12 +516,7 @@ export default function TrainMode({
   }, []);
 
   const fetchNaturalVoice = useCallback(async (message) => {
-    const token = localStorage.getItem("token");
     const profile = VOICE_PROFILES[voiceProfile];
-
-    if (!token) {
-      return null;
-    }
 
     const cacheKey = getNaturalVoiceKey(message);
     const cached = naturalVoiceCacheRef.current.get(cacheKey);
@@ -518,37 +530,18 @@ export default function TrainMode({
     }
 
     const request = (async () => {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(
-        () => controller.abort(),
-        NATURAL_VOICE_REQUEST_TIMEOUT_MS
-      );
-
       try {
-        const response = await fetch(`${API_BASE_URL}/voice/speak`, {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            text: message,
-            voice: profile.openAiVoice
-          })
+        const data = prepareBrowserSpeech(message, {
+          gender: profile.gender,
+          rate: profile.rate,
+          pitch: profile.pitch,
+          volume: 1
         });
-
-        if (!response.ok) {
-          throw new Error("Voice request failed");
-        }
-
-        const data = await response.json();
         cacheNaturalVoice(cacheKey, data);
         return data;
       } catch {
         return null;
       } finally {
-        window.clearTimeout(timeoutId);
         naturalVoiceRequestsRef.current.delete(cacheKey);
       }
     })();
@@ -562,15 +555,21 @@ export default function TrainMode({
       return false;
     }
 
-    const audio = new Audio(`data:audio/${data.format};base64,${data.audio}`);
+    const playback = createBrowserAudio(data);
+    if (!playback) return false;
+
+    const { audio, release } = playback;
     currentAudioRef.current = audio;
 
     const played = await new Promise((resolve) => {
       const timeoutMs = Math.max(2200, splitVoiceWords(message).length * 700);
       let settled = false;
+      let playbackTimeoutId = null;
       const finish = (ok) => {
         if (settled) return;
         settled = true;
+        if (playbackTimeoutId) window.clearTimeout(playbackTimeoutId);
+        release();
         if (currentAudioRef.current === audio) {
           currentAudioRef.current = null;
         }
@@ -580,11 +579,11 @@ export default function TrainMode({
       audio.onplay = () => {
         setVoiceState("speaking");
         startVoiceWordProgress();
+        playbackTimeoutId = window.setTimeout(() => finish(true), timeoutMs);
       };
       audio.onended = () => finish(true);
       audio.onerror = () => finish(false);
-      audio.play().catch(() => finish(false));
-      window.setTimeout(() => finish(true), timeoutMs);
+      playBrowserAudio(audio).catch(() => finish(false));
     });
 
     return played;
@@ -650,19 +649,32 @@ export default function TrainMode({
     }
   }, [clearVoiceWords, prepareVoiceWords, speakWithBestVoice, voiceEnabled]);
 
-  const queueVoiceMessage = useCallback((message, { interrupt = true } = {}) => {
+  const queueVoiceMessage = useCallback((
+    message,
+    { feedbackIntent = "", interrupt = false } = {}
+  ) => {
     const trimmed = message.trim();
+    const repeatsPendingQuestion = Boolean(
+      feedbackIntent.startsWith("question:") &&
+      feedbackIntent === lastSpokenIntentRef.current
+    );
 
-    if (!trimmed || trimmed === lastSpokenMessageRef.current) {
+    if (!trimmed || trimmed === lastSpokenMessageRef.current || repeatsPendingQuestion) {
       return;
     }
 
     if (interrupt) {
       interruptVoicePlayback();
+      voiceQueueRef.current = [trimmed];
+    } else {
+      // Pose analysis can emit several corrections per second. Finish the
+      // sentence being spoken and replace stale pending feedback with the
+      // latest useful correction.
+      voiceQueueRef.current = [trimmed];
     }
 
     lastSpokenMessageRef.current = trimmed;
-    voiceQueueRef.current = [trimmed];
+    lastSpokenIntentRef.current = feedbackIntent;
     playVoiceQueue();
   }, [interruptVoicePlayback, playVoiceQueue]);
 
@@ -671,7 +683,6 @@ export default function TrainMode({
 
     if (
       !voiceEnabled ||
-      !coachEvent?.speak ||
       !message ||
       message === lastSpokenMessageRef.current
     ) {
@@ -679,6 +690,7 @@ export default function TrainMode({
     }
 
     queueVoiceMessage(message, {
+      feedbackIntent: getCoachFeedbackIntent(coachEvent),
       interrupt: VOICE_INTERRUPT_ACTIONS.has(coachEvent?.action)
     });
   }, [coachEvent, queueVoiceMessage, voiceEnabled]);
@@ -724,8 +736,10 @@ export default function TrainMode({
     const techniqueChanged = lastTechniqueIdRef.current !== currentTechnique?.id;
     lastTechniqueIdRef.current = currentTechnique?.id;
     lastSpokenMessageRef.current = "";
+    lastSpokenIntentRef.current = "";
     lastCoachChatRef.current = "";
     lastCoachChatPatternRef.current = "";
+    lastCoachIntentRef.current = "";
     setAngles({});
     setAccuracy(0);
     setFeedback("");
@@ -738,7 +752,8 @@ export default function TrainMode({
 
     setCoachEvent({
       message,
-      speak: shouldSpeakEntry
+      speak: shouldSpeakEntry,
+      feedback_intent: `step_entry:${currentStep?.id || currentStepName || "none"}`
     });
 
     if (textEnabled && currentStepName) {
@@ -754,6 +769,7 @@ export default function TrainMode({
       });
       lastCoachChatRef.current = message;
       lastCoachChatPatternRef.current = normalizeCoachMessage(message);
+      lastCoachIntentRef.current = `step_entry:${currentStep?.id || currentStepName || "none"}`;
     }
   }, [currentStep?.id, currentStepName, currentTechnique?.id, textEnabled]);
 

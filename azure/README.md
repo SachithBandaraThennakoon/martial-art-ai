@@ -25,7 +25,6 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
 SECRET_KEY=<at-least-32-random-bytes>
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 CORS_ORIGINS=https://YOUR-FRONTEND.azurestaticapps.net,https://YOUR-DOMAIN
-OPENAI_API_KEY=<secret>
 PAYPAL_MODE=live
 PAYPAL_CLIENT_ID=<secret>
 PAYPAL_CLIENT_SECRET=<secret>

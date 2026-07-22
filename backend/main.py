@@ -41,7 +41,6 @@ from routers import dashboard as dashboard_router
 from services.angle_service import compare_angles
 from services.catalog_sync import ensure_session_technique_columns, sync_technique_catalog
 from agents.master_orchestrator import MasterOrchestrator
-from agents.voice_agent import generate_voice
 
 # Security
 from utils.security import SECRET_KEY, ALGORITHM
@@ -99,11 +98,6 @@ app.include_router(dashboard_router.router)
 # AUTH
 # -----------------------------
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-
-class VoiceRequest(BaseModel):
-    text: str
-    voice: str = "cedar"
 
 
 class PracticeSessionRequest(BaseModel):
@@ -220,28 +214,6 @@ def delete_body_calibration(
         db.delete(calibration)
         db.commit()
     return {"deleted": True}
-
-
-@app.post("/voice/speak")
-def speak(request: VoiceRequest, token: str = Depends(oauth2_scheme)):
-    try:
-        jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    text = request.text.strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Text is required")
-
-    audio = generate_voice(text[:600], request.voice)
-    if not audio:
-        raise HTTPException(status_code=503, detail="Voice service unavailable")
-
-    return {
-        "audio": audio,
-        "format": "mp3",
-        "voice": request.voice
-    }
 
 
 @app.post("/practice/sessions")
@@ -618,6 +590,11 @@ async def train(websocket: WebSocket):
                     action = "observe"
 
                 coach_event = coach.panel_event(message, action=action)
+                last_feedback = coach_event["summary"]
+                last_body_part = coach_event.get("body_part")
+                last_issue = coach_event.get("issue")
+                last_action = coach_event.get("action")
+                last_feedback_time = time.time()
                 if db_ready and user_record:
                     _save_coach_memory(db, user_record.id, coach, coach_event)
                     last_memory_save_time = time.time()
@@ -725,6 +702,11 @@ async def train(websocket: WebSocket):
                 "complete",
             }
             feedback_due = current_time - last_feedback_time > feedback_interval
+            passive_question_wait = bool(
+                coach.pending_question
+                and coach_event.get("action") == "waiting"
+                and not coach_event.get("speak")
+            )
             stale_completion_prompt = (
                 last_action == "session_complete_prompt"
                 and coach_event.get("action") in {"correct", "waiting"}
@@ -732,7 +714,7 @@ async def train(websocket: WebSocket):
             )
             should_update_feedback = (
                 important_transition
-                or feedback_due
+                or (feedback_due and not passive_question_wait)
                 or not last_feedback
                 or stale_completion_prompt
             )

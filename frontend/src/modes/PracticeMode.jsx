@@ -6,6 +6,15 @@ import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
+import {
+  createBrowserAudio,
+  playBrowserAudio,
+  prepareBrowserSpeech
+} from "../services/browserVoice";
+import {
+  buildPracticeSetMessage,
+  getPracticeFeedbackIntent
+} from "../services/feedbackReasoning";
 
 const COUNT_OPTIONS = [3, 5, 10];
 const GAP_OPTIONS = [
@@ -15,8 +24,7 @@ const GAP_OPTIONS = [
 ];
 const CLEAN_ACCURACY = 80;
 const LOCAL_SESSION = { id: null, status: "active" };
-const PRACTICE_VOICE = "cedar";
-const VOICE_REQUEST_TIMEOUT_MS = 8000;
+const PRACTICE_VOICE_GENDER = "male";
 
 const formatBodyPart = (bodyPart) =>
   bodyPart
@@ -220,6 +228,8 @@ export default function PracticeMode({
   const voiceCacheRef = useRef(new Map());
   const greetedTechniqueRef = useRef("");
   const attentionReminderTimerRef = useRef(null);
+  const lastPracticeFeedbackIntentRef = useRef("");
+  const lastPracticeSpokenIntentRef = useRef("");
 
   const appendConversation = useCallback((item) => {
     if (!textEnabled) return;
@@ -253,55 +263,37 @@ export default function PracticeMode({
 
   const fetchPracticeVoice = useCallback(async (message) => {
     const trimmed = message.trim();
-    const token = localStorage.getItem("token");
-    if (!voiceEnabled || !trimmed || !token) return null;
+    if (!voiceEnabled || !trimmed) return null;
 
-    const cacheKey = `${PRACTICE_VOICE}:${trimmed}`;
+    const cacheKey = `${PRACTICE_VOICE_GENDER}:${trimmed}`;
     const cached = voiceCacheRef.current.get(cacheKey);
     if (cached) return cached;
 
-    let timeoutId = null;
     try {
-      const controller = new AbortController();
-      timeoutId = window.setTimeout(
-        () => controller.abort(),
-        VOICE_REQUEST_TIMEOUT_MS
-      );
-      const response = await fetch(`${API_BASE_URL}/voice/speak`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          text: trimmed,
-          voice: PRACTICE_VOICE
-        })
+      const data = prepareBrowserSpeech(trimmed, {
+        gender: PRACTICE_VOICE_GENDER,
+        rate: 0.9,
+        pitch: 0.76
       });
-
-      if (!response.ok) return null;
-
-      const data = await response.json();
       voiceCacheRef.current.set(cacheKey, data);
       return data;
     } catch {
       return null;
-    } finally {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
     }
   }, [voiceEnabled]);
 
   const playPracticeAudio = useCallback(async (message, data, requestId) => {
     if (!data || requestId !== voiceRequestIdRef.current) return;
 
-    const audio = new Audio(`data:audio/${data.format};base64,${data.audio}`);
+    const playback = createBrowserAudio(data);
+    if (!playback) return;
+
+    const { audio, release } = playback;
     currentAudioRef.current = audio;
 
     await new Promise((resolve) => {
       const finish = () => {
+        release();
         if (currentAudioRef.current === audio) {
           currentAudioRef.current = null;
         }
@@ -310,7 +302,7 @@ export default function PracticeMode({
 
       audio.onended = finish;
       audio.onerror = finish;
-      audio.play().catch(finish);
+      playBrowserAudio(audio).catch(finish);
     });
   }, []);
 
@@ -338,11 +330,17 @@ export default function PracticeMode({
     }
   }, [fetchPracticeVoice, playPracticeAudio, voiceEnabled]);
 
-  const queuePracticeVoice = useCallback((message) => {
+  const queuePracticeVoice = useCallback((message, { force = false, intent } = {}) => {
     const trimmed = message.trim();
     if (!voiceEnabled || !trimmed) return;
 
-    voiceQueueRef.current = [...voiceQueueRef.current, trimmed];
+    const feedbackIntent = intent || getPracticeFeedbackIntent(trimmed);
+    if (!force && feedbackIntent === lastPracticeSpokenIntentRef.current) return;
+
+    lastPracticeSpokenIntentRef.current = feedbackIntent;
+    // Keep the active sentence and replace any stale pending guidance with the
+    // newest semantic instruction.
+    voiceQueueRef.current = [trimmed];
     playVoiceQueue();
   }, [playVoiceQueue, voiceEnabled]);
 
@@ -352,21 +350,45 @@ export default function PracticeMode({
     isSpeakingRef.current = false;
 
     if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current.src = "";
+      const audio = currentAudioRef.current;
       currentAudioRef.current = null;
+      audio.pause();
+      audio.src = "";
     }
   }, []);
 
-  const sayPractice = useCallback((message, { speak = false, log = true } = {}) => {
+  const sayPractice = useCallback((
+    message,
+    { force = false, intent, speak = true, log = true } = {}
+  ) => {
+    const feedbackIntent = intent || getPracticeFeedbackIntent(message);
+    if (!force && feedbackIntent === lastPracticeFeedbackIntentRef.current) return;
+
+    lastPracticeFeedbackIntentRef.current = feedbackIntent;
     setAssistantMessage(message);
     if (textEnabled && log) {
       appendConversation({ role: "ai", text: message });
     }
     if (voiceEnabled && speak) {
-      queuePracticeVoice(message);
+      queuePracticeVoice(message, { force, intent: feedbackIntent });
     }
   }, [appendConversation, queuePracticeVoice, textEnabled, voiceEnabled]);
+
+  const selectTargetReps = useCallback((count) => {
+    setTargetReps(count);
+    sayPractice(
+      buildPracticeSetMessage({ gapMs: countGapMs, reps: count }),
+      { intent: `set_config:${count}:${countGapMs}`, speak: true }
+    );
+  }, [countGapMs, sayPractice]);
+
+  const selectCountGap = useCallback((gapMs) => {
+    setCountGapMs(gapMs);
+    sayPractice(
+      buildPracticeSetMessage({ gapMs, reps: targetReps }),
+      { intent: `set_config:${targetReps}:${gapMs}`, speak: true }
+    );
+  }, [sayPractice, targetReps]);
 
   const postPracticeRep = useCallback(async (nextRep, repAccuracy, durationMs, focus, issue) => {
     const activeSession = sessionRef.current;
@@ -443,6 +465,11 @@ export default function PracticeMode({
   const startPracticeForStep = useCallback(async (stepIndex = 0, { intro = true } = {}) => {
     if (!currentTechnique) return;
 
+    if (attentionReminderTimerRef.current) {
+      window.clearTimeout(attentionReminderTimerRef.current);
+      attentionReminderTimerRef.current = null;
+    }
+
     const startIndex = steps[stepIndex] ? stepIndex : 0;
 
     clearCountBeatTimers();
@@ -460,10 +487,16 @@ export default function PracticeMode({
     setIsReadyForRep(false);
     isReadyForRepRef.current = false;
 
+    const setupIntent = `set_start:${targetReps}:${countGapMs}:${startIndex}`;
     const setupMessage = intro
-      ? `Welcome to ${currentTechnique.name}. Set your reps and time gap. I will count. Follow me.`
-      : `Step ${startIndex + 1}. I will count completed reps only. Follow each step.`;
-    sayPractice(setupMessage, { speak: false });
+      ? buildPracticeSetMessage({
+          gapMs: countGapMs,
+          reps: targetReps,
+          started: true,
+          stepName: steps[startIndex]?.step_name || currentTechnique.name
+        })
+      : `Step ${startIndex + 1}: ${steps[startIndex]?.step_name || "continue the movement"}. I will count completed reps only.`;
+    sayPractice(setupMessage, { intent: setupIntent, speak: false });
 
     numberAudioRef.current = voiceEnabled
       ? await Promise.all(
@@ -474,6 +507,7 @@ export default function PracticeMode({
       : [];
     const setupAudio = voiceEnabled ? await fetchPracticeVoice(setupMessage) : null;
     if (voiceEnabled) {
+      lastPracticeSpokenIntentRef.current = setupIntent;
       await playPracticeAudio(setupMessage, setupAudio, requestId);
     }
     if (requestId !== voiceRequestIdRef.current) return;
@@ -509,6 +543,7 @@ export default function PracticeMode({
     }
   }, [
     clearCountBeatTimers,
+    countGapMs,
     currentTechnique,
     fetchPracticeVoice,
     playPracticeAudio,
@@ -536,7 +571,7 @@ export default function PracticeMode({
     numberAudioRef.current = [];
     setIsReadyForRep(true);
     isReadyForRepRef.current = true;
-    sayPractice("Reset. Choose a count and start when ready.", { speak: true });
+    sayPractice("Reset. Choose a count and start when ready.", { force: true, speak: true });
   }, [
     clearCountBeatTimers,
     completePracticeSession,
@@ -583,6 +618,29 @@ export default function PracticeMode({
     }
 
     const command = classifyPracticeCommand(trimmed);
+    const activeSession = sessionRef.current?.status === "active";
+
+    if (activeSession && command.intent === "set_count") {
+      sayPractice("This set is active. Reset before changing the rep count.", {
+        speak: true
+      });
+      return;
+    }
+
+    if (activeSession && command.intent === "start") {
+      sayPractice("The set is already running. Continue your current rep, or say reset.", {
+        speak: true
+      });
+      return;
+    }
+
+    if (activeSession && command.intent === "wait") {
+      sayPractice("This set is active. Say reset if you need to stop and rebuild it.", {
+        speak: true
+      });
+      return;
+    }
+
     if (command.intent === "set_count") {
       setTargetReps(command.count);
       sayPractice(`Count set to ${command.count}. Say start when ready.`, {
@@ -849,9 +907,14 @@ export default function PracticeMode({
 
     greetedTechniqueRef.current = currentTechnique.name;
     const greeting = `Welcome to ${currentTechnique.name}. Set your reps and time gap, then start when ready.`;
+    const greetingIntent = getPracticeFeedbackIntent(greeting);
+    lastPracticeFeedbackIntentRef.current = greetingIntent;
     setAssistantMessage(greeting);
     setConversation([{ role: "ai", text: greeting }]);
-  }, [currentTechnique]);
+    if (voiceEnabled) {
+      queuePracticeVoice(greeting, { intent: greetingIntent });
+    }
+  }, [currentTechnique, queuePracticeVoice, voiceEnabled]);
 
   useEffect(() => {
     if (attentionReminderTimerRef.current) {
@@ -862,12 +925,17 @@ export default function PracticeMode({
     if (isPracticeActive || !currentTechnique) return undefined;
 
     attentionReminderTimerRef.current = window.setTimeout(() => {
+      if (sessionRef.current?.status === "active") {
+        attentionReminderTimerRef.current = null;
+        return;
+      }
+
       const reminder = session?.status === "completed"
         ? "Still with me? Choose practice again, training mode, or analysis."
         : "Still with me? Choose your reps, then say start when ready.";
       sayPractice(reminder, { speak: true });
       attentionReminderTimerRef.current = null;
-    }, 10000);
+    }, 15000);
 
     return () => {
       if (attentionReminderTimerRef.current) {
@@ -993,7 +1061,7 @@ export default function PracticeMode({
                 className={count === targetReps ? "is-active" : ""}
                 disabled={isPracticeActive}
                 key={count}
-                onClick={() => setTargetReps(count)}
+                onClick={() => selectTargetReps(count)}
                 type="button"
               >
                 {count}
@@ -1011,7 +1079,7 @@ export default function PracticeMode({
                 className={gap.value === countGapMs ? "is-active" : ""}
                 disabled={isPracticeActive}
                 key={gap.value}
-                onClick={() => setCountGapMs(gap.value)}
+                onClick={() => selectCountGap(gap.value)}
                 type="button"
               >
                 {gap.label}

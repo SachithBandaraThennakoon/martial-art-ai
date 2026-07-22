@@ -671,8 +671,20 @@ export default function SkeletonCanvas({
   const situationAwarenessRef = useRef(new SituationAwarenessLayer());
   const bodyCalibrationRef = useRef(bodyCalibration);
   const calibrationActiveRef = useRef(calibrationActive);
+  const enableCoachRef = useRef(enableCoach);
   const onBodyCalibrationSampleRef = useRef(onBodyCalibrationSample);
   const onCalibrationStatusRef = useRef(onCalibrationStatus);
+  const onAngleUpdateRef = useRef(onAngleUpdate);
+  const onAccuracyUpdateRef = useRef(onAccuracyUpdate);
+  const onFeedbackUpdateRef = useRef(onFeedbackUpdate);
+  const onSummaryUpdateRef = useRef(onSummaryUpdate);
+  const onCoachEventRef = useRef(onCoachEvent);
+  const onAwarenessUpdateRef = useRef(onAwarenessUpdate);
+  const onLevel1UpdateRef = useRef(onLevel1Update);
+  const onLevel2UpdateRef = useRef(onLevel2Update);
+  const onLevel3UpdateRef = useRef(onLevel3Update);
+  const onLevel4UpdateRef = useRef(onLevel4Update);
+  const onSituationAwarenessUpdateRef = useRef(onSituationAwarenessUpdate);
   const stanceTargetDegreesRef = useRef(stanceTargetDegrees);
   const lastCalibrationStatusTimeRef = useRef(0);
   const lastLevel1UpdateTimeRef = useRef(0);
@@ -700,6 +712,7 @@ export default function SkeletonCanvas({
   useEffect(() => {
     currentStepIdRef.current = currentStepId;
     currentStepNameRef.current = currentStepName;
+    enableCoachRef.current = enableCoach;
     requiredPartsRef.current = requiredParts;
     sessionConfigRef.current = sessionConfig;
     enableAwarenessRef.current = enableAwareness;
@@ -752,6 +765,32 @@ export default function SkeletonCanvas({
   }, [onBodyCalibrationSample, onCalibrationStatus]);
 
   useEffect(() => {
+    onAngleUpdateRef.current = onAngleUpdate;
+    onAccuracyUpdateRef.current = onAccuracyUpdate;
+    onFeedbackUpdateRef.current = onFeedbackUpdate;
+    onSummaryUpdateRef.current = onSummaryUpdate;
+    onCoachEventRef.current = onCoachEvent;
+    onAwarenessUpdateRef.current = onAwarenessUpdate;
+    onLevel1UpdateRef.current = onLevel1Update;
+    onLevel2UpdateRef.current = onLevel2Update;
+    onLevel3UpdateRef.current = onLevel3Update;
+    onLevel4UpdateRef.current = onLevel4Update;
+    onSituationAwarenessUpdateRef.current = onSituationAwarenessUpdate;
+  }, [
+    onAccuracyUpdate,
+    onAngleUpdate,
+    onAwarenessUpdate,
+    onCoachEvent,
+    onFeedbackUpdate,
+    onLevel1Update,
+    onLevel2Update,
+    onLevel3Update,
+    onLevel4Update,
+    onSituationAwarenessUpdate,
+    onSummaryUpdate
+  ]);
+
+  useEffect(() => {
     bodyCalibrationRef.current = bodyCalibration;
     calibrationActiveRef.current = calibrationActive;
   }, [bodyCalibration, calibrationActive]);
@@ -766,11 +805,18 @@ export default function SkeletonCanvas({
     }
 
     const token = localStorage.getItem("token");
-    wsRef.current = new WebSocket(`${WS_BASE_URL}/ws/train`);
+    const socket = new WebSocket(`${WS_BASE_URL}/ws/train`);
+    let disposed = false;
+    wsRef.current = socket;
 
-    wsRef.current.onopen = () => {
-      wsRef.current.send(JSON.stringify({ type: "authenticate", token }));
-      wsRef.current.send(
+    socket.onopen = () => {
+      if (disposed) {
+        socket.close();
+        return;
+      }
+
+      socket.send(JSON.stringify({ type: "authenticate", token }));
+      socket.send(
         JSON.stringify({
           type: "session_config",
           ...sessionConfigRef.current,
@@ -784,31 +830,31 @@ export default function SkeletonCanvas({
       }
     };
 
-    wsRef.current.onmessage = (event) => {
+    socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      onAccuracyUpdate(data.accuracy);
-      onFeedbackUpdate(data.feedback?.join("\n") || data.message || "");
+      onAccuracyUpdateRef.current?.(data.accuracy);
+      onFeedbackUpdateRef.current?.(data.feedback?.join("\n") || data.message || "");
 
-      if (data.summary && onSummaryUpdate) {
-        onSummaryUpdate(data.summary);
+      if (data.summary) {
+        onSummaryUpdateRef.current?.(data.summary);
       }
 
-      if (onCoachEvent) {
-        onCoachEvent(data);
-      }
+      onCoachEventRef.current?.(data);
     };
 
     return () => {
-      wsRef.current?.close();
-      wsRef.current = null;
+      disposed = true;
+      socket.onmessage = null;
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+      if (wsRef.current === socket) {
+        wsRef.current = null;
+      }
     };
   }, [
     enableCoach,
-    onAccuracyUpdate,
-    onCoachEvent,
-    onFeedbackUpdate,
-    onSummaryUpdate,
     sendCoachCommand
   ]);
 
@@ -1002,7 +1048,7 @@ export default function SkeletonCanvas({
         level3State,
         level4State,
         situationAwarenessState,
-        mode: enableCoach ? "train" : "practice",
+        mode: enableCoachRef.current ? "train" : "practice",
         techniqueName: sessionConfigRef.current?.technique_name,
         currentStepId: currentStepIdRef.current,
         currentStepName: currentStepNameRef.current
@@ -1030,7 +1076,7 @@ export default function SkeletonCanvas({
       }
 
       lastAnglePayloadRef.current = anglesPayload;
-      onAngleUpdate(anglesPayload);
+      onAngleUpdateRef.current?.(anglesPayload);
     };
 
     const detect = () => {
@@ -1230,7 +1276,7 @@ export default function SkeletonCanvas({
           level2State,
           level3State,
           level4State,
-          mode: enableCoach ? "train" : "practice"
+          mode: enableCoachRef.current ? "train" : "practice"
         });
         const anglesPayload = getHolisticScores(
           frame,
@@ -1256,48 +1302,48 @@ export default function SkeletonCanvas({
         });
 
         if (
-          onLevel1Update &&
+          onLevel1UpdateRef.current &&
           now - lastLevel1UpdateTimeRef.current > performanceConfig.level1UiIntervalMs
         ) {
           lastLevel1UpdateTimeRef.current = now;
-          onLevel1Update(level1State);
+          onLevel1UpdateRef.current(level1State);
         }
 
         if (
-          onLevel2Update &&
+          onLevel2UpdateRef.current &&
           level2State &&
           now - lastLevel2UpdateTimeRef.current > performanceConfig.level2UiIntervalMs
         ) {
           lastLevel2UpdateTimeRef.current = now;
-          onLevel2Update(level2State);
+          onLevel2UpdateRef.current(level2State);
         }
 
         if (
-          onLevel3Update &&
+          onLevel3UpdateRef.current &&
           level3State &&
           now - lastLevel3UpdateTimeRef.current > performanceConfig.level3UiIntervalMs
         ) {
           lastLevel3UpdateTimeRef.current = now;
-          onLevel3Update(level3State);
+          onLevel3UpdateRef.current(level3State);
         }
 
         if (
-          onLevel4Update &&
+          onLevel4UpdateRef.current &&
           level4State &&
           now - lastLevel4UpdateTimeRef.current > performanceConfig.level4UiIntervalMs
         ) {
           lastLevel4UpdateTimeRef.current = now;
-          onLevel4Update(level4State);
+          onLevel4UpdateRef.current(level4State);
         }
 
         if (
-          onSituationAwarenessUpdate &&
+          onSituationAwarenessUpdateRef.current &&
           situationAwarenessState &&
           now - lastSituationAwarenessUpdateTimeRef.current >
             performanceConfig.situationUiIntervalMs
         ) {
           lastSituationAwarenessUpdateTimeRef.current = now;
-          onSituationAwarenessUpdate(situationAwarenessState);
+          onSituationAwarenessUpdateRef.current(situationAwarenessState);
         }
 
         const latencyCompensatedOnnxLandmarks = compensatePredictionLatency(
@@ -1351,11 +1397,11 @@ export default function SkeletonCanvas({
 
         if (
           enableAwarenessRef.current &&
-          onAwarenessUpdate &&
+          onAwarenessUpdateRef.current &&
           now - lastAwarenessTimeRef.current > performanceConfig.awarenessIntervalMs
         ) {
           lastAwarenessTimeRef.current = now;
-          onAwarenessUpdate({
+          onAwarenessUpdateRef.current({
             active: true,
             level1: {
               ready: level1State?.ready_for_next_layer || false,
@@ -1459,16 +1505,7 @@ export default function SkeletonCanvas({
       faceRef.current = null;
       visionRef.current = null;
     };
-  }, [
-    enableCoach,
-    onAngleUpdate,
-    onAwarenessUpdate,
-    onLevel1Update,
-    onLevel2Update,
-    onLevel3Update,
-    onLevel4Update,
-    onSituationAwarenessUpdate
-  ]);
+  }, []);
 
   useEffect(() => {
     if (

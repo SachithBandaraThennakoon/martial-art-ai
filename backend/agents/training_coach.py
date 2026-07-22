@@ -9,6 +9,7 @@ from agents.movement_agent import analyze_movement
 ACCURACY_TO_ADVANCE = 90
 ACCURACY_HOLD_SECONDS = 5
 VOICE_FEEDBACK_COOLDOWN_SECONDS = 6
+QUESTION_REMINDER_SECONDS = 15
 TREND_SPEAK_DELTA = 3
 STEADY_REMINDER_FRAMES = 16
 READINESS_TARGETS = {
@@ -422,6 +423,12 @@ class CoachSession:
         if not isinstance(packet, dict):
             return None
 
+        # A question owns the conversation until the student answers it. Live
+        # intelligence may keep updating metrics, but it must not introduce a
+        # competing correction or restate the same question.
+        if self.pending_question or self.is_paused:
+            return None
+
         situation = packet.get("situation_awareness") or {}
         temporal_layers = packet.get("temporal_layers") or {}
         agent_context = situation.get("agent_context") or {}
@@ -541,6 +548,7 @@ class CoachSession:
             "body_part": body_part,
             "issue": issue,
             "speak": speak,
+            "feedback_intent": self._feedback_intent(action, body_part, issue),
             "focus_body_part": self.active_body_part,
             "analysis": analysis or [],
             "requires_response": bool(self.pending_question),
@@ -669,17 +677,23 @@ class CoachSession:
     def _question_reminder_due(self):
         return bool(
             self.pending_question
-            and self.question_reminders < 2
+            and self.question_reminders < 1
             and self.question_asked_at
-            and time.monotonic() - self.question_asked_at >= 8
+            and time.monotonic() - self.question_asked_at >= QUESTION_REMINDER_SECONDS
         )
 
     def _waiting_for_answer_event(self, accuracy=0, analysis=None, issue="waiting"):
-        messages = {
+        waiting_messages = {
             "ready": "Are you ready to begin?",
             "next_step": "Would you like the next step or repeat this one?",
             "practice": "Would you like focused practice or keep training?",
             "session_complete": "Choose practice, train again, or finish.",
+        }
+        reminder_messages = {
+            "ready": "Take your time. Choose I'm ready, Wait, or Need help.",
+            "next_step": "Choose Next step, Repeat step, or Wait.",
+            "practice": "Choose Practice, Keep training, or Need help.",
+            "session_complete": "Choose Practice, Train again, or Finish.",
         }
         reminder = self._question_reminder_due()
         if reminder:
@@ -687,13 +701,26 @@ class CoachSession:
             self.question_asked_at = time.monotonic()
 
         return self.panel_event(
-            messages.get(self.pending_question, "I am waiting for your answer."),
+            (reminder_messages if reminder else waiting_messages).get(
+                self.pending_question,
+                "I am waiting for your answer."
+            ),
             accuracy=accuracy,
             action="attention_prompt" if reminder else "waiting",
             analysis=analysis,
             issue=issue,
             speak=reminder,
         )
+
+    def _feedback_intent(self, action, body_part=None, issue=None):
+        if self.pending_question:
+            suffix = ":reminder" if action == "attention_prompt" else ""
+            return f"question:{self.pending_question}{suffix}"
+
+        if action in {"correct", "hold_good", "confirm_correct", "confirm_incorrect"}:
+            return f"correction:{body_part or self.active_body_part or 'whole_form'}:{issue or self.active_issue or 'general'}"
+
+        return f"{self.state}:{action}"
 
     def _complete_step_event(self, step_key, accuracy, analysis):
         self.completed_steps.add(str(step_key))

@@ -1,10 +1,14 @@
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
 import useBodyCalibration from "../hooks/useBodyCalibration";
 import { STUDIO_PERFORMANCE_MODES } from "../performance/studioPerformanceConfig";
+import {
+  armVoicePlaybackUnlock,
+  unlockVoicePlayback
+} from "../services/browserVoice";
 
 const MODES = {
   train: {
@@ -54,6 +58,10 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const subcategorySlug = searchParams.get("subcategory");
   const hasTechniqueSelection = Boolean(selectedTechniqueName);
 
+  useEffect(() => {
+    armVoicePlaybackUnlock();
+  }, []);
+
   if (!hasTechniqueSelection && mode !== "analysis") {
     return <Navigate to={isAdminStudio ? "/admin-studio" : "/studio"} replace />;
   }
@@ -67,6 +75,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const toggleVoice = () => {
     setVoiceEnabled((enabled) => {
       const nextValue = !enabled;
+      if (nextValue) unlockVoicePlayback();
       localStorage.setItem("studioVoiceEnabled", String(nextValue));
       return nextValue;
     });
