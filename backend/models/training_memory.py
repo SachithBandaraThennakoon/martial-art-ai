@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy.sql import func
 
 from database import Base
@@ -89,3 +89,30 @@ class PracticeRep(Base):
     issue = Column(String, nullable=True)
     started_at = Column(DateTime(timezone=True), nullable=True)
     ended_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PracticeSessionTape(Base):
+    __tablename__ = "practice_session_tapes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    practice_session_id = Column(
+        Integer,
+        ForeignKey("practice_sessions.id"),
+        nullable=False,
+        unique=True,
+        index=True
+    )
+    version = Column(Integer, default=1)
+    frame_rate = Column(Integer, default=30)
+    frame_count = Column(Integer, default=0)
+    duration_ms = Column(Integer, default=0)
+    codec = Column(String, default="zlib-json")
+    payload = Column(LargeBinary, nullable=False)
+    uncompressed_bytes = Column(Integer, default=0)
+    compressed_bytes = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )

@@ -60,7 +60,7 @@ test("practice count choices remain distinct reasoning events", () => {
 test("practice set feedback reasons from the chosen count, gap, and step", () => {
   assert.equal(
     buildPracticeSetMessage({ gapMs: 1500, reps: 3 }),
-    "3 reps selected with a 1.5-second recovery gap. Press Start set when ready."
+    "3 reps selected. I will count every 1.5 seconds. Press Start set when ready."
   );
   assert.equal(
     buildPracticeSetMessage({
@@ -69,6 +69,6 @@ test("practice set feedback reasons from the chosen count, gap, and step", () =>
       started: true,
       stepName: "Hands up shoulders"
     }),
-    "Set started: 3 reps with a 1.5-second recovery gap. Begin Hands up shoulders. I will count each completed rep."
+    "Set started: 3 reps, counting every 1.5 seconds. Begin Hands up shoulders. I will lead the rhythm and score your movement separately."
   );
 });

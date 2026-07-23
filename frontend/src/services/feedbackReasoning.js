@@ -42,8 +42,8 @@ export function buildPracticeSetMessage({ gapMs, reps, started = false, stepName
   const gapLabel = Number.isInteger(gapSeconds) ? String(gapSeconds) : gapSeconds.toFixed(1);
 
   if (started) {
-    return `Set started: ${reps} reps with a ${gapLabel}-second recovery gap. Begin ${stepName}. I will count each completed rep.`;
+    return `Set started: ${reps} reps, counting every ${gapLabel} seconds. Begin ${stepName}. I will lead the rhythm and score your movement separately.`;
   }
 
-  return `${reps} reps selected with a ${gapLabel}-second recovery gap. Press Start set when ready.`;
+  return `${reps} reps selected. I will count every ${gapLabel} seconds. Press Start set when ready.`;
 }

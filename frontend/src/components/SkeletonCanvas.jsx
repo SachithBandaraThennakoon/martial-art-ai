@@ -609,6 +609,7 @@ export default function SkeletonCanvas({
   onLevel3Update,
   onLevel4Update,
   onSituationAwarenessUpdate,
+  onLandmarkFrame,
   bodyCalibration,
   calibrationActive = false,
   onBodyCalibrationSample,
@@ -685,6 +686,7 @@ export default function SkeletonCanvas({
   const onLevel3UpdateRef = useRef(onLevel3Update);
   const onLevel4UpdateRef = useRef(onLevel4Update);
   const onSituationAwarenessUpdateRef = useRef(onSituationAwarenessUpdate);
+  const onLandmarkFrameRef = useRef(onLandmarkFrame);
   const stanceTargetDegreesRef = useRef(stanceTargetDegrees);
   const lastCalibrationStatusTimeRef = useRef(0);
   const lastLevel1UpdateTimeRef = useRef(0);
@@ -734,8 +736,11 @@ export default function SkeletonCanvas({
     };
     shouldTrackHandsRef.current =
       performanceConfigRef.current.handMode === "always" ||
-      shouldTrackHands(requiredParts, currentStepName);
-    shouldTrackFaceRef.current = Boolean(enableAwareness && performanceConfigRef.current.enableFace);
+      shouldTrackHands(requiredParts, currentStepName) ||
+      Boolean(onLandmarkFrame);
+    shouldTrackFaceRef.current = Boolean(
+      (enableAwareness || onLandmarkFrame) && performanceConfigRef.current.enableFace
+    );
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
@@ -756,7 +761,8 @@ export default function SkeletonCanvas({
     skeletonLayers,
     sessionConfig,
     performanceProfile,
-    performanceMode
+    performanceMode,
+    onLandmarkFrame
   ]);
 
   useEffect(() => {
@@ -776,6 +782,7 @@ export default function SkeletonCanvas({
     onLevel3UpdateRef.current = onLevel3Update;
     onLevel4UpdateRef.current = onLevel4Update;
     onSituationAwarenessUpdateRef.current = onSituationAwarenessUpdate;
+    onLandmarkFrameRef.current = onLandmarkFrame;
   }, [
     onAccuracyUpdate,
     onAngleUpdate,
@@ -786,6 +793,7 @@ export default function SkeletonCanvas({
     onLevel2Update,
     onLevel3Update,
     onLevel4Update,
+    onLandmarkFrame,
     onSituationAwarenessUpdate,
     onSummaryUpdate
   ]);
@@ -1359,6 +1367,18 @@ export default function SkeletonCanvas({
           level2State?.action_context?.motion_energy ?? 0
         );
         previousDisplayPoseRef.current = displayLandmarks;
+
+        onLandmarkFrameRef.current?.({
+          timestamp: now,
+          pose: displayLandmarks,
+          facePoints: frame.face
+            ? getFaceDetailPoints(frame.face)
+            : getPoseFaceDetailPoints(frame.pose),
+          faceSource: frame.face ? "mesh" : "pose33",
+          handPoints: getHandDetailPoints(frame.handEntries, frame.pose),
+          motionEnergy: level2State?.action_context?.motion_energy ?? 0,
+          angles: anglesPayload
+        });
 
         if (skeletonLayersRef.current.live === false) {
           const context = canvasRef.current?.getContext("2d", { alpha: true });

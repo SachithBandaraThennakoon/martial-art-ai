@@ -5,7 +5,8 @@ import asyncio
 import logging
 import os
 import time
-from pydantic import BaseModel
+import zlib
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -24,6 +25,7 @@ from models.target_angle import TargetAngle
 from models.training_memory import (
     PracticeRep,
     PracticeSession,
+    PracticeSessionTape,
     TrainingFeedbackEvent,
     TrainingSession,
     TrainingStepAttempt,
@@ -119,6 +121,14 @@ class PracticeRepRequest(BaseModel):
 
 class PracticeCompleteRequest(BaseModel):
     status: str = "completed"
+
+
+class PracticeTapeRequest(BaseModel):
+    version: int = 1
+    frame_rate: int = 30
+    duration_ms: int = 0
+    frames: list[dict]
+    metadata: dict = Field(default_factory=dict)
 
 
 class BodyCalibrationRequest(BaseModel):
@@ -285,6 +295,90 @@ def complete_practice_session(
     session.ended_at = func.now()
     _refresh_practice_session_summary(db, session)
     return _practice_session_payload(session)
+
+
+@app.put("/practice/sessions/{session_id}/tape")
+def store_practice_session_tape(
+    session_id: int,
+    request: PracticeTapeRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    session = _get_user_practice_session(db, user_record.id, session_id)
+    frame_count = len(request.frames)
+    if frame_count > 9000:
+        raise HTTPException(status_code=413, detail="Practice tape exceeds the frame limit")
+
+    tape_document = request.model_dump()
+    tape_document["version"] = max(1, min(request.version, 10))
+    tape_document["frame_rate"] = max(1, min(request.frame_rate, 60))
+    tape_document["duration_ms"] = max(0, request.duration_ms)
+    raw_payload = json.dumps(
+        tape_document,
+        separators=(",", ":"),
+        ensure_ascii=False
+    ).encode("utf-8")
+    if len(raw_payload) > 60 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Practice tape exceeds the storage limit")
+
+    compressed_payload = zlib.compress(raw_payload, level=6)
+    tape = db.query(PracticeSessionTape).filter(
+        PracticeSessionTape.practice_session_id == session.id
+    ).first()
+    if not tape:
+        tape = PracticeSessionTape(practice_session_id=session.id, payload=compressed_payload)
+        db.add(tape)
+
+    tape.version = tape_document["version"]
+    tape.frame_rate = tape_document["frame_rate"]
+    tape.frame_count = frame_count
+    tape.duration_ms = tape_document["duration_ms"]
+    tape.codec = "zlib-json"
+    tape.payload = compressed_payload
+    tape.uncompressed_bytes = len(raw_payload)
+    tape.compressed_bytes = len(compressed_payload)
+    db.commit()
+    db.refresh(tape)
+    return {
+        "stored": True,
+        "session_id": session.id,
+        "frame_count": tape.frame_count,
+        "duration_ms": tape.duration_ms,
+        "compressed_bytes": tape.compressed_bytes
+    }
+
+
+@app.get("/practice/sessions/{session_id}/tape")
+def get_practice_session_tape(
+    session_id: int,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    session = _get_user_practice_session(db, user_record.id, session_id)
+    tape = db.query(PracticeSessionTape).filter(
+        PracticeSessionTape.practice_session_id == session.id
+    ).first()
+    if not tape:
+        raise HTTPException(status_code=404, detail="No frame tape is stored for this session")
+
+    try:
+        document = json.loads(zlib.decompress(tape.payload).decode("utf-8"))
+    except (zlib.error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        logger.error("Stored practice tape %s could not be decoded: %s", tape.id, exc)
+        raise HTTPException(status_code=500, detail="Stored practice tape is unavailable") from exc
+
+    return {
+        **document,
+        "session": _practice_session_payload(session),
+        "storage": {
+            "compressed_bytes": tape.compressed_bytes,
+            "uncompressed_bytes": tape.uncompressed_bytes,
+            "created_at": tape.created_at.isoformat() if tape.created_at else None,
+            "updated_at": tape.updated_at.isoformat() if tape.updated_at else None
+        }
+    }
 
 
 @app.get("/practice/analysis")
