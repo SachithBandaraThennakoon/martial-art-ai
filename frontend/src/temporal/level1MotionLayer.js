@@ -2,6 +2,7 @@ const DEFAULT_CONFIG = {
   fpsWindow: 20,
   historyWindowMs: 1000,
   predictionHorizonMs: 100,
+  predictionFrameCount: 3,
   smoothingAlpha: 0.62,
   positionErrorThreshold: 0.065,
   angleErrorThresholdDeg: 10,
@@ -199,33 +200,47 @@ export class Level1MotionLayer {
       : 0;
     const velocity = calculateDerivative(smoothed, this.previousFrame?.normalized, deltaSeconds);
     const acceleration = calculateDerivative(velocity, this.previousFrame?.velocity, deltaSeconds);
-    const predictedNormalized = smoothed.map((point, index) => ({
-      x:
-        point.x +
-        velocity[index].x * (this.config.predictionHorizonMs / 1000) +
-        0.5 * acceleration[index].x * (this.config.predictionHorizonMs / 1000) ** 2,
-      y:
-        point.y +
-        velocity[index].y * (this.config.predictionHorizonMs / 1000) +
-        0.5 * acceleration[index].y * (this.config.predictionHorizonMs / 1000) ** 2,
-      z:
-        (point.z || 0) +
-        velocity[index].z * (this.config.predictionHorizonMs / 1000) +
-        0.5 * acceleration[index].z * (this.config.predictionHorizonMs / 1000) ** 2,
-      visibility: point.visibility
-    }));
-    const predictedLandmarks = denormalizeLandmarks(predictedNormalized, transform);
+    const predictionFrameCount = Math.max(1, this.config.predictionFrameCount);
+    const predictedFrames = Array.from(
+      { length: predictionFrameCount },
+      (_, frameIndex) => {
+        const horizonFrame = frameIndex + 1;
+        const horizonMs =
+          (this.config.predictionHorizonMs * horizonFrame) / predictionFrameCount;
+        const horizonSeconds = horizonMs / 1000;
+        const predictedNormalized = smoothed.map((point, index) => ({
+          x:
+            point.x +
+            velocity[index].x * horizonSeconds +
+            0.5 * acceleration[index].x * horizonSeconds ** 2,
+          y:
+            point.y +
+            velocity[index].y * horizonSeconds +
+            0.5 * acceleration[index].y * horizonSeconds ** 2,
+          z:
+            (point.z || 0) +
+            velocity[index].z * horizonSeconds +
+            0.5 * acceleration[index].z * horizonSeconds ** 2,
+          visibility: point.visibility
+        }));
+        const landmarks = denormalizeLandmarks(predictedNormalized, transform);
+
+        return {
+          timestamp: timestampMs,
+          targetTimestamp: timestampMs + horizonMs,
+          horizonFrame,
+          horizonMs,
+          landmarks,
+          normalized: predictedNormalized,
+          angles: calculateAngles(landmarks)
+        };
+      }
+    );
+    const prediction = predictedFrames[predictedFrames.length - 1];
+    const predictedLandmarks = prediction.landmarks;
     const smoothedLandmarks = denormalizeLandmarks(smoothed, transform);
     const trackingConfidence = average(rawLandmarks.map(confidenceOf)) || 0;
     const angles = calculateAngles(smoothedLandmarks);
-    const prediction = {
-      timestamp: timestampMs,
-      targetTimestamp: timestampMs + this.config.predictionHorizonMs,
-      landmarks: predictedLandmarks,
-      normalized: predictedNormalized,
-      angles: calculateAngles(predictedLandmarks)
-    };
-
     if (this.previousFrame) {
       this.frameIntervals.push(timestampMs - this.previousFrame.timestamp);
       this.frameIntervals = this.frameIntervals.slice(-this.config.fpsWindow);
@@ -258,7 +273,7 @@ export class Level1MotionLayer {
     this.frames = this.frames.filter(
       (frame) => timestampMs - frame.timestamp <= this.config.historyWindowMs
     );
-    this.pendingPredictions.push(prediction);
+    this.pendingPredictions.push(...predictedFrames);
     this.pendingPredictions = this.pendingPredictions.filter(
       (item) => item.targetTimestamp >= timestampMs - this.config.predictionMatchToleranceMs
     );
@@ -285,6 +300,7 @@ export class Level1MotionLayer {
       debug: {
         currentLandmarks: smoothedLandmarks,
         predictedLandmarks,
+        predictedFrames,
         trailLandmarks: this.frames
           .filter((_, index) => index % 4 === 0)
           .slice(-8)

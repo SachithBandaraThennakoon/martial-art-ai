@@ -12,6 +12,10 @@ import { Level1MotionLayer } from "../temporal/level1MotionLayer";
 import { Level2ActionLayer } from "../temporal/level2ActionLayer";
 import { Level3SessionLayer } from "../temporal/level3SessionLayer";
 import { Level4UserLayer } from "../temporal/level4UserLayer";
+import {
+  PredictionLedger,
+  selectPredictionAwareDisplayPose
+} from "../temporal/predictionLedger";
 import { SituationAwarenessLayer } from "../situationAwareness/SituationAwarenessLayer";
 import { buildCoachContextPacket } from "../situationAwareness/buildCoachContextPacket";
 import {
@@ -536,6 +540,7 @@ function getHandDetailPoints(handEntries = [], poseLandmarks = []) {
 
 function createLandmarkFrame({
   timestamp,
+  rawPoseLandmarks,
   poseLandmarks,
   angleLandmarks,
   handLandmarksList,
@@ -546,6 +551,7 @@ function createLandmarkFrame({
 
   return {
     timestamp,
+    rawPose: rawPoseLandmarks || poseLandmarks,
     pose: poseLandmarks,
     worldPose: angleLandmarks || poseLandmarks,
     hands: handLandmarksList || [],
@@ -671,6 +677,7 @@ export default function SkeletonCanvas({
   const level2ActionRef = useRef(new Level2ActionLayer(getStudioPerformanceConfig(performanceProfile)));
   const level3SessionRef = useRef(new Level3SessionLayer());
   const level4UserRef = useRef(new Level4UserLayer());
+  const predictionLedgerRef = useRef(new PredictionLedger());
   const situationAwarenessRef = useRef(new SituationAwarenessLayer());
   const bodyCalibrationRef = useRef(bodyCalibration);
   const calibrationActiveRef = useRef(calibrationActive);
@@ -725,7 +732,7 @@ export default function SkeletonCanvas({
     skeletonLayersRef.current = skeletonLayers;
     performanceModeRef.current = performanceMode;
     basePerformanceConfigRef.current = getStudioPerformanceConfig(performanceProfile, {
-      onnxEnabled: Boolean(skeletonLayers?.onnx)
+      onnxEnabled: Boolean(skeletonLayers?.onnx || onLandmarkFrame)
     });
     performanceConfigRef.current = applyStudioPerformanceMode(
       basePerformanceConfigRef.current,
@@ -768,6 +775,10 @@ export default function SkeletonCanvas({
     performanceMode,
     onLandmarkFrame
   ]);
+
+  useEffect(() => {
+    predictionLedgerRef.current.reset();
+  }, [sessionConfig?.technique_name]);
 
   useEffect(() => {
     onBodyCalibrationSampleRef.current = onBodyCalibrationSample;
@@ -1121,6 +1132,7 @@ export default function SkeletonCanvas({
       const processingStartedAt = performance.now();
 
       try {
+        let rawPoseLandmarks = null;
         let poseLandmarks = null;
         let angleLandmarks = null;
       const hasFreshHands =
@@ -1139,6 +1151,7 @@ export default function SkeletonCanvas({
         const result = poseRef.current.detectForVideo(videoRef.current, now);
 
         if (result.landmarks.length > 0) {
+          rawPoseLandmarks = result.landmarks[0].map((point) => ({ ...point }));
           const liveCalibrationFit = getCalibrationFit(
             result.landmarks[0],
             bodyCalibrationRef.current
@@ -1254,6 +1267,7 @@ export default function SkeletonCanvas({
         }
         const frame = createLandmarkFrame({
           timestamp: now,
+          rawPoseLandmarks,
           poseLandmarks,
           angleLandmarks,
           handLandmarksList,
@@ -1267,6 +1281,24 @@ export default function SkeletonCanvas({
           currentStepId: currentStepIdRef.current,
           currentStepName: currentStepNameRef.current,
           techniqueName: sessionConfigRef.current?.technique_name
+        });
+        predictionLedgerRef.current.addSequence({
+          model: "level1",
+          originTimestampMs: now,
+          forecasts: level1State?.debug?.predictedFrames || [],
+          confidence: level1State?.motion_context?.prediction_confidence || 0
+        });
+        const level2Prediction = level2State?.debug?.onnxPrediction;
+        predictionLedgerRef.current.addSequence({
+          model: "level2",
+          originTimestampMs: level2Prediction?.origin_timestamp_ms,
+          forecasts: level2Prediction?.future_landmark_frames || [],
+          confidence: level2State?.action_context?.prediction_confidence || 0
+        });
+        const predictionAggregate = predictionLedgerRef.current.resolve({
+          targetTimestampMs: now,
+          observedLandmarks: level1State?.debug?.currentLandmarks || frame.pose,
+          observedConfidence: level1State?.tracking?.confidence || 0
         });
         lastMotionQualityRef.current = {
           trackingConfidence: level1State?.tracking?.confidence ?? 0.75,
@@ -1364,7 +1396,13 @@ export default function SkeletonCanvas({
           level1State?.debug?.currentLandmarks || frame.pose
         );
 
-        const skeletonSource = level1State?.debug?.currentLandmarks || frame.pose;
+        const displayPoseSelection = selectPredictionAwareDisplayPose(
+          predictionAggregate
+        );
+        const skeletonSource =
+          displayPoseSelection.landmarks?.length
+            ? displayPoseSelection.landmarks
+            : level1State?.debug?.currentLandmarks || frame.pose;
         const displayLandmarks = stabilizeDisplayLandmarks(
           skeletonSource,
           previousDisplayPoseRef.current,
@@ -1375,12 +1413,19 @@ export default function SkeletonCanvas({
         onLandmarkFrameRef.current?.({
           timestamp: now,
           pose: displayLandmarks,
+          observedPose: frame.rawPose,
+          filteredPose: level1State?.debug?.currentLandmarks || frame.pose,
+          measurementPose: frame.worldPose,
+          aggregatePose: predictionAggregate.aggregateLandmarks,
           facePoints: frame.face
             ? getFaceDetailPoints(frame.face)
             : getPoseFaceDetailPoints(frame.pose),
           faceSource: frame.face ? "mesh" : "pose33",
           handPoints: getHandDetailPoints(frame.handEntries, frame.pose),
           motionEnergy: level2State?.action_context?.motion_energy ?? 0,
+          trackingConfidence: level1State?.tracking?.confidence ?? 0,
+          predictionAggregate,
+          displayPoseSource: displayPoseSelection.source,
           angles: anglesPayload
         });
 

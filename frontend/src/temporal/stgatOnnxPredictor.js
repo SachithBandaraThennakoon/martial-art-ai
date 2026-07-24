@@ -7,6 +7,7 @@ const DEFAULT_SEQUENCE_LENGTH = 60;
 const DEFAULT_FUTURE_LENGTH = 30;
 const DEFAULT_JOINT_COUNT = 33;
 const DEFAULT_CHANNEL_COUNT = 3;
+const MODEL_FRAME_DURATION_MS = 1000 / 30;
 const BODY_ANCHOR_JOINTS = [11, 12, 23, 24];
 const BODY_SCALE_EDGES = [
   [11, 12],
@@ -246,11 +247,11 @@ function buildInputTensor(session, frames) {
   };
 }
 
-function parseLandmarks(outputTensor, currentLandmarks = [], denormalize) {
+function parseLandmarkFrames(outputTensor, currentLandmarks = [], denormalize) {
   const output = outputTensor?.data;
   const dimensions = outputTensor?.dims || [];
 
-  if (!output?.length || !currentLandmarks.length) return null;
+  if (!output?.length || !currentLandmarks.length) return [];
 
   const frameCount = dimensions.length === 4
     ? resolveDim(dimensions[1], DEFAULT_FUTURE_LENGTH)
@@ -265,36 +266,39 @@ function parseLandmarks(outputTensor, currentLandmarks = [], denormalize) {
       : 0;
   const channelCount = jointCount ? Math.floor(availablePerFrame / jointCount) : 0;
 
-  if (!jointCount || channelCount < 2) return null;
+  if (!jointCount || channelCount < 2) return [];
 
-  const landmarks = currentLandmarks.map((point) => ({ ...point }));
   const root = denormalize?.root || { x: 0, y: 0, z: 0 };
   const scale = denormalize?.scale || 1;
-  const frameOffset = Math.max(0, frameCount - 1) * jointCount * channelCount;
   const outputMap = jointCount === 33
     ? Array.from({ length: 33 }, (_, index) => index)
     : MODEL_TO_MEDIAPIPE;
 
-  outputMap.forEach((targetIndex, jointIndex) => {
-    if (!Number.isInteger(targetIndex)) return;
+  return Array.from({ length: frameCount }, (_, frameIndex) => {
+    const landmarks = currentLandmarks.map((point) => ({ ...point }));
+    const frameOffset = frameIndex * jointCount * channelCount;
 
-    const baseIndex = frameOffset + jointIndex * channelCount;
-    const x = root.x + output[baseIndex] * scale;
-    const y = root.y + output[baseIndex + 1] * scale;
-    const z = (root.z || 0) + (output[baseIndex + 2] || 0) * scale;
+    outputMap.forEach((targetIndex, jointIndex) => {
+      if (!Number.isInteger(targetIndex)) return;
 
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const baseIndex = frameOffset + jointIndex * channelCount;
+      const x = root.x + output[baseIndex] * scale;
+      const y = root.y + output[baseIndex + 1] * scale;
+      const z = (root.z || 0) + (output[baseIndex + 2] || 0) * scale;
 
-    landmarks[targetIndex] = {
-      ...landmarks[targetIndex],
-      x,
-      y,
-      z,
-      visibility: landmarks[targetIndex]?.visibility
-    };
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+      landmarks[targetIndex] = {
+        ...landmarks[targetIndex],
+        x,
+        y,
+        z,
+        visibility: landmarks[targetIndex]?.visibility
+      };
+    });
+
+    return landmarks;
   });
-
-  return landmarks;
 }
 
 function averageLandmark(landmarks, indexes) {
@@ -421,12 +425,13 @@ export class StgatOnnxPredictor {
     return this.sessionPromise;
   }
 
-  update({ frames, currentLandmarks, actionContext }) {
+  update({ frames, currentLandmarks }) {
     this.load().then((session) => {
       if (!session || this.isRunning || !frames.length) return;
 
       this.isRunning = true;
       const sourceLandmarks = currentLandmarks.map((point) => ({ ...point }));
+      const originTimestampMs = (frames[frames.length - 1]?.timestamp || 0) * 1000;
       const { inputName, tensor, denormalize } = buildInputTensor(session, frames);
 
       session
@@ -434,17 +439,40 @@ export class StgatOnnxPredictor {
         .then((outputs) => {
           const outputName = session.outputNames[0];
           const outputTensor = outputs[outputName];
-          const rawLandmarks = parseLandmarks(outputTensor, currentLandmarks, denormalize);
-          const alignedLandmarks = alignPredictionToCurrent(rawLandmarks, currentLandmarks);
-          const landmarks = stabilizePrediction(alignedLandmarks, currentLandmarks);
+          const rawFutureFrames = parseLandmarkFrames(
+            outputTensor,
+            currentLandmarks,
+            denormalize
+          );
+          const futureLandmarkFrames = rawFutureFrames.map((rawLandmarks, index) => {
+            const alignedLandmarks = alignPredictionToCurrent(
+              rawLandmarks,
+              currentLandmarks
+            );
+            const landmarks = stabilizePrediction(alignedLandmarks, currentLandmarks);
+            const horizonFrame = index + 1;
+            const horizonMs = horizonFrame * MODEL_FRAME_DURATION_MS;
+
+            return {
+              horizon_frame: horizonFrame,
+              horizon_ms: horizonMs,
+              target_timestamp_ms: originTimestampMs + horizonMs,
+              landmarks
+            };
+          });
+          const landmarks =
+            futureLandmarkFrames[futureLandmarkFrames.length - 1]?.landmarks || null;
 
           this.latestPrediction = {
             source: "onnx",
             status: landmarks ? "ready_stabilized" : "output_shape_unsupported",
             model_name: MODEL_NAME,
             display_name: MODEL_DISPLAY_NAME,
-            prediction_horizon_ms: actionContext?.attention_prediction_horizon_ms || null,
+            origin_timestamp_ms: originTimestampMs,
+            prediction_horizon_ms:
+              futureLandmarkFrames.length * MODEL_FRAME_DURATION_MS,
             landmarks,
+            future_landmark_frames: futureLandmarkFrames,
             source_landmarks: sourceLandmarks,
             completed_at_ms:
               typeof performance !== "undefined" ? performance.now() : Date.now(),

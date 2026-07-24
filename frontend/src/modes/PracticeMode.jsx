@@ -18,7 +18,8 @@ import {
 import {
   attachCountAttention,
   createPracticeMovementClassifier,
-  filterPracticeTapeFrames
+  filterPracticeTapeFrames,
+  reclassifyPracticeSequence
 } from "../utils/practiceMovementClassifier";
 import { scorePracticeAngles } from "../utils/practiceAngleScoring";
 
@@ -95,6 +96,11 @@ const formatAttentionOffset = (milliseconds) => {
   return `${milliseconds > 0 ? "+" : "−"}${Math.abs(milliseconds)} ms`;
 };
 
+const formatTemporalPhase = (phase) =>
+  String(phase || "between_steps")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+
 const buildThirtyFpsTape = (sourceFrames, durationMs) => {
   if (!sourceFrames.length || durationMs <= 0) return [];
 
@@ -123,8 +129,27 @@ const quantizeCoordinate = (value) =>
 const restoreCoordinate = (value) =>
   Number.isFinite(value) ? value / 10000 : null;
 
+const encodePoseLandmarks = (landmarks = []) =>
+  landmarks.map((point) => [
+    quantizeCoordinate(point?.x),
+    quantizeCoordinate(point?.y),
+    quantizeCoordinate(point?.z),
+    quantizeCoordinate(point?.visibility ?? point?.presence ?? 1)
+  ]);
+
+const decodePoseLandmarks = (landmarks = []) =>
+  landmarks.map(([x, y, z, visibility]) => ({
+    x: restoreCoordinate(x),
+    y: restoreCoordinate(y),
+    z: restoreCoordinate(z),
+    visibility: Number.isFinite(visibility)
+      ? restoreCoordinate(visibility)
+      : 1
+  }));
+
 const encodePracticeTapeFrame = (frame) => ({
   t: Math.round(frame.elapsedMs || 0),
+  st: Math.round(frame.sourceTimestampMs || 0),
   n: frame.frame,
   r: frame.rep,
   s: frame.step,
@@ -132,10 +157,20 @@ const encodePracticeTapeFrame = (frame) => ({
   f: frame.focusBodyPart || null,
   i: frame.issue || null,
   w: frame.wrongBodyParts || [],
-  p: (frame.landmarks || []).map((point) => [
-    quantizeCoordinate(point?.x),
-    quantizeCoordinate(point?.y)
-  ]),
+  p: encodePoseLandmarks(frame.landmarks),
+  op: encodePoseLandmarks(frame.observedLandmarks),
+  wp: encodePoseLandmarks(frame.measurementLandmarks),
+  ap: encodePoseLandmarks(frame.aggregateLandmarks),
+  av: Object.fromEntries(
+    Object.entries(frame.angles || {})
+      .filter(([, value]) => Number.isFinite(value))
+      .map(([name, value]) => [name, Math.round(value * 100)])
+  ),
+  ss: (frame.stepScores || []).map((score) => Math.round(score)),
+  tc: Number.isFinite(frame.trackingConfidence)
+    ? Math.round(frame.trackingConfidence * 1000)
+    : null,
+  ds: frame.displayPoseSource || null,
   face: (frame.facePoints || []).map((point) => [
     point.index,
     quantizeCoordinate(point.x),
@@ -158,11 +193,30 @@ const encodePracticeTapeFrame = (frame) => ({
   at: frame.attentionTiming,
   mp: frame.movementPeakMs,
   ph: frame.phase,
+  tp: frame.temporalPhase,
+  cf: frame.stateConfidence,
+  tr: frame.trackingReliable,
+  pc: frame.predictionSourceCounts
+    ? [
+        frame.predictionSourceCounts.observed || 0,
+        frame.predictionSourceCounts.level1 || 0,
+        frame.predictionSourceCounts.level2 || 0
+      ]
+    : null,
+  pe: frame.predictionAgreementError,
+  pf: frame.usedPredictionFallback,
+  pcf: frame.predictionConfidence,
+  lr: frame.liveRep,
+  ls: frame.liveStep,
+  lph: frame.livePhase,
+  ltp: frame.liveTemporalPhase,
+  ps: frame.postSessionClassified,
   sc: frame.scorable
 });
 
 const decodePracticeTapeFrame = (frame, index) => ({
   elapsedMs: frame.t || 0,
+  sourceTimestampMs: frame.st || null,
   frame: frame.n || index + 1,
   rep: frame.r || 1,
   step: frame.s || 1,
@@ -170,10 +224,19 @@ const decodePracticeTapeFrame = (frame, index) => ({
   focusBodyPart: frame.f || null,
   issue: frame.i || null,
   wrongBodyParts: frame.w || [],
-  landmarks: (frame.p || []).map(([x, y]) => ({
-    x: restoreCoordinate(x),
-    y: restoreCoordinate(y)
-  })),
+  landmarks: decodePoseLandmarks(frame.p),
+  observedLandmarks: decodePoseLandmarks(frame.op),
+  measurementLandmarks: decodePoseLandmarks(frame.wp),
+  aggregateLandmarks: decodePoseLandmarks(frame.ap),
+  angles: Object.fromEntries(
+    Object.entries(frame.av || {}).map(([name, value]) => [
+      name,
+      Number.isFinite(value) ? value / 100 : null
+    ])
+  ),
+  stepScores: frame.ss || [],
+  trackingConfidence: Number.isFinite(frame.tc) ? frame.tc / 1000 : null,
+  displayPoseSource: frame.ds || "observed",
   facePoints: (frame.face || []).map(([pointIndex, x, y]) => ({
     index: pointIndex,
     x: restoreCoordinate(x),
@@ -198,6 +261,25 @@ const decodePracticeTapeFrame = (frame, index) => ({
   attentionTiming: frame.at || "no-response",
   movementPeakMs: frame.mp ?? null,
   phase: frame.ph || "keyframe",
+  temporalPhase: frame.tp || (frame.ph === "keyframe" ? "step_hold" : "between_steps"),
+  stateConfidence: frame.cf ?? null,
+  trackingReliable: frame.tr !== false,
+  predictionSourceCounts: frame.pc
+    ? {
+        observed: frame.pc[0] || 0,
+        level1: frame.pc[1] || 0,
+        level2: frame.pc[2] || 0,
+        total: (frame.pc[0] || 0) + (frame.pc[1] || 0) + (frame.pc[2] || 0)
+      }
+    : null,
+  predictionAgreementError: frame.pe ?? null,
+  usedPredictionFallback: frame.pf === true,
+  predictionConfidence: frame.pcf ?? null,
+  liveRep: frame.lr ?? null,
+  liveStep: frame.ls ?? null,
+  livePhase: frame.lph || null,
+  liveTemporalPhase: frame.ltp || null,
+  postSessionClassified: frame.ps === true,
   scorable: frame.sc !== false
 });
 
@@ -818,7 +900,8 @@ export default function PracticeMode({
   const latestHolisticFrameRef = useRef({
     facePoints: [],
     handPoints: {},
-    motionEnergy: 0
+    motionEnergy: 0,
+    predictionAggregate: null
   });
   const previousRecordedLandmarksRef = useRef([]);
   const countMarkersRef = useRef([]);
@@ -847,6 +930,9 @@ export default function PracticeMode({
     rep: 1,
     step: 1,
     phase: "transition",
+    temporalPhase: "waiting_for_movement",
+    stateConfidence: 0,
+    trackingReliable: true,
     scorable: false
   });
   const completedMovementRepsRef = useRef(new Set());
@@ -1088,14 +1174,22 @@ export default function PracticeMode({
     const stepScores = steps.map((step) =>
       scorePracticeAngles(step?.angles || [], frame?.angles || {}).accuracy
     );
+    latestHolisticFrameRef.current = {
+      ...latestHolisticFrameRef.current,
+      stepScores
+    };
     const classification = movementClassifierRef.current.update({
       motionScore: frame?.motionEnergy || 0,
-      stepScores
+      stepScores,
+      trackingConfidence: frame?.trackingConfidence
     });
     latestMovementClassificationRef.current = {
       rep: classification.rep,
       step: classification.step,
       phase: classification.phase,
+      temporalPhase: classification.temporalPhase,
+      stateConfidence: classification.stateConfidence,
+      trackingReliable: classification.trackingReliable,
       scorable: classification.scorable
     };
 
@@ -1375,7 +1469,7 @@ export default function PracticeMode({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          version: 1,
+          version: 2,
           frame_rate: 30,
           duration_ms: Math.round(frames[frames.length - 1]?.elapsedMs || 0),
           frames: frames.map(encodePracticeTapeFrame),
@@ -1472,8 +1566,37 @@ export default function PracticeMode({
     const setStart = setStartedAtRef.current || completedAt;
     const tapeDurationMs = Math.round(completedAt - setStart);
     const completedTape = buildThirtyFpsTape(recordedFramesRef.current, tapeDurationMs);
+    const countStepIndex = steps.findIndex((step) => step.counts_rep);
+    const reclassifiedTape = reclassifyPracticeSequence(completedTape, {
+      countStep: countStepIndex >= 0 ? countStepIndex + 1 : undefined,
+      stepCount: steps.length,
+      targetReps
+    });
+    const rescoredTape = reclassifiedTape.map((frame) => {
+      if (!frame.scorable) {
+        return {
+          ...frame,
+          accuracy: null,
+          focusBodyPart: null,
+          issue: "transition",
+          wrongBodyParts: []
+        };
+      }
+
+      const result = scorePracticeAngles(
+        steps[Math.max(0, frame.step - 1)]?.angles || [],
+        frame.angles || {}
+      );
+      return {
+        ...frame,
+        accuracy: result.accuracy,
+        focusBodyPart: result.focusBodyPart,
+        issue: result.issue,
+        wrongBodyParts: result.wrongBodyParts
+      };
+    });
     const analyzedTape = attachCountAttention(
-      completedTape,
+      rescoredTape,
       countMarkersRef.current,
       countGapMs
     );
@@ -1482,6 +1605,8 @@ export default function PracticeMode({
       targetReps,
       countGapMs,
       techniqueName: currentTechnique?.name || "Practice",
+      biomechanicsSchema: "observed-filtered-measurement-aggregate-v2",
+      postSessionClassification: true,
       steps: steps.map((step, index) => ({
         id: step?.id ?? index,
         step_name: step?.step_name || `Step ${index + 1}`
@@ -1619,6 +1744,9 @@ export default function PracticeMode({
       rep: 1,
       step: 1,
       phase: "transition",
+      temporalPhase: "waiting_for_movement",
+      stateConfidence: 0,
+      trackingReliable: true,
       scorable: false
     };
     completedMovementRepsRef.current = new Set();
@@ -1659,16 +1787,24 @@ export default function PracticeMode({
     repStartedAtRef.current = rhythmStartedAt;
     const recordFrame = () => {
       const now = performance.now();
-      const landmarks = latestLandmarksRef.current.map((point) => ({ ...point }));
       const holisticFrame = latestHolisticFrameRef.current;
+      const landmarks = (
+        holisticFrame.filteredPose?.length
+          ? holisticFrame.filteredPose
+          : latestLandmarksRef.current
+      ).map((point) => ({ ...point }));
       const movementClassification = latestMovementClassificationRef.current;
       const poseMotion = getPoseMotion(previousRecordedLandmarksRef.current, landmarks);
       previousRecordedLandmarksRef.current = landmarks;
       recordedFramesRef.current.push({
         elapsedMs: now - rhythmStartedAt,
+        sourceTimestampMs: holisticFrame.timestamp || now,
         rep: movementClassification.rep,
         step: movementClassification.step,
         phase: movementClassification.phase,
+        temporalPhase: movementClassification.temporalPhase,
+        stateConfidence: movementClassification.stateConfidence,
+        trackingReliable: movementClassification.trackingReliable,
         scorable: movementClassification.scorable,
         accuracy: movementClassification.scorable
           ? latestPracticeResultRef.current.accuracy
@@ -1683,6 +1819,14 @@ export default function PracticeMode({
           ? [...(latestPracticeResultRef.current.wrongBodyParts || [])]
           : [],
         landmarks,
+        observedLandmarks: (holisticFrame.observedPose || [])
+          .map((point) => ({ ...point })),
+        measurementLandmarks: (holisticFrame.measurementPose || [])
+          .map((point) => ({ ...point })),
+        angles: { ...(holisticFrame.angles || {}) },
+        stepScores: [...(holisticFrame.stepScores || [])],
+        trackingConfidence: holisticFrame.trackingConfidence ?? null,
+        displayPoseSource: holisticFrame.displayPoseSource || "observed",
         facePoints: (holisticFrame.facePoints || [])
           .filter((point) => holisticFrame.faceSource === "pose33" || TAPE_FACE_INDICES.has(point.index))
           .map((point) => ({ ...point })),
@@ -1693,6 +1837,16 @@ export default function PracticeMode({
             points.map((point) => ({ ...point }))
           ])
         ),
+        aggregateLandmarks: (holisticFrame.predictionAggregate?.aggregateLandmarks || [])
+          .map((point) => point ? ({ ...point }) : point),
+        predictionSourceCounts:
+          holisticFrame.predictionAggregate?.sourceCounts || null,
+        predictionAgreementError:
+          holisticFrame.predictionAggregate?.agreementError ?? null,
+        usedPredictionFallback:
+          holisticFrame.predictionAggregate?.usePredictionFallback === true,
+        predictionConfidence:
+          holisticFrame.predictionAggregate?.predictionConfidence ?? null,
         motionScore: Math.max(holisticFrame.motionEnergy || 0, poseMotion * 10)
       });
     };
@@ -1777,6 +1931,9 @@ export default function PracticeMode({
       rep: 1,
       step: 1,
       phase: "transition",
+      temporalPhase: "waiting_for_movement",
+      stateConfidence: 0,
+      trackingReliable: true,
       scorable: false
     };
     completedMovementRepsRef.current = new Set();
@@ -1830,6 +1987,9 @@ export default function PracticeMode({
       rep: 1,
       step: nextIndex + 1,
       phase: "transition",
+      temporalPhase: "waiting_for_movement",
+      stateConfidence: 0,
+      trackingReliable: true,
       scorable: false
     };
     completedMovementRepsRef.current = new Set();
@@ -2657,7 +2817,11 @@ export default function PracticeMode({
                   <strong>Frame {fullTapeCursor + 1}</strong>
                 </div>
                 <span className={!fullTapeFrameScorable ? "is-transition" : fullTapeFrameNeedsReview ? "is-review" : "is-clean"}>
-                  {!fullTapeFrameScorable ? "Transition" : fullTapeFrameNeedsReview ? "Review" : "Clean"}
+                  {!fullTapeFrameScorable
+                    ? formatTemporalPhase(fullTapeFrame?.temporalPhase)
+                    : fullTapeFrameNeedsReview
+                      ? "Review"
+                      : "Clean"}
                 </span>
               </div>
               <TapeSkeleton
@@ -2720,6 +2884,42 @@ export default function PracticeMode({
                   </strong>
                 </span>
                 <span>
+                  <small>Sequence phase</small>
+                  <strong>{formatTemporalPhase(fullTapeFrame?.temporalPhase)}</strong>
+                </span>
+                <span>
+                  <small>Classifier confidence</small>
+                  <strong>
+                    {Number.isFinite(fullTapeFrame?.stateConfidence)
+                      ? `${fullTapeFrame.stateConfidence}%`
+                      : "--"}
+                  </strong>
+                </span>
+                <span>
+                  <small>Prediction aggregate</small>
+                  <strong>
+                    {fullTapeFrame?.predictionSourceCounts
+                      ? `Live ${fullTapeFrame.predictionSourceCounts.observed} · L1 ${fullTapeFrame.predictionSourceCounts.level1} · L2 ${fullTapeFrame.predictionSourceCounts.level2}`
+                      : "Live only"}
+                  </strong>
+                </span>
+                <span>
+                  <small>Biomechanics streams</small>
+                  <strong>
+                    {fullTapeFrame?.measurementLandmarks?.length
+                      ? "Observed · Filtered · World · Aggregate"
+                      : "Legacy filtered pose"}
+                  </strong>
+                </span>
+                <span>
+                  <small>Sequence analysis</small>
+                  <strong>
+                    {fullTapeFrame?.postSessionClassified
+                      ? "Full-session verified"
+                      : "Live classification"}
+                  </strong>
+                </span>
+                <span>
                   <small>Accuracy</small>
                   <strong>
                     {Number.isFinite(fullTapeFrame?.accuracy)
@@ -2741,10 +2941,12 @@ export default function PracticeMode({
                 </span>
               </div>
               <div className={`practice-session-analysis__finding ${!fullTapeFrameScorable ? "is-transition" : fullTapeFrameNeedsReview ? "is-warning" : "is-clean"}`}>
-                <span>{!fullTapeFrameScorable ? "Movement transition" : fullTapeFrameNeedsReview ? "Needs review" : "Clean frame"}</span>
+                <span>{!fullTapeFrameScorable ? formatTemporalPhase(fullTapeFrame?.temporalPhase) : fullTapeFrameNeedsReview ? "Needs review" : "Clean frame"}</span>
                 <strong>
                   {!fullTapeFrameScorable
-                    ? "Connecting steps are preserved but excluded from form accuracy"
+                    ? fullTapeFrame?.trackingReliable === false
+                      ? "Tracking was unreliable, so this frame did not change the sequence"
+                      : "Temporal movement frames are preserved but excluded from form accuracy"
                     : fullTapeFrameNeedsReview && fullTapeFrame?.focusBodyPart
                     ? `${formatBodyPart(fullTapeFrame.focusBodyPart)} · ${formatBodyPart(fullTapeFrame.issue)}`
                     : "Target angles are within range"}
