@@ -598,6 +598,7 @@ export default function SkeletonCanvas({
   sessionConfig,
   coachCommand,
   requiredParts,
+  measurementParts,
   onAngleUpdate,
   onAccuracyUpdate,
   onFeedbackUpdate,
@@ -648,6 +649,7 @@ export default function SkeletonCanvas({
   const currentStepIdRef = useRef(currentStepId);
   const currentStepNameRef = useRef(currentStepName);
   const requiredPartsRef = useRef(requiredParts);
+  const measurementPartsRef = useRef(measurementParts || requiredParts);
   const sessionConfigRef = useRef(sessionConfig);
   const basePerformanceConfigRef = useRef(getStudioPerformanceConfig(performanceProfile));
   const adaptiveTierRef = useRef("balanced");
@@ -716,6 +718,7 @@ export default function SkeletonCanvas({
     currentStepNameRef.current = currentStepName;
     enableCoachRef.current = enableCoach;
     requiredPartsRef.current = requiredParts;
+    measurementPartsRef.current = measurementParts || requiredParts;
     sessionConfigRef.current = sessionConfig;
     enableAwarenessRef.current = enableAwareness;
     displayMirroredRef.current = displayMirrored;
@@ -758,6 +761,7 @@ export default function SkeletonCanvas({
     enableAwareness,
     enableCoach,
     requiredParts,
+    measurementParts,
     skeletonLayers,
     sessionConfig,
     performanceProfile,
@@ -1292,7 +1296,7 @@ export default function SkeletonCanvas({
           shouldTrackFaceRef.current
         );
 
-        requiredPartsRef.current?.forEach((part) => {
+        measurementPartsRef.current?.forEach((part) => {
           const mapping = BODY_PART_MAP[part.body_part];
 
           if (mapping) {

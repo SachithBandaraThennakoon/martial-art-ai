@@ -15,6 +15,12 @@ import {
   buildPracticeSetMessage,
   getPracticeFeedbackIntent
 } from "../services/feedbackReasoning";
+import {
+  attachCountAttention,
+  createPracticeMovementClassifier,
+  filterPracticeTapeFrames
+} from "../utils/practiceMovementClassifier";
+import { scorePracticeAngles } from "../utils/practiceAngleScoring";
 
 const COUNT_OPTIONS = [3, 5, 10];
 const GAP_OPTIONS = [
@@ -146,10 +152,13 @@ const encodePracticeTapeFrame = (frame) => ({
     quantizeCoordinate(point.x),
     quantizeCoordinate(point.y)
   ]),
+  cq: frame.countCue,
   ct: frame.countTimestampMs,
   ao: frame.attentionOffsetMs,
   at: frame.attentionTiming,
-  mp: frame.movementPeakMs
+  mp: frame.movementPeakMs,
+  ph: frame.phase,
+  sc: frame.scorable
 });
 
 const decodePracticeTapeFrame = (frame, index) => ({
@@ -157,7 +166,7 @@ const decodePracticeTapeFrame = (frame, index) => ({
   frame: frame.n || index + 1,
   rep: frame.r || 1,
   step: frame.s || 1,
-  accuracy: frame.a || 0,
+  accuracy: frame.a ?? null,
   focusBodyPart: frame.f || null,
   issue: frame.i || null,
   wrongBodyParts: frame.w || [],
@@ -183,29 +192,35 @@ const decodePracticeTapeFrame = (frame, index) => ({
       y: restoreCoordinate(y)
     }))
   },
+  countCue: frame.cq ?? null,
   countTimestampMs: frame.ct ?? null,
   attentionOffsetMs: frame.ao ?? null,
   attentionTiming: frame.at || "no-response",
-  movementPeakMs: frame.mp ?? null
+  movementPeakMs: frame.mp ?? null,
+  phase: frame.ph || "keyframe",
+  scorable: frame.sc !== false
 });
 
 const buildRepTapeFromFrames = (frames, steps) =>
   [...new Set(frames.map((frame) => frame.rep))].sort((a, b) => a - b).map((rep) => {
     const repFrames = frames.filter((frame) => frame.rep === rep);
-    const weakestFrame = repFrames.reduce(
+    const scoredRepFrames = repFrames.filter(
+      (frame) => frame.scorable !== false && Number.isFinite(frame.accuracy)
+    );
+    const weakestFrame = scoredRepFrames.reduce(
       (weakest, frame) =>
         !weakest || frame.accuracy < weakest.accuracy ? frame : weakest,
       null
     );
-    const accuracy = repFrames.length
+    const accuracy = scoredRepFrames.length
       ? Math.round(
-          repFrames.reduce((total, frame) => total + (frame.accuracy || 0), 0) /
-            repFrames.length
+          scoredRepFrames.reduce((total, frame) => total + frame.accuracy, 0) /
+            scoredRepFrames.length
         )
       : 0;
     return {
       rep,
-      elapsedMs: repFrames[0]?.countTimestampMs ?? repFrames[0]?.elapsedMs ?? 0,
+      elapsedMs: repFrames[0]?.elapsedMs ?? 0,
       durationMs: Math.max(
         0,
         (repFrames[repFrames.length - 1]?.elapsedMs || 0) -
@@ -217,7 +232,7 @@ const buildRepTapeFromFrames = (frames, steps) =>
       issue: weakestFrame?.issue || null,
       landmarks: weakestFrame?.landmarks || [],
       stepResults: steps.map((step, index) => {
-        const stepFrames = repFrames.filter((frame) => frame.step === index + 1);
+        const stepFrames = scoredRepFrames.filter((frame) => frame.step === index + 1);
         const stepWeakest = stepFrames.reduce(
           (weakest, frame) =>
             !weakest || frame.accuracy < weakest.accuracy ? frame : weakest,
@@ -252,44 +267,6 @@ const getPoseMotion = (previous = [], current = []) => {
   return distances.length
     ? distances.reduce((total, distance) => total + distance, 0) / distances.length
     : 0;
-};
-
-const analyzeCountAttention = (frames, countMarkers, gapMs) => {
-  const toleranceMs = Math.max(160, Math.round(gapMs * 0.14));
-  const markers = countMarkers.map((marker, index) => {
-    const windowStart = Math.max(0, marker.elapsedMs - gapMs * 0.25);
-    const windowEnd = countMarkers[index + 1]?.elapsedMs ?? marker.elapsedMs + gapMs;
-    const candidates = frames.filter(
-      (frame) => frame.elapsedMs >= windowStart && frame.elapsedMs <= windowEnd
-    );
-    const peak = candidates.reduce(
-      (best, frame) => !best || frame.motionScore > best.motionScore ? frame : best,
-      null
-    );
-    const offsetMs = peak ? Math.round(peak.elapsedMs - marker.elapsedMs) : null;
-    const timing = !Number.isFinite(offsetMs)
-      ? "no-response"
-      : offsetMs < -toleranceMs
-        ? "early"
-        : offsetMs > toleranceMs
-          ? "late"
-          : "on-time";
-    return { ...marker, rep: index + 1, movementPeakMs: peak?.elapsedMs ?? null, offsetMs, timing };
-  });
-
-  return frames.map((frame) => {
-    const marker = [...markers]
-      .reverse()
-      .find((candidate) => candidate.elapsedMs <= frame.elapsedMs) || markers[0];
-    return {
-      ...frame,
-      rep: marker?.rep || frame.rep,
-      countTimestampMs: marker?.elapsedMs ?? null,
-      attentionOffsetMs: marker?.offsetMs ?? null,
-      attentionTiming: marker?.timing || "no-response",
-      movementPeakMs: marker?.movementPeakMs ?? null
-    };
-  });
 };
 
 function TapeSkeleton({
@@ -519,7 +496,9 @@ function PracticeAccuracyTimeline({
   const duration = Math.max(frames[frames.length - 1]?.elapsedMs || 0, 1);
   const stride = Math.max(1, Math.ceil(frames.length / (expanded ? 180 : 100)));
   const sampled = frames.filter(
-    (_, index) => index % stride === 0 || index === frames.length - 1
+    (frame, index) =>
+      Number.isFinite(frame.accuracy) &&
+      (index % stride === 0 || index === frames.length - 1)
   );
   const xAt = (elapsedMs) => plot.left + (elapsedMs / duration) * plot.width;
   const yAt = (accuracy) =>
@@ -528,8 +507,10 @@ function PracticeAccuracyTimeline({
     .map((frame) => `${xAt(frame.elapsedMs).toFixed(1)},${yAt(frame.accuracy).toFixed(1)}`)
     .join(" ");
   const frameMatchesFilter = (frame) =>
+    Number.isFinite(frame.accuracy) &&
     (countFilter === "all" || frame.rep === Number(countFilter)) &&
-    (stepFilter === "all" || frame.step === Number(stepFilter));
+    (stepFilter === "all" ||
+      (frame.step === Number(stepFilter) && frame.scorable !== false));
   const activeSegments = frames.reduce((segments, frame) => {
     if (!frameMatchesFilter(frame)) return segments;
     const previousSegment = segments[segments.length - 1];
@@ -543,8 +524,8 @@ function PracticeAccuracyTimeline({
   }, []);
   const countMarkers = Array.from(
     frames.reduce((markers, frame) => {
-      if (!markers.has(frame.rep)) {
-        markers.set(frame.rep, frame.countTimestampMs ?? frame.elapsedMs);
+      if (frame.countCue && !markers.has(frame.countCue)) {
+        markers.set(frame.countCue, frame.countTimestampMs ?? frame.elapsedMs);
       }
       return markers;
     }, new Map()).entries()
@@ -639,7 +620,7 @@ function PracticeAccuracyTimeline({
           })}
           {dropPoints.map((frame) => (
             <circle
-              aria-label={`Accuracy drop at ${formatTapeTime(frame.elapsedMs)}, count ${frame.rep}, step ${frame.step}, ${frame.accuracy}%`}
+              aria-label={`Accuracy drop at ${formatTapeTime(frame.elapsedMs)}, rep ${frame.rep}, step ${frame.step}, ${frame.accuracy}%`}
               className={frame.frame - 1 === selectedFrame ? "is-selected" : ""}
               cx={xAt(frame.elapsedMs)}
               cy={yAt(frame.accuracy)}
@@ -656,7 +637,7 @@ function PracticeAccuracyTimeline({
               tabIndex={0}
             >
               <title>
-                {`Count ${frame.rep} · Step ${frame.step} · ${frame.accuracy}% · ${formatTapeTime(frame.elapsedMs)}`}
+                {`Rep ${frame.rep} · Step ${frame.step} · ${frame.accuracy}% · ${formatTapeTime(frame.elapsedMs)}`}
               </title>
             </circle>
           ))}
@@ -683,55 +664,6 @@ const formatSessionTimestamp = (value) => {
     minute: "2-digit"
   }).format(date);
 };
-
-function scorePracticeAngles(requiredParts, liveAngles) {
-  if (!requiredParts.length) {
-    return {
-      accuracy: 0,
-      focusBodyPart: null,
-      issue: "needs_targets",
-      wrongBodyParts: []
-    };
-  }
-
-  let score = 0;
-  let worst = null;
-  const wrongBodyParts = [];
-
-  requiredParts.forEach((part) => {
-    const value = liveAngles?.[part.body_part];
-
-    if (!Number.isFinite(value)) {
-      worst = worst || { bodyPart: part.body_part, issue: "missing", severity: 100 };
-      wrongBodyParts.push(part.body_part);
-      return;
-    }
-
-    let diff = 0;
-    let issue = "good";
-    if (value < part.min) {
-      diff = part.min - value;
-      issue = "too_closed";
-    } else if (value > part.max) {
-      diff = value - part.max;
-      issue = "too_open";
-    }
-
-    const partScore = Math.max(0, 100 - diff * 2);
-    score += partScore;
-    if (issue !== "good") wrongBodyParts.push(part.body_part);
-    if (!worst || diff > worst.severity) {
-      worst = { bodyPart: part.body_part, issue, severity: diff };
-    }
-  });
-
-  return {
-    accuracy: Math.round(score / requiredParts.length),
-    focusBodyPart: worst?.bodyPart || null,
-    issue: worst?.issue || "good",
-    wrongBodyParts
-  };
-}
 
 function speedLabel(durationMs) {
   if (durationMs <= 900) return "fast";
@@ -811,10 +743,18 @@ export default function PracticeMode({
   const [selectedStepIndex, setSelectedStepIndex] = useState(0);
   const selectedStep = steps[selectedStepIndex] || steps[0];
   const requiredParts = useMemo(() => selectedStep?.angles || [], [selectedStep]);
+  const measurementParts = useMemo(() => {
+    const parts = new Map();
+    steps.flatMap((step) => step?.angles || []).forEach((part) => {
+      if (!parts.has(part.body_part)) parts.set(part.body_part, part);
+    });
+    return [...parts.values()];
+  }, [steps]);
   const [targetReps, setTargetReps] = useState(5);
   const [countGapMs, setCountGapMs] = useState(2000);
   const [session, setSession] = useState(null);
   const [repCount, setRepCount] = useState(0);
+  const [cueCount, setCueCount] = useState(0);
   const [cleanReps, setCleanReps] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [focusBodyPart, setFocusBodyPart] = useState(null);
@@ -839,7 +779,7 @@ export default function PracticeMode({
   const [practiceAnalysis, setPracticeAnalysis] = useState(null);
   const [repTape, setRepTape] = useState([]);
   const [tapeCursor, setTapeCursor] = useState(0);
-  const [tapeStepCursor, setTapeStepCursor] = useState(0);
+  const [, setTapeStepCursor] = useState(0);
   const [isTapePlaying, setIsTapePlaying] = useState(false);
   const [fullTapeFrames, setFullTapeFrames] = useState([]);
   const [analysisTapeMetadata, setAnalysisTapeMetadata] = useState(null);
@@ -882,6 +822,7 @@ export default function PracticeMode({
   });
   const previousRecordedLandmarksRef = useRef([]);
   const countMarkersRef = useRef([]);
+  const isSetFinishingRef = useRef(false);
   const selectedStepIndexRef = useRef(0);
   const recordedFramesRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -891,17 +832,26 @@ export default function PracticeMode({
   const recoveryEndsAtRef = useRef(null);
   const sessionRef = useRef(null);
   const repCountRef = useRef(0);
+  const cueCountRef = useRef(0);
   const isReadyForRepRef = useRef(true);
   const countBeatRef = useRef(null);
   const countBeatTimersRef = useRef([]);
-  const stepScanTimersRef = useRef([]);
   const latestPracticeResultRef = useRef({
     accuracy: 0,
     focusBodyPart: null,
     issue: "waiting",
     wrongBodyParts: []
   });
-  const cycleStepResultsRef = useRef([]);
+  const movementClassifierRef = useRef(null);
+  const latestMovementClassificationRef = useRef({
+    rep: 1,
+    step: 1,
+    phase: "transition",
+    scorable: false
+  });
+  const completedMovementRepsRef = useRef(new Set());
+  const completeMovementRepRef = useRef(null);
+  const recordFrameRef = useRef(null);
   const numberAudioRef = useRef([]);
   const recognitionRef = useRef(null);
   const shouldListenRef = useRef(true);
@@ -917,10 +867,12 @@ export default function PracticeMode({
   const lastPracticeFeedbackIntentRef = useRef("");
   const lastPracticeSpokenIntentRef = useRef("");
 
-  const selectedTapeRep = repTape[tapeCursor] || repTape[repTape.length - 1] || null;
-  const selectedTapeStep = selectedTapeRep?.stepResults?.[tapeStepCursor] || null;
-  const tapeDurationMs = repTape[repTape.length - 1]?.elapsedMs || 0;
   const fullTapeFrame = fullTapeFrames[fullTapeCursor] || null;
+  const fullTapeFrameScorable =
+    fullTapeFrame?.scorable !== false &&
+    Number.isFinite(fullTapeFrame?.accuracy);
+  const fullTapeFrameNeedsReview =
+    fullTapeFrameScorable && fullTapeFrame.accuracy < CLEAN_ACCURACY;
   const tapeAnalysisSteps = analysisTapeMetadata?.steps?.length
     ? analysisTapeMetadata.steps
     : steps;
@@ -930,15 +882,19 @@ export default function PracticeMode({
     900,
     fullTapeFrames.length * cameraRollZoom
   );
-  const timelineFrameWidth = fullTapeFrames.length
-    ? timelineContentWidth / fullTapeFrames.length
+  const filteredTapeFrames = filterPracticeTapeFrames(fullTapeFrames, {
+    rep: analysisCountFilter,
+    step: analysisStepFilter
+  });
+  const cameraRollContentWidth = Math.max(
+    900,
+    filteredTapeFrames.length * cameraRollZoom
+  );
+  const cameraRollFrameWidth = filteredTapeFrames.length
+    ? cameraRollContentWidth / filteredTapeFrames.length
     : cameraRollZoom;
-  const filteredTapeFrames = fullTapeFrames
-    .map((frame, index) => ({ frame, index }))
-    .filter(({ frame }) =>
-      (analysisCountFilter === "all" || frame.rep === Number(analysisCountFilter)) &&
-      (analysisStepFilter === "all" || frame.step === Number(analysisStepFilter))
-    );
+  const hasActiveTapeFilter =
+    analysisCountFilter !== "all" || analysisStepFilter !== "all";
   const filteredTapeCursorPosition = Math.max(
     0,
     filteredTapeFrames.findIndex((entry) => entry.index === fullTapeCursor)
@@ -946,16 +902,19 @@ export default function PracticeMode({
   const fullTapeDurationMs = fullTapeFrames.length
     ? (fullTapeFrames.length / 30) * 1000
     : 0;
-  const fullTapeAverageAccuracy = fullTapeFrames.length
+  const scoredFullTapeFrames = fullTapeFrames.filter(
+    (frame) => frame.scorable !== false && Number.isFinite(frame.accuracy)
+  );
+  const fullTapeAverageAccuracy = scoredFullTapeFrames.length
     ? Math.round(
-        fullTapeFrames.reduce((total, frame) => total + (frame.accuracy || 0), 0) /
-          fullTapeFrames.length
+        scoredFullTapeFrames.reduce((total, frame) => total + frame.accuracy, 0) /
+          scoredFullTapeFrames.length
       )
     : 0;
-  const fullTapeReviewFrames = fullTapeFrames.filter(
+  const fullTapeReviewFrames = scoredFullTapeFrames.filter(
     (frame) => frame.accuracy < CLEAN_ACCURACY
   ).length;
-  const fullTapeIssueCounts = fullTapeFrames.reduce((counts, frame) => {
+  const fullTapeIssueCounts = scoredFullTapeFrames.reduce((counts, frame) => {
     (frame.wrongBodyParts || []).forEach((bodyPart) => {
       counts[bodyPart] = (counts[bodyPart] || 0) + 1;
     });
@@ -966,9 +925,9 @@ export default function PracticeMode({
   )[0]?.[0] || null;
   const countAttentionResults = Array.from(
     fullTapeFrames.reduce((results, frame) => {
-      if (!results.has(frame.rep)) {
-        results.set(frame.rep, {
-          rep: frame.rep,
+      if (frame.countCue && !results.has(frame.countCue)) {
+        results.set(frame.countCue, {
+          cue: frame.countCue,
           offsetMs: frame.attentionOffsetMs,
           timing: frame.attentionTiming,
           timestampMs: frame.countTimestampMs
@@ -1121,7 +1080,48 @@ export default function PracticeMode({
       handPoints: {},
       motionEnergy: 0
     };
-  }, []);
+
+    if (sessionRef.current?.status !== "active" || !movementClassifierRef.current) {
+      return;
+    }
+
+    const stepScores = steps.map((step) =>
+      scorePracticeAngles(step?.angles || [], frame?.angles || {}).accuracy
+    );
+    const classification = movementClassifierRef.current.update({
+      motionScore: frame?.motionEnergy || 0,
+      stepScores
+    });
+    latestMovementClassificationRef.current = {
+      rep: classification.rep,
+      step: classification.step,
+      phase: classification.phase,
+      scorable: classification.scorable
+    };
+
+    const nextStepIndex = Math.max(0, classification.expectedStep - 1);
+    if (nextStepIndex !== selectedStepIndexRef.current) {
+      selectedStepIndexRef.current = nextStepIndex;
+      setSelectedStepIndex(nextStepIndex);
+      setTapeStepCursor(nextStepIndex);
+    }
+
+    if (classification.countedRep) {
+      repCountRef.current = classification.countedRep;
+      setRepCount(classification.countedRep);
+      setTapeCursor(classification.countedRep - 1);
+    }
+
+    if (classification.completedRep) {
+      recordFrameRef.current?.();
+      window.setTimeout(() => {
+        completeMovementRepRef.current?.(
+          classification.completedRep,
+          performance.now()
+        );
+      }, 0);
+    }
+  }, [steps]);
 
   const loadPracticeAnalysis = useCallback(async (signal) => {
     const token = localStorage.getItem("token");
@@ -1282,7 +1282,16 @@ export default function PracticeMode({
     const token = localStorage.getItem("token");
     if (!activeSession?.id || !token) return;
 
-    const qualityLabel = repAccuracy >= CLEAN_ACCURACY ? "clean" : "shaky";
+    const safeRepNumber = Number.isFinite(nextRep)
+      ? Math.max(1, Math.round(nextRep))
+      : 1;
+    const safeAccuracy = Number.isFinite(repAccuracy)
+      ? Math.max(0, Math.min(100, repAccuracy))
+      : 0;
+    const safeDurationMs = Number.isFinite(durationMs)
+      ? Math.max(0, Math.round(durationMs))
+      : 0;
+    const qualityLabel = safeAccuracy >= CLEAN_ACCURACY ? "clean" : "shaky";
     try {
       const response = await fetch(`${API_BASE_URL}/practice/sessions/${activeSession.id}/reps`, {
         method: "POST",
@@ -1291,21 +1300,31 @@ export default function PracticeMode({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          rep_number: nextRep,
-          accuracy: repAccuracy,
-          duration_ms: durationMs,
-          speed_label: speedLabel(durationMs),
+          rep_number: safeRepNumber,
+          accuracy: safeAccuracy,
+          duration_ms: safeDurationMs,
+          speed_label: speedLabel(safeDurationMs),
           quality_label: qualityLabel,
-          focus_body_part: focus,
-          issue
+          focus_body_part: typeof focus === "string" ? focus : null,
+          issue: typeof issue === "string" ? issue : null
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setSession(data.session);
-        sessionRef.current = data.session;
+      if (!response.ok) {
+        const detail = await response.text();
+        console.error(
+          `Practice rep ${safeRepNumber} could not be saved (${response.status}).`,
+          detail
+        );
+        return;
       }
+
+      const data = await response.json();
+      const nextSession = isSetFinishingRef.current
+        ? { ...data.session, status: "active" }
+        : data.session;
+      setSession(nextSession);
+      sessionRef.current = nextSession;
     } catch {
       // Keep counting quiet; local rep state continues even if analysis storage misses a beat.
     }
@@ -1372,181 +1391,181 @@ export default function PracticeMode({
   const clearCountBeatTimers = useCallback(() => {
     countBeatTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
     countBeatTimersRef.current = [];
-    stepScanTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
-    stepScanTimersRef.current = [];
     if (recordingTimerRef.current) {
       window.clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
+    recordFrameRef.current = null;
     recoveryEndsAtRef.current = null;
     setRecoveryRemainingMs(0);
   }, []);
 
-  const beginIntervalStepScan = useCallback(() => {
-    stepScanTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
-    stepScanTimersRef.current = [];
-    cycleStepResultsRef.current = [];
-    setSelectedStepIndex(0);
-    setIsReadyForRep(true);
-    isReadyForRepRef.current = true;
-
-    if (steps.length <= 1) return;
-
-    const sliceMs = countGapMs / steps.length;
-    stepScanTimersRef.current = steps.slice(1).map((_, offset) =>
-      window.setTimeout(() => {
-        const nextStepIndex = offset + 1;
-        setSelectedStepIndex(nextStepIndex);
-      }, Math.round(sliceMs * (offset + 1)))
-    );
-  }, [countGapMs, steps]);
-
-  const runPracticeCountBeat = useCallback(async () => {
-    if (sessionRef.current?.status !== "active") return;
-
-    const nextRep = repCountRef.current + 1;
-    const countStartedAt = performance.now();
-    repStartedAtRef.current = countStartedAt;
-    repCountRef.current = nextRep;
-    countMarkersRef.current.push({
-      rep: nextRep,
-      elapsedMs: Math.round(countStartedAt - (setStartedAtRef.current || countStartedAt))
-    });
-    setRepCount(nextRep);
-    setTapeCursor(nextRep - 1);
-    setTapeStepCursor(0);
-    setAssistantMessage(String(nextRep));
-    if (textEnabled) {
-      appendConversation({ role: "ai", text: String(nextRep) });
+  const completeMovementRep = useCallback(async (repNumber, completedAt) => {
+    if (
+      completedMovementRepsRef.current.has(repNumber) ||
+      sessionRef.current?.status !== "active"
+    ) {
+      return;
     }
 
-    beginIntervalStepScan();
+    completedMovementRepsRef.current.add(repNumber);
+    const repFrames = recordedFramesRef.current.filter((frame) => frame.rep === repNumber);
+    const summary = buildRepTapeFromFrames(repFrames, steps)[0];
+    const fallbackResult = latestPracticeResultRef.current;
+    const durationMs = summary?.durationMs || Math.max(
+      0,
+      Math.round(completedAt - (repStartedAtRef.current || completedAt))
+    );
+    const repAccuracy = Number.isFinite(summary?.accuracy)
+      ? summary.accuracy
+      : Number.isFinite(fallbackResult?.accuracy)
+        ? fallbackResult.accuracy
+        : 0;
+    const focus = summary?.focusBodyPart || fallbackResult.focusBodyPart;
+    const issue = summary?.issue || fallbackResult.issue;
+    const movementStartedAt = repFrames[0]?.elapsedMs ?? 0;
+
+    repCountRef.current = repNumber;
+    repStartedAtRef.current = completedAt;
+    setRepCount(repNumber);
+    setCleanReps((value) => value + (repAccuracy >= CLEAN_ACCURACY ? 1 : 0));
+    setRepTape((entries) => [
+      ...entries.filter((entry) => entry.rep !== repNumber),
+      summary || {
+        rep: repNumber,
+        elapsedMs: movementStartedAt,
+        durationMs,
+        accuracy: repAccuracy,
+        clean: repAccuracy >= CLEAN_ACCURACY,
+        focusBodyPart: focus,
+        issue,
+        landmarks: latestLandmarksRef.current.map((point) => ({ ...point })),
+        stepResults: steps.map((step, index) => ({
+          step: index + 1,
+          name: step?.step_name || `Step ${index + 1}`,
+          accuracy: 0,
+          captured: false,
+          focusBodyPart: null,
+          issue: "not_reached",
+          landmarks: []
+        }))
+      }
+    ].sort((left, right) => left.rep - right.rep));
+    setTapeCursor(repNumber - 1);
+
+    if (repNumber >= targetReps) {
+      isSetFinishingRef.current = true;
+    }
+    await postPracticeRep(repNumber, repAccuracy, durationMs, focus, issue);
+
+    if (repNumber < targetReps) return;
+
+    while (
+      isSetFinishingRef.current &&
+      cueCountRef.current < targetReps
+    ) {
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
+    if (!isSetFinishingRef.current) return;
+
+    clearCountBeatTimers();
+    const setStart = setStartedAtRef.current || completedAt;
+    const tapeDurationMs = Math.round(completedAt - setStart);
+    const completedTape = buildThirtyFpsTape(recordedFramesRef.current, tapeDurationMs);
+    const analyzedTape = attachCountAttention(
+      completedTape,
+      countMarkersRef.current,
+      countGapMs
+    );
+    const tapeMetadata = {
+      sessionId: sessionRef.current?.id || null,
+      targetReps,
+      countGapMs,
+      techniqueName: currentTechnique?.name || "Practice",
+      steps: steps.map((step, index) => ({
+        id: step?.id ?? index,
+        step_name: step?.step_name || `Step ${index + 1}`
+      }))
+    };
+
+    setFullTapeFrames(analyzedTape);
+    setAnalysisTapeMetadata(tapeMetadata);
+    setFullTapeCursor(0);
+    setIsFullTapePlaying(false);
+    setIsTapePopupExpanded(true);
+    setIsCameraRollExpanded(false);
+    setCameraRollZoom(3);
+    setAnalysisCountFilter("all");
+    setAnalysisStepFilter("all");
+    sessionRef.current = { ...sessionRef.current, status: "completed" };
+    await completePracticeSession("completed");
+    sayPractice(
+      "Stop. Set finished. Your full sequence analysis is ready.",
+      { force: true, intent: `set_finished:${targetReps}`, speak: true }
+    );
+    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    if (sessionRef.current?.status === "completed") {
+      setIsTapePopupOpen(true);
+    }
+    await storePracticeTape(sessionRef.current?.id, analyzedTape, tapeMetadata);
+    isSetFinishingRef.current = false;
+  }, [
+    clearCountBeatTimers,
+    completePracticeSession,
+    countGapMs,
+    currentTechnique,
+    postPracticeRep,
+    sayPractice,
+    steps,
+    storePracticeTape,
+    targetReps
+  ]);
+
+  completeMovementRepRef.current = completeMovementRep;
+
+  const runPracticeCountBeat = useCallback(async () => {
+    if (
+      sessionRef.current?.status !== "active" &&
+      !isSetFinishingRef.current
+    ) {
+      return;
+    }
+
+    const nextCue = cueCountRef.current + 1;
+    if (nextCue > targetReps) return;
+
+    const countStartedAt = performance.now();
+    cueCountRef.current = nextCue;
+    countMarkersRef.current.push({
+      cue: nextCue,
+      elapsedMs: Math.round(countStartedAt - (setStartedAtRef.current || countStartedAt))
+    });
+    setCueCount(nextCue);
+    setAssistantMessage(String(nextCue));
+    if (textEnabled) {
+      appendConversation({ role: "ai", text: String(nextCue) });
+    }
+
     recoveryEndsAtRef.current = countStartedAt + countGapMs;
     setRecoveryRemainingMs(countGapMs);
 
     if (voiceEnabled) {
       playPracticeAudio(
-        String(nextRep),
-        numberAudioRef.current[nextRep - 1],
+        String(nextCue),
+        numberAudioRef.current[nextCue - 1],
         voiceRequestIdRef.current
       );
     }
-    const intervalTimerId = window.setTimeout(async () => {
-      if (sessionRef.current?.status !== "active") return;
-
-      const intervalEndedAt = performance.now();
-      const durationMs = Math.round(intervalEndedAt - countStartedAt);
-      const capturedSteps = cycleStepResultsRef.current;
-      const scoredSteps = capturedSteps.filter(Boolean);
-      const stepResults = steps.map((step, index) => {
-        const captured = capturedSteps[index];
-        return {
-          step: index + 1,
-          name: step?.step_name || `Step ${index + 1}`,
-          accuracy: captured?.accuracy || 0,
-          captured: Boolean(captured),
-          focusBodyPart: captured?.focusBodyPart || null,
-          issue: captured?.issue || "not_reached",
-          landmarks: captured?.landmarks || []
-        };
-      });
-      const repAccuracy = stepResults.length
-        ? Math.round(
-            stepResults.reduce((total, stepResult) => total + stepResult.accuracy, 0) /
-              stepResults.length
-          )
-        : latestPracticeResultRef.current.accuracy;
-      const weakestStep = scoredSteps.reduce(
-        (weakest, stepResult) =>
-          !weakest || stepResult.accuracy < weakest.accuracy ? stepResult : weakest,
-        null
-      );
-      const fallbackResult = latestPracticeResultRef.current;
-      const focus = weakestStep?.focusBodyPart || fallbackResult.focusBodyPart;
-      const issue = weakestStep?.issue || fallbackResult.issue;
-      const countMarker = countMarkersRef.current[nextRep - 1];
-
-      setCleanReps((value) => value + (repAccuracy >= CLEAN_ACCURACY ? 1 : 0));
-      setRepTape((entries) => [
-        ...entries,
-        {
-          rep: nextRep,
-          elapsedMs: countMarker?.elapsedMs || 0,
-          durationMs,
-          accuracy: repAccuracy,
-          clean: repAccuracy >= CLEAN_ACCURACY,
-          focusBodyPart: focus,
-          issue,
-          landmarks: latestLandmarksRef.current.map((point) => ({ ...point })),
-          stepResults
-        }
-      ]);
-      const saveRepPromise = postPracticeRep(
-        nextRep,
-        repAccuracy,
-        durationMs,
-        focus,
-        issue
-      );
-
-      if (nextRep < targetReps) {
+    if (nextCue < targetReps) {
+      const intervalTimerId = window.setTimeout(() => {
         countBeatRef.current?.();
-        await saveRepPromise;
-        return;
-      }
-
-      await saveRepPromise;
-      clearCountBeatTimers();
-      const tapeDurationMs = Math.round(
-        intervalEndedAt - (setStartedAtRef.current || intervalEndedAt)
-      );
-      const completedTape = buildThirtyFpsTape(recordedFramesRef.current, tapeDurationMs);
-      const analyzedTape = analyzeCountAttention(
-        completedTape,
-        countMarkersRef.current,
-        countGapMs
-      );
-      const tapeMetadata = {
-        sessionId: sessionRef.current?.id || null,
-        targetReps,
-        countGapMs,
-        techniqueName: currentTechnique?.name || "Practice",
-        steps: steps.map((step, index) => ({
-          id: step?.id ?? index,
-          step_name: step?.step_name || `Step ${index + 1}`
-        }))
-      };
-      setFullTapeFrames(analyzedTape);
-      setAnalysisTapeMetadata(tapeMetadata);
-      setFullTapeCursor(0);
-      setIsFullTapePlaying(false);
-      setIsTapePopupExpanded(true);
-      setIsCameraRollExpanded(false);
-      setCameraRollZoom(3);
-      setAnalysisCountFilter("all");
-      setAnalysisStepFilter("all");
-      sessionRef.current = { ...sessionRef.current, status: "completed" };
-      await completePracticeSession("completed");
-      sayPractice(
-        "Stop. Set finished. Your movement tape and full sequence analysis are ready.",
-        { force: true, intent: `set_finished:${targetReps}`, speak: true }
-      );
-      setIsTapePopupOpen(true);
-      await storePracticeTape(sessionRef.current?.id, analyzedTape, tapeMetadata);
-    }, countGapMs);
-    countBeatTimersRef.current = [intervalTimerId];
+      }, countGapMs);
+      countBeatTimersRef.current = [intervalTimerId];
+    }
   }, [
     appendConversation,
-    beginIntervalStepScan,
-    clearCountBeatTimers,
-    completePracticeSession,
     countGapMs,
-    currentTechnique,
     playPracticeAudio,
-    postPracticeRep,
-    sayPractice,
-    steps,
-    storePracticeTape,
     targetReps,
     textEnabled,
     voiceEnabled
@@ -1572,6 +1591,7 @@ export default function PracticeMode({
     setSession(LOCAL_SESSION);
     setSelectedStepIndex(startIndex);
     setRepCount(0);
+    setCueCount(0);
     setCleanReps(0);
     setRepTape([]);
     setTapeCursor(0);
@@ -1586,7 +1606,23 @@ export default function PracticeMode({
     countMarkersRef.current = [];
     previousRecordedLandmarksRef.current = [];
     repCountRef.current = 0;
-    cycleStepResultsRef.current = [];
+    cueCountRef.current = 0;
+    movementClassifierRef.current = createPracticeMovementClassifier({
+      countStep:
+        steps.findIndex((step) => step.counts_rep) >= 0
+          ? steps.findIndex((step) => step.counts_rep) + 1
+          : undefined,
+      stepCount: steps.length,
+      targetReps
+    });
+    latestMovementClassificationRef.current = {
+      rep: 1,
+      step: 1,
+      phase: "transition",
+      scorable: false
+    };
+    completedMovementRepsRef.current = new Set();
+    isSetFinishingRef.current = false;
     setStartedAtRef.current = null;
     repStartedAtRef.current = null;
     recoveryEndsAtRef.current = null;
@@ -1602,7 +1638,7 @@ export default function PracticeMode({
           started: true,
           stepName: steps[startIndex]?.step_name || currentTechnique.name
         })} Sequence: all ${steps.length} ${steps.length === 1 ? "step" : "steps"}. Start.`
-      : `Step ${startIndex + 1}: ${steps[startIndex]?.step_name || "continue the movement"}. I will count completed reps only.`;
+      : `Step ${startIndex + 1}: ${steps[startIndex]?.step_name || "continue the movement"}. I will cue the rhythm; your movement completes each rep.`;
     sayPractice(setupMessage, { intent: setupIntent, speak: false });
 
     numberAudioRef.current = voiceEnabled
@@ -1625,16 +1661,27 @@ export default function PracticeMode({
       const now = performance.now();
       const landmarks = latestLandmarksRef.current.map((point) => ({ ...point }));
       const holisticFrame = latestHolisticFrameRef.current;
+      const movementClassification = latestMovementClassificationRef.current;
       const poseMotion = getPoseMotion(previousRecordedLandmarksRef.current, landmarks);
       previousRecordedLandmarksRef.current = landmarks;
       recordedFramesRef.current.push({
         elapsedMs: now - rhythmStartedAt,
-        rep: Math.min(repCountRef.current + 1, targetReps),
-        step: selectedStepIndexRef.current + 1,
-        accuracy: latestPracticeResultRef.current.accuracy,
-        focusBodyPart: latestPracticeResultRef.current.focusBodyPart,
-        issue: latestPracticeResultRef.current.issue,
-        wrongBodyParts: [...(latestPracticeResultRef.current.wrongBodyParts || [])],
+        rep: movementClassification.rep,
+        step: movementClassification.step,
+        phase: movementClassification.phase,
+        scorable: movementClassification.scorable,
+        accuracy: movementClassification.scorable
+          ? latestPracticeResultRef.current.accuracy
+          : null,
+        focusBodyPart: movementClassification.scorable
+          ? latestPracticeResultRef.current.focusBodyPart
+          : null,
+        issue: movementClassification.scorable
+          ? latestPracticeResultRef.current.issue
+          : "transition",
+        wrongBodyParts: movementClassification.scorable
+          ? [...(latestPracticeResultRef.current.wrongBodyParts || [])]
+          : [],
         landmarks,
         facePoints: (holisticFrame.facePoints || [])
           .filter((point) => holisticFrame.faceSource === "pose33" || TAPE_FACE_INDICES.has(point.index))
@@ -1649,6 +1696,7 @@ export default function PracticeMode({
         motionScore: Math.max(holisticFrame.motionEnergy || 0, poseMotion * 10)
       });
     };
+    recordFrameRef.current = recordFrame;
     recordFrame();
     recordingTimerRef.current = window.setInterval(recordFrame, 1000 / 30);
     setIsReadyForRep(true);
@@ -1708,6 +1756,7 @@ export default function PracticeMode({
     setSession(null);
     sessionRef.current = null;
     setRepCount(0);
+    setCueCount(0);
     setCleanReps(0);
     setRepTape([]);
     setTapeCursor(0);
@@ -1722,7 +1771,16 @@ export default function PracticeMode({
     countMarkersRef.current = [];
     previousRecordedLandmarksRef.current = [];
     repCountRef.current = 0;
-    cycleStepResultsRef.current = [];
+    cueCountRef.current = 0;
+    movementClassifierRef.current = null;
+    latestMovementClassificationRef.current = {
+      rep: 1,
+      step: 1,
+      phase: "transition",
+      scorable: false
+    };
+    completedMovementRepsRef.current = new Set();
+    isSetFinishingRef.current = false;
     numberAudioRef.current = [];
     setStartedAtRef.current = null;
     recoveryEndsAtRef.current = null;
@@ -1753,6 +1811,7 @@ export default function PracticeMode({
     sessionRef.current = null;
     setSelectedStepIndex(nextIndex);
     setRepCount(0);
+    setCueCount(0);
     setCleanReps(0);
     setRepTape([]);
     setTapeCursor(0);
@@ -1765,7 +1824,15 @@ export default function PracticeMode({
     setIsTapePopupOpen(false);
     recordedFramesRef.current = [];
     repCountRef.current = 0;
-    cycleStepResultsRef.current = [];
+    cueCountRef.current = 0;
+    movementClassifierRef.current = null;
+    latestMovementClassificationRef.current = {
+      rep: 1,
+      step: nextIndex + 1,
+      phase: "transition",
+      scorable: false
+    };
+    completedMovementRepsRef.current = new Set();
     setStartedAtRef.current = null;
     recoveryEndsAtRef.current = null;
     setRecoveryRemainingMs(0);
@@ -1878,21 +1945,7 @@ export default function PracticeMode({
     latestPracticeResultRef.current = result;
     setAccuracy(result.accuracy);
     setFocusBodyPart(result.focusBodyPart);
-
-    if (sessionRef.current?.status !== "active") return;
-
-    const stepIndex = selectedStepIndex;
-    const savedResult = cycleStepResultsRef.current[stepIndex];
-    if (!savedResult || result.accuracy > savedResult.accuracy) {
-      cycleStepResultsRef.current[stepIndex] = {
-        ...result,
-        landmarks: latestLandmarksRef.current.map((point) => ({ ...point }))
-      };
-    }
-  }, [
-    requiredParts,
-    selectedStepIndex
-  ]);
+  }, [requiredParts]);
 
   const stopVoiceInput = useCallback((status = "Voice commands are off.") => {
     shouldListenRef.current = false;
@@ -2145,6 +2198,7 @@ export default function PracticeMode({
           currentStepId={selectedStep?.id}
           currentStepName={selectedStep?.step_name}
           requiredParts={requiredParts}
+          measurementParts={measurementParts}
           onAngleUpdate={handleAngleUpdate}
           onLandmarkFrame={handleLandmarkFrame}
           onLevel1Update={handleLevel1Update}
@@ -2159,7 +2213,7 @@ export default function PracticeMode({
         {isPracticeActive ? (
           <div className="practice-count-cue" role="status">
             <span>AI LEAD</span>
-            <strong>{repCount ? repCount : "START"}</strong>
+            <strong>{cueCount ? cueCount : "START"}</strong>
             <small>
               {recoveryRemainingMs > 0
                 ? `Next count in ${(recoveryRemainingMs / 1000).toFixed(1)}s`
@@ -2210,8 +2264,8 @@ export default function PracticeMode({
           </div>
           <p>
             {isPracticeActive
-              ? `${Math.max(targetReps - repCount, 0)} reps remaining. Follow the fixed count; form is being scored in the background.`
-              : "Choose a rep count and count gap. Accuracy will be recorded without delaying the rhythm."}
+              ? `${Math.max(targetReps - repCount, 0)} movement reps remaining. Cues set the rhythm; form and completion are measured separately.`
+              : "Choose a rep target and cue gap. Movement completes reps; cue timing does not affect form accuracy."}
           </p>
         </div>
 
@@ -2299,102 +2353,39 @@ export default function PracticeMode({
           </div>
         </div>
 
-        <div className={`panel-block practice-tape practice-tape--left ${session?.status === "completed" ? "practice-tape--complete" : ""}`}>
-          <div className="practice-tape__header">
+        <div className="panel-block practice-last-session">
+          <div className="panel-heading">
             <div>
-              <p className="eyebrow">Session tape</p>
-              <strong>{repTape.length ? `${repTape.length} / ${targetReps} counts` : "Ready to record"}</strong>
+              <p className="eyebrow">Last session</p>
+              <strong>
+                {recentSet?.technique_name || "No completed session"}
+              </strong>
             </div>
-            <div className="practice-tape__header-actions">
-              {fullTapeFrames.length ? (
-                <button onClick={() => setIsTapePopupOpen(true)} type="button">
-                  Full tape
-                </button>
-              ) : null}
+            {recentSet ? (
               <button
-                disabled={repTape.length < 2}
-                onClick={() => {
-                  if (!isTapePlaying && tapeCursor >= repTape.length - 1) {
-                    setTapeCursor(0);
-                    setTapeStepCursor(0);
-                  }
-                  setIsTapePlaying((playing) => !playing);
-                }}
+                aria-label={`Expand ${recentSet.technique_name} session summary`}
+                onClick={() => openHistorySession(recentSet)}
                 type="button"
               >
-                {isTapePlaying ? "Pause" : "Play"}
+                Expand
               </button>
-            </div>
+            ) : null}
           </div>
-
-          <div className="practice-tape__viewer">
-            <TapeSkeleton
-              landmarks={selectedTapeStep?.landmarks || selectedTapeRep?.landmarks}
-              mirrored={displayMirrored}
-            />
-            <div className="practice-tape__readout">
-              <span>{selectedTapeRep ? `COUNT ${selectedTapeRep.rep}` : "NO COUNT YET"}</span>
-              <strong>{selectedTapeRep ? `${selectedTapeRep.accuracy}%` : "--"}</strong>
-              <small>
-                {selectedTapeRep
-                  ? `${(selectedTapeRep.durationMs / 1000).toFixed(1)}s interval · ${selectedTapeRep.clean ? "clean" : "review"}`
-                  : "Start the set to capture movement"}
-              </small>
-              {selectedTapeStep ? (
-                <small>
-                  Step {selectedTapeStep.step} · {selectedTapeStep.captured
-                    ? `${selectedTapeStep.accuracy}%`
-                    : "not captured"}
-                </small>
-              ) : null}
-              {selectedTapeRep?.focusBodyPart ? (
-                <small>Focus · {formatBodyPart(selectedTapeRep.focusBodyPart)}</small>
-              ) : null}
-            </div>
-          </div>
-
-          {selectedTapeRep?.stepResults?.length ? (
-            <div className="practice-tape__steps" aria-label={`Count ${selectedTapeRep.rep} step accuracy`}>
-              {selectedTapeRep.stepResults.map((stepResult, index) => (
-                <button
-                  aria-pressed={index === tapeStepCursor}
-                  className={`${index === tapeStepCursor ? "is-current" : ""} ${stepResult.captured ? "" : "is-missing"}`}
-                  key={`${selectedTapeRep.rep}-${stepResult.step}`}
-                  onClick={() => setTapeStepCursor(index)}
-                  title={stepResult.name}
-                  type="button"
-                >
-                  <span>S{stepResult.step}</span>
-                  <strong>{stepResult.captured ? `${stepResult.accuracy}%` : "--"}</strong>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="practice-tape__ruler" aria-label="Set timeline">
-            <div className="practice-tape__track" />
-            {repTape.map((entry, index) => (
-              <button
-                aria-label={`Count ${entry.rep} at ${formatTapeTime(entry.elapsedMs)}`}
-                className={`${index === tapeCursor ? "is-current" : ""} ${entry.clean ? "is-clean" : "is-review"}`}
-                key={entry.rep}
-                onClick={() => {
-                  setIsTapePlaying(false);
-                  setTapeCursor(index);
-                  setTapeStepCursor(0);
-                }}
-                style={{ left: `${tapeDurationMs ? (entry.elapsedMs / tapeDurationMs) * 100 : 0}%` }}
-                type="button"
-              >
-                <b>{entry.rep}</b>
-                <span>{formatTapeTime(entry.elapsedMs)}</span>
-              </button>
-            ))}
-          </div>
-          <div className="practice-tape__scale">
-            <span>START · 0:00.0</span>
-            <span>{session?.status === "completed" ? "FINISH" : "LIVE"} · {formatTapeTime(tapeDurationMs)}</span>
-          </div>
+          {recentSet ? (
+            <>
+              <time dateTime={recentSet.ended_at || recentSet.started_at || undefined}>
+                {formatSessionTimestamp(recentSet.ended_at || recentSet.started_at)}
+              </time>
+              <div className="practice-last-session__metrics">
+                <span><small>Reps</small><strong>{recentSet.completed_reps}/{recentSet.target_reps}</strong></span>
+                <span><small>Average</small><strong>{recentSet.average_accuracy}%</strong></span>
+                <span><small>Clean</small><strong>{recentSet.clean_reps}</strong></span>
+                <span><small>Consistency</small><strong>{recentSet.consistency_score}%</strong></span>
+              </div>
+            </>
+          ) : (
+            <p className="empty-state">Your latest completed set will appear here.</p>
+          )}
         </div>
 
       </aside>
@@ -2465,27 +2456,6 @@ export default function PracticeMode({
             <div><span>Consistency</span><strong>{overallKpi ? `${overallKpi.consistency_score}%` : "--"}</strong></div>
             <div><span>Total reps</span><strong>{overallKpi?.total_reps ?? "--"}</strong></div>
           </div>
-        </div>
-
-        <div className="panel-block practice-recent-set">
-          <div className="panel-heading">
-            <p className="eyebrow">Recent Set</p>
-            <time dateTime={recentSet?.ended_at || recentSet?.started_at || undefined}>
-              {formatSessionTimestamp(recentSet?.ended_at || recentSet?.started_at)}
-            </time>
-          </div>
-          {recentSet ? (
-            <>
-              <strong className="practice-recent-set__name">{recentSet.technique_name}</strong>
-              <div className="practice-recent-set__metrics">
-                <span><small>Reps</small><strong>{recentSet.completed_reps}/{recentSet.target_reps}</strong></span>
-                <span><small>Average</small><strong>{recentSet.average_accuracy}%</strong></span>
-                <span><small>Clean</small><strong>{recentSet.clean_reps}</strong></span>
-              </div>
-            </>
-          ) : (
-            <p className="empty-state">Complete a set to create your first analysis.</p>
-          )}
         </div>
 
         <div className="panel-block practice-session-history">
@@ -2686,18 +2656,18 @@ export default function PracticeMode({
                   <p className="eyebrow">Selected frame</p>
                   <strong>Frame {fullTapeCursor + 1}</strong>
                 </div>
-                <span className={fullTapeFrame?.accuracy < CLEAN_ACCURACY ? "is-review" : "is-clean"}>
-                  {fullTapeFrame?.accuracy < CLEAN_ACCURACY ? "Review" : "Clean"}
+                <span className={!fullTapeFrameScorable ? "is-transition" : fullTapeFrameNeedsReview ? "is-review" : "is-clean"}>
+                  {!fullTapeFrameScorable ? "Transition" : fullTapeFrameNeedsReview ? "Review" : "Clean"}
                 </span>
               </div>
               <TapeSkeleton
                 highlightBodyPart={
-                  fullTapeFrame?.accuracy < CLEAN_ACCURACY
+                  fullTapeFrameNeedsReview
                     ? fullTapeFrame?.focusBodyPart
                     : null
                 }
                 highlightBodyParts={
-                  fullTapeFrame?.accuracy < CLEAN_ACCURACY
+                  fullTapeFrameNeedsReview
                     ? fullTapeFrame?.wrongBodyParts
                     : []
                 }
@@ -2737,12 +2707,26 @@ export default function PracticeMode({
 
             <div className="practice-session-analysis__details">
               <p className="eyebrow">Frame and sequence analytics</p>
-              <h3>Timestamp, count, form and attention</h3>
+              <h3>Timestamp, rep, form and cue attention</h3>
               <div className="practice-session-analysis__frame-meta">
                 <span><small>Timestamp</small><strong>{formatTapeTime(fullTapeFrame?.elapsedMs || 0)}</strong></span>
-                <span><small>Count</small><strong>{fullTapeFrame?.rep || "--"}</strong></span>
-                <span><small>Step</small><strong>{fullTapeFrame?.step || "--"}</strong></span>
-                <span><small>Accuracy</small><strong>{fullTapeFrame?.accuracy ?? "--"}%</strong></span>
+                <span><small>Rep</small><strong>{fullTapeFrame?.rep || "--"}</strong></span>
+                <span>
+                  <small>Step</small>
+                  <strong>
+                    {fullTapeFrame?.phase === "transition"
+                      ? `Transition to ${fullTapeFrame?.step || "--"}`
+                      : fullTapeFrame?.step || "--"}
+                  </strong>
+                </span>
+                <span>
+                  <small>Accuracy</small>
+                  <strong>
+                    {Number.isFinite(fullTapeFrame?.accuracy)
+                      ? `${fullTapeFrame.accuracy}%`
+                      : "Not scored"}
+                  </strong>
+                </span>
                 <span>
                   <small>Count cue</small>
                   <strong className={`is-${fullTapeFrame?.attentionTiming || "no-response"}`}>
@@ -2756,10 +2740,12 @@ export default function PracticeMode({
                   <strong>{formatAttentionOffset(fullTapeFrame?.attentionOffsetMs)}</strong>
                 </span>
               </div>
-              <div className={`practice-session-analysis__finding ${fullTapeFrame?.accuracy < CLEAN_ACCURACY ? "is-warning" : "is-clean"}`}>
-                <span>{fullTapeFrame?.accuracy < CLEAN_ACCURACY ? "Needs review" : "Clean frame"}</span>
+              <div className={`practice-session-analysis__finding ${!fullTapeFrameScorable ? "is-transition" : fullTapeFrameNeedsReview ? "is-warning" : "is-clean"}`}>
+                <span>{!fullTapeFrameScorable ? "Movement transition" : fullTapeFrameNeedsReview ? "Needs review" : "Clean frame"}</span>
                 <strong>
-                  {fullTapeFrame?.accuracy < CLEAN_ACCURACY && fullTapeFrame?.focusBodyPart
+                  {!fullTapeFrameScorable
+                    ? "Connecting steps are preserved but excluded from form accuracy"
+                    : fullTapeFrameNeedsReview && fullTapeFrame?.focusBodyPart
                     ? `${formatBodyPart(fullTapeFrame.focusBodyPart)} · ${formatBodyPart(fullTapeFrame.issue)}`
                     : "Target angles are within range"}
                 </strong>
@@ -2769,7 +2755,7 @@ export default function PracticeMode({
               <div className="practice-session-analysis__summary">
                 <span><small>Average</small><strong>{fullTapeAverageAccuracy}%</strong></span>
                 <span><small>Review frames</small><strong>{fullTapeReviewFrames}</strong></span>
-                <span><small>Counts</small><strong>{popupRepTape.length}/{tapeTargetReps}</strong></span>
+                <span><small>Reps</small><strong>{popupRepTape.length}/{tapeTargetReps}</strong></span>
                 <span><small>Consistency</small><strong>{sequenceConsistency}%</strong></span>
                 <span><small>Count attention</small><strong>{attentionRate}%</strong></span>
               </div>
@@ -2782,18 +2768,18 @@ export default function PracticeMode({
                   {countAttentionResults.map((result) => (
                     <button
                       className={`is-${result.timing}`}
-                      key={`attention-${result.rep}`}
+                      key={`attention-${result.cue}`}
                       onClick={() => {
                         const markerFrame = fullTapeFrames.findIndex(
                           (frame) =>
-                            frame.rep === result.rep &&
+                            frame.countCue === result.cue &&
                             Math.abs(frame.elapsedMs - (result.timestampMs || 0)) <= 1000 / 30
                         );
                         if (markerFrame >= 0) setFullTapeCursor(markerFrame);
                       }}
                       type="button"
                     >
-                      <span>Count {result.rep}</span>
+                      <span>Count {result.cue}</span>
                       <strong>{result.timing === "on-time" ? "On time" : formatBodyPart(result.timing)}</strong>
                       <small>{formatAttentionOffset(result.offsetMs)}</small>
                     </button>
@@ -2901,7 +2887,7 @@ export default function PracticeMode({
               <strong>Skeleton camera roll · click any frame to analyze</strong>
               <div className="practice-camera-roll-filters">
                 <label>
-                  <span>Count</span>
+                  <span>Rep</span>
                   <select
                     onChange={(event) => {
                       const nextFilter = event.target.value;
@@ -2915,10 +2901,10 @@ export default function PracticeMode({
                     }}
                     value={analysisCountFilter}
                   >
-                    <option value="all">All counts</option>
+                    <option value="all">All reps</option>
                     {popupRepTape.map((rep) => (
                       <option key={`count-filter-${rep.rep}`} value={rep.rep}>
-                        Count {rep.rep}
+                        Rep {rep.rep}
                       </option>
                     ))}
                   </select>
@@ -2962,7 +2948,7 @@ export default function PracticeMode({
               >
                 −
               </button>
-              <span>{timelineFrameWidth < 10 ? timelineFrameWidth.toFixed(2) : Math.round(timelineFrameWidth)} px/frame</span>
+              <span>{cameraRollFrameWidth < 10 ? cameraRollFrameWidth.toFixed(2) : Math.round(cameraRollFrameWidth)} px/frame</span>
               <button
                 aria-label="Expand timeline"
                 disabled={cameraRollZoom >= 120}
@@ -2986,27 +2972,28 @@ export default function PracticeMode({
 
           <div
             aria-label="All skeleton frames"
-            className={`practice-camera-roll ${isCameraRollExpanded ? "is-expanded" : ""} ${timelineFrameWidth < 24 ? "is-compressed" : ""}`}
-            onScroll={(event) =>
-              syncTimelineScroll(event.currentTarget, accuracyTimelineScrollRef)
+            className={`practice-camera-roll ${isCameraRollExpanded ? "is-expanded" : ""} ${cameraRollFrameWidth < 24 ? "is-compressed" : ""}`}
+            onScroll={
+              hasActiveTapeFilter
+                ? undefined
+                : (event) =>
+                    syncTimelineScroll(event.currentTarget, accuracyTimelineScrollRef)
             }
             ref={cameraRollScrollRef}
             style={{
-              "--camera-roll-frame-width": `${timelineFrameWidth}px`,
-              "--timeline-content-width": `${timelineContentWidth}px`
+              "--camera-roll-frame-width": `${cameraRollFrameWidth}px`,
+              "--timeline-content-width": `${cameraRollContentWidth}px`
             }}
           >
-            {fullTapeFrames.map((frame, index) => {
-              const matchesFilter =
-                (analysisCountFilter === "all" ||
-                  frame.rep === Number(analysisCountFilter)) &&
-                (analysisStepFilter === "all" ||
-                  frame.step === Number(analysisStepFilter));
+            {filteredTapeFrames.map(({ frame, index }) => {
+              const isScorable =
+                frame.scorable !== false && Number.isFinite(frame.accuracy);
+              const needsReview =
+                isScorable && frame.accuracy < CLEAN_ACCURACY;
               return (
                 <button
-                  aria-label={`Frame ${frame.frame}, count ${frame.rep}, step ${frame.step}, ${frame.accuracy}% accuracy`}
-                  className={`${index === fullTapeCursor ? "is-current" : ""} ${frame.accuracy < CLEAN_ACCURACY ? "is-review" : "is-clean"} ${matchesFilter ? "is-filter-match" : "is-filtered-out"}`}
-                  disabled={!matchesFilter}
+                  aria-label={`Frame ${frame.frame}, rep ${frame.rep}, step ${frame.step}, ${isScorable ? `${frame.accuracy}% accuracy` : "movement transition"}`}
+                  className={`${index === fullTapeCursor ? "is-current" : ""} ${!isScorable ? "is-transition" : needsReview ? "is-review" : "is-clean"} is-filter-match`}
                   key={frame.frame}
                   onClick={() => {
                     setIsFullTapePlaying(false);
@@ -3016,18 +3003,18 @@ export default function PracticeMode({
                 >
                   <TapeSkeleton
                     highlightBodyPart={
-                      frame.accuracy < CLEAN_ACCURACY ? frame.focusBodyPart : null
+                      needsReview ? frame.focusBodyPart : null
                     }
                     highlightBodyParts={
-                      frame.accuracy < CLEAN_ACCURACY ? frame.wrongBodyParts : []
+                      needsReview ? frame.wrongBodyParts : []
                     }
                     landmarks={frame.landmarks}
                     mirrored={displayMirrored}
                   />
                   <span className="practice-camera-roll__frame">F{frame.frame}</span>
                   <time>{formatTapeTime(frame.elapsedMs)}</time>
-                  <span>C{frame.rep} · S{frame.step} · {frame.attentionTiming === "on-time" ? "ON" : frame.attentionTiming?.toUpperCase()}</span>
-                  <strong>{frame.accuracy}%</strong>
+                  <span>R{frame.rep} · S{frame.step} · {frame.attentionTiming === "on-time" ? "ON" : frame.attentionTiming?.toUpperCase()}</span>
+                  <strong>{isScorable ? `${frame.accuracy}%` : "MOVE"}</strong>
                 </button>
               );
             })}

@@ -53,10 +53,11 @@
         {
           "step_number": 2,
           "step_name": "Extend lead hand",
+          "counts_rep": true,
           "angles": [
             {
               "body_part": "elbow_left",
-              "min": 155,
+              "min": 145,
               "max": 180
             },
             {

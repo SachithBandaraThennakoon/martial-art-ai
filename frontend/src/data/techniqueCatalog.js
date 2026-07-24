@@ -33,6 +33,7 @@ function buildTechniqueCatalog({
       id: step.id,
       step_number: step.step_number,
       step_name: step.step_name,
+      counts_rep: Boolean(step.counts_rep),
       angles: stepAngles.get(step.id) || []
     });
     items.set(step.technique_id, list);
@@ -67,6 +68,7 @@ function buildTechniqueCatalog({
           id: step.id ?? `${techniqueId}-step-${step.step_number ?? index + 1}`,
           step_number: step.step_number ?? index + 1,
           step_name: step.step_name || `Step ${index + 1}`,
+          counts_rep: Boolean(step.counts_rep),
           angles: (step.angles || []).map((angle) => ({
             body_part: angle.body_part,
             min: angle.min ?? angle.min_angle,

@@ -5865,6 +5865,12 @@ select:focus {
   background: rgba(255, 93, 104, .09);
 }
 
+.practice-selected-frame__heading > span.is-transition {
+  border-color: rgba(106, 168, 255, .35);
+  color: #91b8df;
+  background: rgba(106, 168, 255, .07);
+}
+
 .practice-selected-frame__tracking {
   display: grid;
   z-index: 1;
@@ -5984,6 +5990,11 @@ select:focus {
 .practice-session-analysis__finding.is-warning {
   border-color: rgba(255, 93, 104, .42);
   background: rgba(255, 93, 104, .08);
+}
+
+.practice-session-analysis__finding.is-transition {
+  border-color: rgba(106, 168, 255, .24);
+  background: rgba(106, 168, 255, .05);
 }
 
 .practice-session-analysis__finding span {
@@ -6451,6 +6462,12 @@ select:focus {
 
 .practice-camera-roll > button.is-review {
   border-color: rgba(255, 93, 104, .26);
+}
+
+.practice-camera-roll > button.is-transition {
+  border-color: rgba(106, 168, 255, .16);
+  color: #8395a3;
+  background: rgba(106, 168, 255, .035);
 }
 
 .practice-camera-roll > button.is-current {
@@ -7552,6 +7569,70 @@ select:focus {
 
 .practice-tape--left {
   min-height: 330px;
+}
+
+.practice-last-session {
+  display: grid;
+  gap: 12px;
+}
+
+.practice-last-session .panel-heading {
+  align-items: flex-start;
+}
+
+.practice-last-session .panel-heading > div > strong {
+  display: block;
+  max-width: 170px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.practice-last-session .panel-heading > button {
+  padding: 7px 10px;
+  border: 1px solid rgba(106, 168, 255, .34);
+  border-radius: 6px;
+  color: #b8d5f2;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: rgba(106, 168, 255, .08);
+}
+
+.practice-last-session > time {
+  color: var(--subtle);
+  font-size: 10px;
+}
+
+.practice-last-session__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.practice-last-session__metrics > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.practice-last-session__metrics small {
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.practice-last-session__metrics strong {
+  color: var(--text);
+  font-size: 15px;
 }
 
 .practice-technique-card h1 {
