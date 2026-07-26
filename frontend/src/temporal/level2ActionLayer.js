@@ -1,3 +1,5 @@
+import { ActionSegmentationEngine } from "./actionSegmentationEngine.js";
+
 const DEFAULT_CONFIG = {
   updateIntervalMs: 160,
   motionThreshold: 0.03,
@@ -103,6 +105,7 @@ export class Level2ActionLayer {
     this.lastOnnxUpdateMs = 0;
     this.onnxPredictor = null;
     this.onnxPredictorPromise = null;
+    this.segmentationEngine = new ActionSegmentationEngine(config.segmentation);
   }
 
   ensureOnnxPredictor() {
@@ -238,6 +241,16 @@ export class Level2ActionLayer {
       motion_energy: Number(motionEnergy.toFixed(4)),
       targets: targetScores
     };
+    const temporalSegmentation = this.segmentationEngine.update({
+      timestampMs,
+      trackingConfidence: level1State.tracking?.confidence || 0,
+      motionEnergy,
+      stepProbability,
+      mistakeRisk,
+      currentStepId,
+      currentStepName
+    });
+    actionContext.temporal_segmentation = temporalSegmentation;
     const shouldUpdateOnnx =
       this.config.onnxEnabled &&
       this.onnxPredictor &&

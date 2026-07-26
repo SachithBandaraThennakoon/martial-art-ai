@@ -490,6 +490,97 @@ export function attachCountAttention(frames, countMarkers, gapMs) {
   });
 }
 
+export function getPracticeCuePrompt({
+  cueCount,
+  targetReps,
+  repCount,
+  recoveryRemainingMs,
+  isReadyForRep
+}) {
+  const finalCueReached = cueCount >= targetReps;
+  if (finalCueReached && repCount < targetReps) {
+    return recoveryRemainingMs > 0
+      ? `Final cue — finish the movement (${(recoveryRemainingMs / 1000).toFixed(1)}s)`
+      : "Waiting for a complete movement";
+  }
+  if (recoveryRemainingMs > 0) {
+    return `Next count in ${(recoveryRemainingMs / 1000).toFixed(1)}s`;
+  }
+  return isReadyForRep ? "Move — I’m watching the rep" : "Reading movement";
+}
+
+export function shouldExpireUnmatchedPracticeSet({
+  sessionStatus,
+  cueCount,
+  targetReps,
+  repCount
+}) {
+  return (
+    sessionStatus === "active" &&
+    cueCount >= targetReps &&
+    repCount < targetReps
+  );
+}
+
+export function shouldProcessPracticeFrame({
+  sessionStatus,
+  classifierReady,
+  recordingStarted,
+  cueStarted
+}) {
+  return (
+    sessionStatus === "active" &&
+    classifierReady === true &&
+    recordingStarted === true &&
+    cueStarted === true
+  );
+}
+
+export function trimPracticeTapeFrames(
+  frames,
+  { paddingBeforeMs = 700, paddingAfterMs = 700, motionThreshold = 0.02 } = {}
+) {
+  if (!frames?.length) return [];
+
+  const activeFrames = frames.filter((frame) =>
+    frame.scorable === true ||
+    (Number(frame.motionScore) || 0) >= motionThreshold ||
+    ["step_enter", "step_hold", "step_peak", "rep_peak", "rep_recovery"].includes(
+      frame.temporalPhase
+    )
+  );
+  if (!activeFrames.length) return frames.map((frame) => ({ ...frame }));
+
+  const firstCueMs = frames
+    .map((frame) => frame.countTimestampMs)
+    .filter(Number.isFinite)
+    .sort((first, second) => first - second)[0];
+  const firstActivityMs = activeFrames[0].elapsedMs;
+  const lastActivityMs = activeFrames[activeFrames.length - 1].elapsedMs;
+  const startMs = Math.max(
+    0,
+    Math.min(
+      firstActivityMs - paddingBeforeMs,
+      Number.isFinite(firstCueMs) ? firstCueMs - Math.min(300, paddingBeforeMs) : Infinity
+    )
+  );
+  const endMs = lastActivityMs + paddingAfterMs;
+
+  return frames
+    .filter((frame) => frame.elapsedMs >= startMs && frame.elapsedMs <= endMs)
+    .map((frame, index) => ({
+      ...frame,
+      frame: index + 1,
+      elapsedMs: frame.elapsedMs - startMs,
+      countTimestampMs: Number.isFinite(frame.countTimestampMs)
+        ? frame.countTimestampMs - startMs
+        : frame.countTimestampMs,
+      movementPeakMs: Number.isFinite(frame.movementPeakMs)
+        ? frame.movementPeakMs - startMs
+        : frame.movementPeakMs
+    }));
+}
+
 export function filterPracticeTapeFrames(
   frames,
   { rep = "all", step = "all" } = {}

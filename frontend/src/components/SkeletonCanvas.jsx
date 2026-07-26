@@ -617,6 +617,8 @@ export default function SkeletonCanvas({
   onLevel4Update,
   onSituationAwarenessUpdate,
   onLandmarkFrame,
+  temporalCue,
+  temporalSessionId,
   bodyCalibration,
   calibrationActive = false,
   onBodyCalibrationSample,
@@ -703,6 +705,19 @@ export default function SkeletonCanvas({
   const lastLevel3UpdateTimeRef = useRef(0);
   const lastLevel4UpdateTimeRef = useRef(0);
   const lastSituationAwarenessUpdateTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (!temporalCue?.cue || !Number.isFinite(temporalCue.timestampMs)) return;
+    level3SessionRef.current.recordCue({
+      cue: temporalCue.cue,
+      timestampMs: temporalCue.timestampMs
+    });
+  }, [temporalCue]);
+
+  useEffect(() => {
+    if (temporalSessionId === null || temporalSessionId === undefined) return;
+    level3SessionRef.current.reset();
+  }, [temporalSessionId]);
 
   const sendCoachCommand = useCallback((command) => {
     if (!command || wsRef.current?.readyState !== WebSocket.OPEN) {

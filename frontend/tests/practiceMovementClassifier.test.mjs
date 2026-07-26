@@ -5,8 +5,108 @@ import {
   attachCountAttention,
   createPracticeMovementClassifier,
   filterPracticeTapeFrames,
-  reclassifyPracticeSequence
+  getPracticeCuePrompt,
+  reclassifyPracticeSequence,
+  shouldProcessPracticeFrame,
+  shouldExpireUnmatchedPracticeSet,
+  trimPracticeTapeFrames
 } from "../src/utils/practiceMovementClassifier.js";
+
+test("final unmatched cue does not promise another count", () => {
+  assert.equal(
+    getPracticeCuePrompt({
+      cueCount: 3,
+      targetReps: 3,
+      repCount: 0,
+      recoveryRemainingMs: 2000,
+      isReadyForRep: true
+    }),
+    "Final cue — finish the movement (2.0s)"
+  );
+  assert.equal(
+    getPracticeCuePrompt({
+      cueCount: 3,
+      targetReps: 3,
+      repCount: 0,
+      recoveryRemainingMs: 0,
+      isReadyForRep: true
+    }),
+    "Waiting for a complete movement"
+  );
+});
+
+test("only an active set with exhausted cues and missing reps expires", () => {
+  assert.equal(
+    shouldExpireUnmatchedPracticeSet({
+      sessionStatus: "active",
+      cueCount: 3,
+      targetReps: 3,
+      repCount: 0
+    }),
+    true
+  );
+  assert.equal(
+    shouldExpireUnmatchedPracticeSet({
+      sessionStatus: "active",
+      cueCount: 3,
+      targetReps: 3,
+      repCount: 3
+    }),
+    false
+  );
+  assert.equal(
+    shouldExpireUnmatchedPracticeSet({
+      sessionStatus: "cancelled",
+      cueCount: 3,
+      targetReps: 3,
+      repCount: 0
+    }),
+    false
+  );
+});
+
+test("setup frames cannot advance the movement classifier before recording starts", () => {
+  assert.equal(
+    shouldProcessPracticeFrame({
+      sessionStatus: "active",
+      classifierReady: true,
+      recordingStarted: false,
+      cueStarted: false
+    }),
+    false
+  );
+  assert.equal(
+    shouldProcessPracticeFrame({
+      sessionStatus: "active",
+      classifierReady: true,
+      recordingStarted: true,
+      cueStarted: true
+    }),
+    true
+  );
+});
+
+test("tape trimming preserves margins around activity and renormalizes timing", () => {
+  const frames = Array.from({ length: 21 }, (_, index) => ({
+    frame: index + 1,
+    elapsedMs: index * 100,
+    countTimestampMs: 500,
+    movementPeakMs: 1200,
+    motionScore: index >= 8 && index <= 14 ? 0.05 : 0,
+    scorable: false
+  }));
+
+  const trimmed = trimPracticeTapeFrames(frames, {
+    paddingBeforeMs: 300,
+    paddingAfterMs: 300
+  });
+
+  assert.equal(trimmed[0].elapsedMs, 0);
+  assert.equal(trimmed[0].countTimestampMs, 300);
+  assert.equal(trimmed[trimmed.length - 1].elapsedMs, 1500);
+  assert.equal(trimmed[0].frame, 1);
+  assert.equal(trimmed.at(-1).frame, trimmed.length);
+});
 
 test("count time does not advance a movement repetition", () => {
   const classifier = createPracticeMovementClassifier({

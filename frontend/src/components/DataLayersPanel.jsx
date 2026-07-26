@@ -41,8 +41,11 @@ export default function DataLayersPanel({
 }) {
   const motion = level1State?.motion_context || {};
   const action = level2State?.action_context || {};
+  const segmentation = action.temporal_segmentation || {};
+  const boundary = segmentation.boundary || {};
   const session = level3State?.session_context || {};
   const repeatedMistake = session.repeated_mistake;
+  const repetitionSummary = session.repetition_summary || {};
   const user = level4State?.user_context || {};
   const activeTechnique = user.active_technique || {};
   const topWeakness = user.top_weakness || {};
@@ -95,6 +98,13 @@ export default function DataLayersPanel({
             value: `${formatDecimal(action.mistake_risk)} (${formatPercent(action.mistake_risk)})`
           },
           { key: "temporal_trend", value: formatLabel(action.temporal_trend) },
+          { key: "temporal_segmentation.frame_label", value: formatLabel(segmentation.frame_label) },
+          { key: "temporal_segmentation.motion_phase", value: formatLabel(segmentation.motion_phase) },
+          {
+            key: "temporal_segmentation.boundary_probability",
+            value: `${formatDecimal(boundary.probability)} (${formatPercent(boundary.probability)})`
+          },
+          { key: "temporal_segmentation.event", value: formatLabel(segmentation.event?.type) },
           { key: "likely_mistake.body_part", value: formatLabel(action.likely_mistake?.body_part) },
           { key: "likely_mistake.issue", value: formatLabel(action.likely_mistake?.issue) },
           { key: "next_step_prediction", value: formatLabel(action.next_step_prediction) }
@@ -120,6 +130,18 @@ export default function DataLayersPanel({
             value: `${formatDecimal(session.fatigue_risk)} (${formatPercent(session.fatigue_risk)})`
           },
           { key: "recommendation", value: formatLabel(session.recommendation) },
+          { key: "temporal_phase", value: formatLabel(session.temporal_phase) },
+          { key: "latest_event", value: formatLabel(session.latest_event?.type) },
+          { key: "repetitions_completed", value: repetitionSummary.repetitions_completed || 0 },
+          { key: "correct_repetitions", value: repetitionSummary.correct_repetitions || 0 },
+          {
+            key: "average_form_quality",
+            value: `${formatDecimal(repetitionSummary.average_form_quality)} (${formatPercent(repetitionSummary.average_form_quality)})`
+          },
+          {
+            key: "average_reaction_time_ms",
+            value: repetitionSummary.average_reaction_time_ms ?? "--"
+          },
           { key: "repeated_mistake.body_part", value: formatLabel(repeatedMistake?.body_part) },
           { key: "ready_for_level_4", value: String(Boolean(session.ready_for_level_4)) }
         ]}

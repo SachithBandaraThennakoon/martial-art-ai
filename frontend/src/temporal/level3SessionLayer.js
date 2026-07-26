@@ -1,6 +1,9 @@
+import { RepetitionSessionLedger } from "./repetitionSessionLedger.js";
+
 const DEFAULT_CONFIG = {
   updateIntervalMs: 500,
   windowSize: 36,
+  minSamplesForDecision: 6,
   readyThreshold: 0.72,
   fatigueRiskThreshold: 0.62,
   repeatedMistakeMinCount: 3
@@ -69,9 +72,12 @@ function getRecommendation({
   fatigueRisk,
   repeatedMistake,
   trend,
-  readyThreshold
+  readyThreshold,
+  fatigueRiskThreshold,
+  hasEnoughSamples
 }) {
-  if (fatigueRisk > DEFAULT_CONFIG.fatigueRiskThreshold) return "slow_down";
+  if (!hasEnoughSamples) return "collecting";
+  if (fatigueRisk > fatigueRiskThreshold) return "slow_down";
   if (repeatedMistake) return "repeat_step";
   if (masteryScore >= readyThreshold && consistencyScore >= 0.68 && trend !== "dropping") {
     return "advance_step";
@@ -80,8 +86,9 @@ function getRecommendation({
   return "continue";
 }
 
-function getSessionState({ masteryScore, fatigueRisk, trend, recommendation }) {
-  if (fatigueRisk > DEFAULT_CONFIG.fatigueRiskThreshold) return "fatigue_watch";
+function getSessionState({ masteryScore, fatigueRisk, trend, recommendation, fatigueRiskThreshold }) {
+  if (recommendation === "collecting") return "warming_up";
+  if (fatigueRisk > fatigueRiskThreshold) return "fatigue_watch";
   if (recommendation === "advance_step") return "ready_next";
   if (trend === "warming_up") return "warming_up";
   if (trend === "improving") return "learning";
@@ -90,6 +97,7 @@ function getSessionState({ masteryScore, fatigueRisk, trend, recommendation }) {
 }
 
 function getCoachMessage({ recommendation, repeatedMistake, masteryScore }) {
+  if (recommendation === "collecting") return "Keep moving. Building a reliable session trend.";
   if (recommendation === "advance_step") return "Form is consistent. Ready for the next step.";
   if (recommendation === "slow_down") return "Motion quality is dropping. Slow down and reset breathing.";
   if (recommendation === "repeat_step" && repeatedMistake) {
@@ -104,21 +112,75 @@ export class Level3SessionLayer {
   constructor(config = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.history = [];
-    this.lastUpdateMs = 0;
+    this.lastUpdateMs = null;
     this.latestState = null;
+    this.sessionKey = null;
+    this.events = [];
+    this.seenEventIds = new Set();
+    this.repetitionLedger = new RepetitionSessionLedger(config.repetitionLedger);
+  }
+
+  reset() {
+    this.history = [];
+    this.lastUpdateMs = null;
+    this.latestState = null;
+    this.sessionKey = null;
+    this.events = [];
+    this.seenEventIds = new Set();
+    this.repetitionLedger.reset();
+  }
+
+  recordCue({ cue, timestampMs }) {
+    return this.repetitionLedger.recordCue({ cue, timestampMs });
+  }
+
+  endSession(timestampMs) {
+    return this.repetitionLedger.endSession(timestampMs);
   }
 
   update({ level1State, level2State, techniqueName = "", currentStepName = "" }) {
     if (!level1State || !level2State?.action_context) return this.latestState;
 
     const timestampMs = level1State.timestamp * 1000;
-    if (timestampMs - this.lastUpdateMs < this.config.updateIntervalMs) {
+    if (!Number.isFinite(timestampMs)) return this.latestState;
+
+    const nextSessionKey = String(techniqueName || level2State.action_context.technique_name || "")
+      .trim()
+      .toLowerCase();
+    if (this.sessionKey !== null && nextSessionKey !== this.sessionKey) {
+      this.reset();
+    }
+    this.sessionKey = nextSessionKey;
+
+    const action = level2State.action_context;
+    const segmentationEvent = action.temporal_segmentation?.event;
+    if (segmentationEvent?.id && !this.seenEventIds.has(segmentationEvent.id)) {
+      this.seenEventIds.add(segmentationEvent.id);
+      this.events.push(segmentationEvent);
+      this.events = this.events.slice(-100);
+    }
+    const repetitionSummary = this.repetitionLedger.observe({
+      timestampMs,
+      event: segmentationEvent,
+      phase: action.temporal_segmentation?.motion_phase,
+      stepId: action.current_step_id,
+      stepName: currentStepName || action.current_step_name,
+      stepProbability: action.step_probability,
+      mistakeRisk: action.mistake_risk,
+      trackingConfidence: level1State.tracking?.confidence,
+      techniqueName: techniqueName || action.technique_name
+    });
+
+    if (
+      this.lastUpdateMs !== null &&
+      timestampMs >= this.lastUpdateMs &&
+      timestampMs - this.lastUpdateMs < this.config.updateIntervalMs
+    ) {
       return this.latestState;
     }
 
     this.lastUpdateMs = timestampMs;
 
-    const action = level2State.action_context;
     this.history.push({
       timestamp: level1State.timestamp,
       action,
@@ -143,19 +205,23 @@ export class Level3SessionLayer {
     );
     const repeatedMistake = getMostFrequentMistake(window, this.config.repeatedMistakeMinCount);
     const trend = getTrend(stepScores);
+    const hasEnoughSamples = window.length >= this.config.minSamplesForDecision;
     const recommendation = getRecommendation({
       masteryScore,
       consistencyScore,
       fatigueRisk,
       repeatedMistake,
       trend,
-      readyThreshold: this.config.readyThreshold
+      readyThreshold: this.config.readyThreshold,
+      fatigueRiskThreshold: this.config.fatigueRiskThreshold,
+      hasEnoughSamples
     });
     const sessionState = getSessionState({
       masteryScore,
       fatigueRisk,
       trend,
-      recommendation
+      recommendation,
+      fatigueRiskThreshold: this.config.fatigueRiskThreshold
     });
 
     this.latestState = {
@@ -171,13 +237,22 @@ export class Level3SessionLayer {
         recommendation,
         coach_message: getCoachMessage({ recommendation, repeatedMistake, masteryScore }),
         trend,
+        temporal_phase: action.temporal_segmentation?.motion_phase || null,
+        latest_event: this.events[this.events.length - 1] || null,
+        event_counts: this.events.reduce((counts, event) => ({
+          ...counts,
+          [event.type]: (counts[event.type] || 0) + 1
+        }), {}),
+        repetition_summary: repetitionSummary,
         ready_for_level_4:
+          hasEnoughSamples &&
           recommendation === "advance_step" &&
           masteryScore >= this.config.readyThreshold &&
           consistencyScore >= 0.68
       },
       debug: {
         samples: window.length,
+        minimum_samples: this.config.minSamplesForDecision,
         average_tracking: Number(average(trackingScores).toFixed(3)),
         average_mistake_risk: Number(average(mistakeRisks).toFixed(3)),
         recent_step_scores: stepScores.slice(-12).map((value) => Number((value || 0).toFixed(3)))

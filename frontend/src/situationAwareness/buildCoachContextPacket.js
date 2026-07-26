@@ -33,6 +33,10 @@ function compactLevel2(level2State) {
     step_probability: round(action.step_probability),
     mistake_risk: round(action.mistake_risk),
     temporal_trend: action.temporal_trend || null,
+    frame_label: action.temporal_segmentation?.frame_label || null,
+    motion_phase: action.temporal_segmentation?.motion_phase || null,
+    boundary_probability: round(action.temporal_segmentation?.boundary?.probability),
+    latest_event: action.temporal_segmentation?.event || null,
     likely_mistake: compactMistake(action.likely_mistake),
     next_step_prediction: action.next_step_prediction || null
   };
@@ -49,6 +53,14 @@ function compactLevel3(level3State) {
     trend: session.trend || null,
     repeated_mistake: compactMistake(session.repeated_mistake),
     recommendation: session.recommendation || null,
+    repetition_summary: {
+      repetitions_completed: session.repetition_summary?.repetitions_completed || 0,
+      correct_repetitions: session.repetition_summary?.correct_repetitions || 0,
+      average_form_quality: round(session.repetition_summary?.average_form_quality),
+      average_reaction_time_ms: session.repetition_summary?.average_reaction_time_ms ?? null,
+      active_repetition: session.repetition_summary?.active_repetition || null,
+      latest_repetition: session.repetition_summary?.latest_repetition || null
+    },
     ready_for_level_4: Boolean(session.ready_for_level_4)
   };
 }

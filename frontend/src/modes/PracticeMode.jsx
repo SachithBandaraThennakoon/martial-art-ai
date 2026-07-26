@@ -19,7 +19,11 @@ import {
   attachCountAttention,
   createPracticeMovementClassifier,
   filterPracticeTapeFrames,
-  reclassifyPracticeSequence
+  getPracticeCuePrompt,
+  reclassifyPracticeSequence,
+  shouldProcessPracticeFrame,
+  shouldExpireUnmatchedPracticeSet,
+  trimPracticeTapeFrames
 } from "../utils/practiceMovementClassifier";
 import { scorePracticeAngles } from "../utils/practiceAngleScoring";
 
@@ -30,6 +34,8 @@ const GAP_OPTIONS = [
   { label: "3s", value: 3000 }
 ];
 const CLEAN_ACCURACY = 80;
+const PRACTICE_PRE_ROLL_MS = 600;
+const PRACTICE_POST_ROLL_MS = 700;
 const LOCAL_SESSION = { id: null, status: "active" };
 const PRACTICE_VOICE_GENDER = "male";
 const TAPE_CONNECTIONS = [
@@ -282,6 +288,54 @@ const decodePracticeTapeFrame = (frame, index) => ({
   postSessionClassified: frame.ps === true,
   scorable: frame.sc !== false
 });
+
+const analyzePracticeTape = ({
+  sourceFrames,
+  durationMs,
+  steps,
+  targetReps,
+  countMarkers,
+  countGapMs
+}) => {
+  const completedTape = buildThirtyFpsTape(sourceFrames, durationMs);
+  const countStepIndex = steps.findIndex((step) => step.counts_rep);
+  const reclassifiedTape = reclassifyPracticeSequence(completedTape, {
+    countStep: countStepIndex >= 0 ? countStepIndex + 1 : undefined,
+    stepCount: steps.length,
+    targetReps
+  });
+  const rescoredTape = reclassifiedTape.map((frame) => {
+    if (!frame.scorable) {
+      return {
+        ...frame,
+        accuracy: null,
+        focusBodyPart: null,
+        issue: "transition",
+        wrongBodyParts: []
+      };
+    }
+
+    const result = scorePracticeAngles(
+      steps[Math.max(0, frame.step - 1)]?.angles || [],
+      frame.angles || {}
+    );
+    return {
+      ...frame,
+      accuracy: result.accuracy,
+      focusBodyPart: result.focusBodyPart,
+      issue: result.issue,
+      wrongBodyParts: result.wrongBodyParts
+    };
+  });
+
+  return trimPracticeTapeFrames(
+    attachCountAttention(rescoredTape, countMarkers, countGapMs),
+    {
+      paddingBeforeMs: PRACTICE_PRE_ROLL_MS,
+      paddingAfterMs: PRACTICE_POST_ROLL_MS
+    }
+  );
+};
 
 const buildRepTapeFromFrames = (frames, steps) =>
   [...new Set(frames.map((frame) => frame.rep))].sort((a, b) => a - b).map((rep) => {
@@ -837,6 +891,8 @@ export default function PracticeMode({
   const [session, setSession] = useState(null);
   const [repCount, setRepCount] = useState(0);
   const [cueCount, setCueCount] = useState(0);
+  const [temporalCue, setTemporalCue] = useState(null);
+  const [temporalSessionId, setTemporalSessionId] = useState(0);
   const [cleanReps, setCleanReps] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [focusBodyPart, setFocusBodyPart] = useState(null);
@@ -997,6 +1053,16 @@ export default function PracticeMode({
           scoredFullTapeFrames.length
       )
     : 0;
+  const legacyAuthoritativeSession =
+    analysisTapeMetadata?.analysisTrust === "legacy_live"
+      ? analysisTapeMetadata.authoritativeSession
+      : null;
+  const displayedSessionAverage = Number.isFinite(legacyAuthoritativeSession?.average_accuracy)
+    ? Math.round(legacyAuthoritativeSession.average_accuracy)
+    : fullTapeAverageAccuracy;
+  const displayedCompletedReps = Number.isFinite(legacyAuthoritativeSession?.completed_reps)
+    ? legacyAuthoritativeSession.completed_reps
+    : popupRepTape.length;
   const fullTapeReviewFrames = scoredFullTapeFrames.filter(
     (frame) => frame.accuracy < CLEAN_ACCURACY
   ).length;
@@ -1145,7 +1211,7 @@ export default function PracticeMode({
     updateRecovery();
     const timerId = window.setInterval(updateRecovery, 100);
     return () => window.clearInterval(timerId);
-  }, [isPracticeActive, repCount]);
+  }, [cueCount, isPracticeActive, repCount]);
 
   const appendConversation = useCallback((item) => {
     if (!textEnabled) return;
@@ -1167,7 +1233,12 @@ export default function PracticeMode({
       motionEnergy: 0
     };
 
-    if (sessionRef.current?.status !== "active" || !movementClassifierRef.current) {
+    if (!shouldProcessPracticeFrame({
+      sessionStatus: sessionRef.current?.status,
+      classifierReady: Boolean(movementClassifierRef.current),
+      recordingStarted: Boolean(setStartedAtRef.current && recordFrameRef.current),
+      cueStarted: cueCountRef.current > 0
+    })) {
       return;
     }
 
@@ -1562,44 +1633,21 @@ export default function PracticeMode({
     }
     if (!isSetFinishingRef.current) return;
 
+    await new Promise((resolve) => window.setTimeout(resolve, PRACTICE_POST_ROLL_MS));
+    if (!isSetFinishingRef.current) return;
+    recordFrameRef.current?.();
+    const tapeEndedAt = performance.now();
     clearCountBeatTimers();
     const setStart = setStartedAtRef.current || completedAt;
-    const tapeDurationMs = Math.round(completedAt - setStart);
-    const completedTape = buildThirtyFpsTape(recordedFramesRef.current, tapeDurationMs);
-    const countStepIndex = steps.findIndex((step) => step.counts_rep);
-    const reclassifiedTape = reclassifyPracticeSequence(completedTape, {
-      countStep: countStepIndex >= 0 ? countStepIndex + 1 : undefined,
-      stepCount: steps.length,
-      targetReps
-    });
-    const rescoredTape = reclassifiedTape.map((frame) => {
-      if (!frame.scorable) {
-        return {
-          ...frame,
-          accuracy: null,
-          focusBodyPart: null,
-          issue: "transition",
-          wrongBodyParts: []
-        };
-      }
-
-      const result = scorePracticeAngles(
-        steps[Math.max(0, frame.step - 1)]?.angles || [],
-        frame.angles || {}
-      );
-      return {
-        ...frame,
-        accuracy: result.accuracy,
-        focusBodyPart: result.focusBodyPart,
-        issue: result.issue,
-        wrongBodyParts: result.wrongBodyParts
-      };
-    });
-    const analyzedTape = attachCountAttention(
-      rescoredTape,
-      countMarkersRef.current,
+    const tapeDurationMs = Math.round(tapeEndedAt - setStart);
+    const analyzedTape = analyzePracticeTape({
+      sourceFrames: recordedFramesRef.current,
+      durationMs: tapeDurationMs,
+      steps,
+      targetReps,
+      countMarkers: countMarkersRef.current,
       countGapMs
-    );
+    });
     const tapeMetadata = {
       sessionId: sessionRef.current?.id || null,
       targetReps,
@@ -1607,6 +1655,10 @@ export default function PracticeMode({
       techniqueName: currentTechnique?.name || "Practice",
       biomechanicsSchema: "observed-filtered-measurement-aggregate-v2",
       postSessionClassification: true,
+      captureMarginsMs: {
+        before: PRACTICE_PRE_ROLL_MS,
+        after: PRACTICE_POST_ROLL_MS
+      },
       steps: steps.map((step, index) => ({
         id: step?.id ?? index,
         step_name: step?.step_name || `Step ${index + 1}`
@@ -1666,6 +1718,7 @@ export default function PracticeMode({
       elapsedMs: Math.round(countStartedAt - (setStartedAtRef.current || countStartedAt))
     });
     setCueCount(nextCue);
+    setTemporalCue({ cue: nextCue, timestampMs: countStartedAt });
     setAssistantMessage(String(nextCue));
     if (textEnabled) {
       appendConversation({ role: "ai", text: String(nextCue) });
@@ -1686,11 +1739,83 @@ export default function PracticeMode({
         countBeatRef.current?.();
       }, countGapMs);
       countBeatTimersRef.current = [intervalTimerId];
+    } else {
+      const finalResponseTimerId = window.setTimeout(async () => {
+        if (!shouldExpireUnmatchedPracticeSet({
+          sessionStatus: sessionRef.current?.status,
+          cueCount: cueCountRef.current,
+          targetReps,
+          repCount: repCountRef.current
+        })) {
+          return;
+        }
+
+        const remaining = Math.max(0, targetReps - repCountRef.current);
+        recordFrameRef.current?.();
+        const setStart = setStartedAtRef.current || performance.now();
+        const tapeDurationMs = Math.max(0, Math.round(performance.now() - setStart));
+        const analyzedTape = analyzePracticeTape({
+          sourceFrames: recordedFramesRef.current,
+          durationMs: tapeDurationMs,
+          steps,
+          targetReps,
+          countMarkers: countMarkersRef.current,
+          countGapMs
+        });
+        const tapeMetadata = {
+          sessionId: sessionRef.current?.id || null,
+          targetReps,
+          countGapMs,
+          techniqueName: currentTechnique?.name || "Practice",
+          biomechanicsSchema: "observed-filtered-measurement-aggregate-v2",
+          postSessionClassification: true,
+          completionStatus: "incomplete",
+          completedReps: repCountRef.current,
+          captureMarginsMs: {
+            before: PRACTICE_PRE_ROLL_MS,
+            after: PRACTICE_POST_ROLL_MS
+          },
+          steps: steps.map((step, index) => ({
+            id: step?.id ?? index,
+            step_name: step?.step_name || `Step ${index + 1}`
+          }))
+        };
+        const activeSessionId = sessionRef.current?.id;
+        clearCountBeatTimers();
+        if (analyzedTape.length) {
+          setFullTapeFrames(analyzedTape);
+          setAnalysisTapeMetadata(tapeMetadata);
+          setFullTapeCursor(0);
+          setIsFullTapePlaying(false);
+          setIsTapePopupExpanded(true);
+          setIsTapePopupOpen(true);
+          if (activeSessionId) {
+            await storePracticeTape(activeSessionId, analyzedTape, tapeMetadata);
+          }
+        }
+        await completePracticeSession("cancelled");
+        const message =
+          `Set ended with ${remaining} incomplete ${remaining === 1 ? "rep" : "reps"}. ` +
+          "Keep your full body in view, then start the set again.";
+        setAssistantMessage(message);
+        sayPractice(message, {
+          force: true,
+          intent: `set_incomplete:${repCountRef.current}:${targetReps}`,
+          speak: true
+        });
+      }, countGapMs + 1500);
+      countBeatTimersRef.current = [finalResponseTimerId];
     }
   }, [
     appendConversation,
+    clearCountBeatTimers,
+    completePracticeSession,
     countGapMs,
+    currentTechnique,
     playPracticeAudio,
+    sayPractice,
+    steps,
+    storePracticeTape,
     targetReps,
     textEnabled,
     voiceEnabled
@@ -1714,6 +1839,8 @@ export default function PracticeMode({
     const token = localStorage.getItem("token");
     sessionRef.current = LOCAL_SESSION;
     setSession(LOCAL_SESSION);
+    setTemporalSessionId((sessionId) => sessionId + 1);
+    setTemporalCue(null);
     setSelectedStepIndex(startIndex);
     setRepCount(0);
     setCueCount(0);
@@ -1853,6 +1980,11 @@ export default function PracticeMode({
     recordFrameRef.current = recordFrame;
     recordFrame();
     recordingTimerRef.current = window.setInterval(recordFrame, 1000 / 30);
+    await new Promise((resolve) => window.setTimeout(resolve, PRACTICE_PRE_ROLL_MS));
+    if (requestId !== voiceRequestIdRef.current) {
+      clearCountBeatTimers();
+      return;
+    }
     setIsReadyForRep(true);
     isReadyForRepRef.current = true;
     countBeatRef.current?.();
@@ -2297,6 +2429,10 @@ export default function PracticeMode({
       setAnalysisTapeMetadata({
         ...(data.metadata || {}),
         sessionId: historySession.id,
+        analysisTrust: data.metadata?.postSessionClassification
+          ? "post_session_verified"
+          : "legacy_live",
+        authoritativeSession: historySession,
         repTape: buildRepTapeFromFrames(restoredFrames, restoredSteps)
       });
       setFullTapeCursor(0);
@@ -2361,6 +2497,8 @@ export default function PracticeMode({
           measurementParts={measurementParts}
           onAngleUpdate={handleAngleUpdate}
           onLandmarkFrame={handleLandmarkFrame}
+          temporalCue={temporalCue}
+          temporalSessionId={temporalSessionId}
           onLevel1Update={handleLevel1Update}
           onLevel2Update={setLevel2State}
           onLevel3Update={setLevel3State}
@@ -2375,9 +2513,13 @@ export default function PracticeMode({
             <span>AI LEAD</span>
             <strong>{cueCount ? cueCount : "START"}</strong>
             <small>
-              {recoveryRemainingMs > 0
-                ? `Next count in ${(recoveryRemainingMs / 1000).toFixed(1)}s`
-                : isReadyForRep ? "Move — I’m watching the rep" : "Reading movement"}
+              {getPracticeCuePrompt({
+                cueCount,
+                targetReps,
+                repCount,
+                recoveryRemainingMs,
+                isReadyForRep
+              })}
             </small>
           </div>
         ) : null}
@@ -2792,6 +2934,16 @@ export default function PracticeMode({
             </div>
           </div>
 
+          {analysisTapeMetadata?.analysisTrust === "legacy_live" ? (
+            <div className="practice-session-analysis__finding is-warning" role="status">
+              <span>Legacy session</span>
+              <strong>
+                Frame labels were captured live before full-session verification was available.
+                Treat step boundaries and cue timing as estimates.
+              </strong>
+            </div>
+          ) : null}
+
           <PracticeAccuracyTimeline
             countFilter={analysisCountFilter}
             contentWidth={timelineContentWidth}
@@ -2955,9 +3107,9 @@ export default function PracticeMode({
 
               <p className="eyebrow">Full session</p>
               <div className="practice-session-analysis__summary">
-                <span><small>Average</small><strong>{fullTapeAverageAccuracy}%</strong></span>
+                <span><small>Average</small><strong>{displayedSessionAverage}%</strong></span>
                 <span><small>Review frames</small><strong>{fullTapeReviewFrames}</strong></span>
-                <span><small>Reps</small><strong>{popupRepTape.length}/{tapeTargetReps}</strong></span>
+                <span><small>Reps</small><strong>{displayedCompletedReps}/{tapeTargetReps}</strong></span>
                 <span><small>Consistency</small><strong>{sequenceConsistency}%</strong></span>
                 <span><small>Count attention</small><strong>{attentionRate}%</strong></span>
               </div>
