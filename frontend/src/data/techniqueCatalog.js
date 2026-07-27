@@ -1,4 +1,5 @@
-import techniqueTables from "../../../backend/data/technique_tables.sample.json";
+import { listTechniqueDataPackages } from "./techniqueDataRegistry.js";
+import { getTrackingTechniquePackage } from "../tracking/techniquePackageRegistry.js";
 
 const CATEGORY_ORDER = [
   "Flexibility & Mobility",
@@ -81,6 +82,8 @@ function buildTechniqueCatalog({
     category.subcategories.get(subcategoryName).techniques.push({
       id: techniqueId,
       name: technique.name,
+      trackingPackage: technique.tracking_package || null,
+      trackingVersion: technique.tracking_version || null,
       category: categoryName,
       subcategory: subcategoryName,
       difficulty: technique.difficulty || "Beginner",
@@ -103,7 +106,12 @@ function buildTechniqueCatalog({
     }));
 }
 
-export const techniqueCatalog = buildTechniqueCatalog(techniqueTables);
+export const techniqueCatalog = buildTechniqueCatalog({
+  techniques: listTechniqueDataPackages().map(({ catalog, trainingSteps }) => ({
+    ...catalog,
+    steps: trainingSteps.steps || []
+  }))
+});
 
 export const MAIN_CATEGORIES = techniqueCatalog.map((category) => category.category);
 
@@ -174,4 +182,13 @@ export function getTechniqueFromCatalog({
   }
 
   return null;
+}
+
+export function getTechniqueTrackingPackage(techniqueOrId) {
+  const packageId =
+    typeof techniqueOrId === "string"
+      ? techniqueOrId
+      : techniqueOrId?.trackingPackage || techniqueOrId?.id;
+
+  return getTrackingTechniquePackage(packageId);
 }

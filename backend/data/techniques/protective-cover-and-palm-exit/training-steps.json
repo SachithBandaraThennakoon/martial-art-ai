@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "protective-cover-and-palm-exit",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Cover and protect",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 35,
+          "max": 85
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 35,
+          "max": 85
+        },
+        {
+          "body_part": "fist_left",
+          "min": 60,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 60,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Build open-palm frame",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 120,
+          "max": 175
+        },
+        {
+          "body_part": "shoulder_left",
+          "min": 55,
+          "max": 115
+        },
+        {
+          "body_part": "hand_left_open",
+          "min": 60,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 60,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Recover protected stance",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 50,
+          "max": 105
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 50,
+          "max": 105
+        },
+        {
+          "body_part": "face_forward",
+          "min": 55,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

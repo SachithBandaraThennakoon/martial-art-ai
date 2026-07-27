@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "protective-cover-and-palm-exit",
+  "name": "Protective Cover and Palm Exit",
+  "category": "Self-Defense",
+  "subcategory": "Protective Movement",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Solo practice only: cover the head, create an open-palm frame, and return to a protected stance. The app cannot assess an attacker, contact, force, distance, or real-world safety."
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   PoseLandmarker,
   HandLandmarker,
@@ -18,6 +18,126 @@ import {
 } from "../temporal/predictionLedger";
 import { SituationAwarenessLayer } from "../situationAwareness/SituationAwarenessLayer";
 import { buildCoachContextPacket } from "../situationAwareness/buildCoachContextPacket";
+
+const SYNTHETIC_CONNECTIONS = [
+  [0, 11], [0, 12], [11, 12],
+  [11, 13], [13, 15], [12, 14], [14, 16],
+  [11, 23], [12, 24], [23, 24],
+  [23, 25], [25, 27], [24, 26], [26, 28],
+  [27, 29], [27, 31], [28, 30], [28, 32]
+];
+const SYNTHETIC_HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12],
+  [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20],
+  [5, 9], [9, 13], [13, 17]
+];
+const SYNTHETIC_DRAGGABLE_JOINTS = [
+  0, 11, 12, 13, 14, 15, 16,
+  23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+];
+const SYNTHETIC_CHILD_JOINTS = {
+  15: [17, 19, 21],
+  16: [18, 20, 22],
+  27: [29, 31],
+  28: [30, 32]
+};
+
+function createSyntheticPose() {
+  const points = Array.from({ length: 33 }, (_, index) => ({
+    index,
+    x: 0.5,
+    y: 0.5,
+    z: 0,
+    visibility: 1
+  }));
+  const positions = {
+    0: [0.5, 0.14],
+    1: [0.485, 0.13], 2: [0.475, 0.13], 3: [0.465, 0.135],
+    4: [0.515, 0.13], 5: [0.525, 0.13], 6: [0.535, 0.135],
+    7: [0.445, 0.15], 8: [0.555, 0.15],
+    9: [0.48, 0.18], 10: [0.52, 0.18],
+    11: [0.4, 0.29], 12: [0.6, 0.29],
+    13: [0.34, 0.43], 14: [0.66, 0.43],
+    15: [0.43, 0.5], 16: [0.57, 0.5],
+    17: [0.415, 0.515], 18: [0.585, 0.515],
+    19: [0.425, 0.52], 20: [0.575, 0.52],
+    21: [0.44, 0.515], 22: [0.56, 0.515],
+    23: [0.44, 0.56], 24: [0.56, 0.56],
+    25: [0.43, 0.75], 26: [0.57, 0.75],
+    27: [0.42, 0.92], 28: [0.58, 0.92],
+    29: [0.4, 0.94], 30: [0.6, 0.94],
+    31: [0.44, 0.95], 32: [0.56, 0.95]
+  };
+  Object.entries(positions).forEach(([index, [x, y]]) => {
+    Object.assign(points[Number(index)], { x, y });
+  });
+  return points;
+}
+
+function interpolatePoint(openPoint, closedPoint, closure) {
+  return {
+    x: openPoint.x + (closedPoint.x - openPoint.x) * closure,
+    y: openPoint.y + (closedPoint.y - openPoint.y) * closure,
+    z: 0,
+    visibility: 1
+  };
+}
+
+function createSyntheticHand(wrist, side, closurePercent) {
+  const closure = Math.max(0, Math.min(100, closurePercent)) / 100;
+  const direction = side === "left" ? -1 : 1;
+  const hand = Array.from({ length: 21 }, () => ({
+    x: wrist.x,
+    y: wrist.y,
+    z: 0,
+    visibility: 1
+  }));
+  const fingerGroups = [
+    { indices: [5, 6, 7, 8], offset: -0.024 },
+    { indices: [9, 10, 11, 12], offset: -0.008 },
+    { indices: [13, 14, 15, 16], offset: 0.008 },
+    { indices: [17, 18, 19, 20], offset: 0.024 }
+  ];
+
+  hand[0] = { ...wrist, visibility: 1 };
+  hand[1] = { x: wrist.x + direction * 0.014, y: wrist.y - 0.004, z: 0, visibility: 1 };
+  hand[2] = { x: wrist.x + direction * 0.026, y: wrist.y - 0.012, z: 0, visibility: 1 };
+  hand[3] = interpolatePoint(
+    { x: wrist.x + direction * 0.04, y: wrist.y - 0.024 },
+    { x: wrist.x + direction * 0.018, y: wrist.y + 0.002 },
+    closure
+  );
+  hand[4] = interpolatePoint(
+    { x: wrist.x + direction * 0.055, y: wrist.y - 0.034 },
+    { x: wrist.x + direction * 0.008, y: wrist.y + 0.008 },
+    closure
+  );
+
+  fingerGroups.forEach(({ indices, offset }) => {
+    const closedShape = [
+      { xScale: 1, y: -0.022 },
+      { xScale: 1.15, y: -0.005 },
+      { xScale: 0.65, y: 0.008 },
+      { xScale: 0.95, y: -0.014 }
+    ];
+    indices.forEach((landmarkIndex, segmentIndex) => {
+      const openPoint = {
+        x: wrist.x + direction * offset,
+        y: wrist.y - 0.024 - segmentIndex * 0.028
+      };
+      const closedPoint = {
+        x: wrist.x + direction * offset * closedShape[segmentIndex].xScale,
+        y: wrist.y + closedShape[segmentIndex].y
+      };
+      hand[landmarkIndex] = interpolatePoint(openPoint, closedPoint, closure);
+    });
+  });
+
+  return hand;
+}
 import {
   applyStudioPerformanceMode,
   getAdaptiveSmoothing,
@@ -26,6 +146,14 @@ import {
 import { WS_BASE_URL } from "../services/api";
 import { getBodyCalibrationSample, getCalibrationFit } from "../utils/bodyCalibration";
 import { assignHandSides } from "../utils/handSideAssignment";
+import {
+  getTechniqueFromCatalog,
+  getTechniqueTrackingPackage
+} from "../data/techniqueCatalog";
+import {
+  SESSION_STATES,
+  TrackingSessionEngine
+} from "../tracking/trackingSessionEngine";
 
 const BODY_PART_MAP = {
   elbow_right: [12, 14, 16],
@@ -616,9 +744,12 @@ export default function SkeletonCanvas({
   onLevel3Update,
   onLevel4Update,
   onSituationAwarenessUpdate,
+  onRuleEngineSessionComplete,
   onLandmarkFrame,
   temporalCue,
   temporalSessionId,
+  trackingSessionActive = true,
+  trackingSessionPaused = false,
   bodyCalibration,
   calibrationActive = false,
   onBodyCalibrationSample,
@@ -626,7 +757,11 @@ export default function SkeletonCanvas({
   stanceTargetDegrees = 0,
   enableAwareness = false,
   performanceProfile = "student",
-  performanceMode = "auto"
+  performanceMode = "auto",
+  inputSource = "live",
+  inputVideoUrl = null,
+  inputVideoName = null,
+  onInputStatus
 }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -681,6 +816,9 @@ export default function SkeletonCanvas({
   const level4UserRef = useRef(new Level4UserLayer());
   const predictionLedgerRef = useRef(new PredictionLedger());
   const situationAwarenessRef = useRef(new SituationAwarenessLayer());
+  const trackingSessionEngineRef = useRef(null);
+  const trackingSessionActiveRef = useRef(trackingSessionActive);
+  const trackingSessionPausedRef = useRef(trackingSessionPaused);
   const bodyCalibrationRef = useRef(bodyCalibration);
   const calibrationActiveRef = useRef(calibrationActive);
   const enableCoachRef = useRef(enableCoach);
@@ -697,6 +835,7 @@ export default function SkeletonCanvas({
   const onLevel3UpdateRef = useRef(onLevel3Update);
   const onLevel4UpdateRef = useRef(onLevel4Update);
   const onSituationAwarenessUpdateRef = useRef(onSituationAwarenessUpdate);
+  const onRuleEngineSessionCompleteRef = useRef(onRuleEngineSessionComplete);
   const onLandmarkFrameRef = useRef(onLandmarkFrame);
   const stanceTargetDegreesRef = useRef(stanceTargetDegrees);
   const lastCalibrationStatusTimeRef = useRef(0);
@@ -705,10 +844,126 @@ export default function SkeletonCanvas({
   const lastLevel3UpdateTimeRef = useRef(0);
   const lastLevel4UpdateTimeRef = useRef(0);
   const lastSituationAwarenessUpdateTimeRef = useRef(0);
+  const [syntheticPose, setSyntheticPose] = useState(createSyntheticPose);
+  const syntheticPoseRef = useRef(syntheticPose);
+  const [syntheticHandClosure, setSyntheticHandClosure] = useState({
+    left: 85,
+    right: 85
+  });
+  const syntheticHandClosureRef = useRef(syntheticHandClosure);
+  const draggedSyntheticJointRef = useRef(null);
+
+  const moveSyntheticJoint = useCallback((event) => {
+    const jointIndex = draggedSyntheticJointRef.current;
+    if (!Number.isFinite(jointIndex)) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const displayedX = Math.max(
+      0.02,
+      Math.min(0.98, (event.clientX - bounds.left) / Math.max(bounds.width, 1))
+    );
+    const y = Math.max(
+      0.02,
+      Math.min(0.98, (event.clientY - bounds.top) / Math.max(bounds.height, 1))
+    );
+    const x = displayMirrored ? 1 - displayedX : displayedX;
+    setSyntheticPose((current) => {
+      const previous = current[jointIndex];
+      const deltaX = x - previous.x;
+      const deltaY = y - previous.y;
+      const childJoints = new Set(SYNTHETIC_CHILD_JOINTS[jointIndex] || []);
+      const next = current.map((point, index) => {
+        if (index === jointIndex) return { ...point, x, y };
+        if (childJoints.has(index)) {
+          return {
+            ...point,
+            x: Math.max(0.02, Math.min(0.98, point.x + deltaX)),
+            y: Math.max(0.02, Math.min(0.98, point.y + deltaY))
+          };
+        }
+        return point;
+      });
+      syntheticPoseRef.current = next;
+      return next;
+    });
+  }, [displayMirrored]);
+
+  const updateSyntheticHandClosure = useCallback((side, value) => {
+    const closure = Math.max(0, Math.min(100, Number(value) || 0));
+    setSyntheticHandClosure((current) => {
+      const next = { ...current, [side]: closure };
+      syntheticHandClosureRef.current = next;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const technique = getTechniqueFromCatalog({
+      techniqueName: sessionConfig?.technique_name
+    });
+    const techniquePackage = getTechniqueTrackingPackage(technique);
+    if (!techniquePackage) {
+      trackingSessionEngineRef.current = null;
+      return undefined;
+    }
+
+    const engine = new TrackingSessionEngine(techniquePackage, {
+      mode: sessionConfig?.mode || (enableCoach ? "train" : "practice")
+    });
+    if (trackingSessionActiveRef.current) {
+      engine.start(performance.now());
+      if (trackingSessionPausedRef.current) {
+        engine.pause(performance.now());
+      }
+    }
+    trackingSessionEngineRef.current = engine;
+
+    return () => {
+      engine.end(performance.now());
+      if (trackingSessionEngineRef.current === engine) {
+        trackingSessionEngineRef.current = null;
+      }
+    };
+  }, [enableCoach, sessionConfig?.mode, sessionConfig?.technique_name]);
+
+  useEffect(() => {
+    trackingSessionActiveRef.current = trackingSessionActive;
+    const engine = trackingSessionEngineRef.current;
+    if (!engine) return;
+
+    if (trackingSessionActive) {
+      if (engine.sessionState === SESSION_STATES.SESSION_COMPLETE) {
+        engine.reset();
+      }
+      engine.start(performance.now());
+    } else if (
+      ![
+        SESSION_STATES.OUTSIDE_SESSION,
+        SESSION_STATES.SESSION_COMPLETE
+      ].includes(engine.sessionState)
+    ) {
+      const summary = engine.end(performance.now());
+      onRuleEngineSessionCompleteRef.current?.(summary);
+    }
+  }, [trackingSessionActive]);
+
+  useEffect(() => {
+    trackingSessionPausedRef.current = trackingSessionPaused;
+    const engine = trackingSessionEngineRef.current;
+    if (!engine || !trackingSessionActiveRef.current) return;
+    if (trackingSessionPaused) {
+      engine.pause(performance.now());
+    } else {
+      engine.resume(performance.now());
+    }
+  }, [trackingSessionPaused]);
 
   useEffect(() => {
     if (!temporalCue?.cue || !Number.isFinite(temporalCue.timestampMs)) return;
     level3SessionRef.current.recordCue({
+      cue: temporalCue.cue,
+      timestampMs: temporalCue.timestampMs
+    });
+    trackingSessionEngineRef.current?.recordCue({
       cue: temporalCue.cue,
       timestampMs: temporalCue.timestampMs
     });
@@ -717,7 +972,27 @@ export default function SkeletonCanvas({
   useEffect(() => {
     if (temporalSessionId === null || temporalSessionId === undefined) return;
     level3SessionRef.current.reset();
+    trackingSessionEngineRef.current?.reset();
+    if (trackingSessionActiveRef.current) {
+      trackingSessionEngineRef.current?.start(performance.now());
+    }
   }, [temporalSessionId]);
+
+  useEffect(() => {
+    previousPoseRef.current = null;
+    previousWorldPoseRef.current = null;
+    previousDisplayPoseRef.current = null;
+    previousHandsRef.current = null;
+    previousHandednessRef.current = null;
+    previousFaceRef.current = null;
+    level1MotionRef.current = new Level1MotionLayer();
+    level2ActionRef.current = new Level2ActionLayer(performanceConfigRef.current);
+    predictionLedgerRef.current.reset();
+    trackingSessionEngineRef.current?.reset();
+    if (trackingSessionActiveRef.current) {
+      trackingSessionEngineRef.current?.start(performance.now());
+    }
+  }, [inputSource, inputVideoUrl]);
 
   const sendCoachCommand = useCallback((command) => {
     if (!command || wsRef.current?.readyState !== WebSocket.OPEN) {
@@ -764,7 +1039,8 @@ export default function SkeletonCanvas({
       shouldTrackHands(requiredParts, currentStepName) ||
       Boolean(onLandmarkFrame);
     shouldTrackFaceRef.current = Boolean(
-      (enableAwareness || onLandmarkFrame) && performanceConfigRef.current.enableFace
+      onLandmarkFrame ||
+      (enableAwareness && performanceConfigRef.current.enableFace)
     );
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
@@ -812,6 +1088,7 @@ export default function SkeletonCanvas({
     onLevel3UpdateRef.current = onLevel3Update;
     onLevel4UpdateRef.current = onLevel4Update;
     onSituationAwarenessUpdateRef.current = onSituationAwarenessUpdate;
+    onRuleEngineSessionCompleteRef.current = onRuleEngineSessionComplete;
     onLandmarkFrameRef.current = onLandmarkFrame;
   }, [
     onAccuracyUpdate,
@@ -823,6 +1100,7 @@ export default function SkeletonCanvas({
     onLevel2Update,
     onLevel3Update,
     onLevel4Update,
+    onRuleEngineSessionComplete,
     onLandmarkFrame,
     onSituationAwarenessUpdate,
     onSummaryUpdate
@@ -902,6 +1180,7 @@ export default function SkeletonCanvas({
     let isDisposed = false;
     let processingSamples = [];
     let lastPerformanceTuneTime = 0;
+    const videoElement = videoRef.current;
 
     const updateAdaptivePerformance = (processingMs, timestamp) => {
       if (performanceModeRef.current !== "auto") return;
@@ -1126,16 +1405,40 @@ export default function SkeletonCanvas({
       }
 
       if (
-        !videoRef.current ||
         !canvasRef.current ||
-        (videoRef.current.readyState < 2 &&
-          (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0))
+        (
+          inputSource !== "skeleton" &&
+          (
+            !videoRef.current ||
+            (
+              videoRef.current.readyState < 2 &&
+              (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0)
+            )
+          )
+        )
       ) {
         animationFrameId = requestAnimationFrame(detect);
         return;
       }
 
-      syncCanvasToVideo(canvasRef.current, videoRef.current);
+      if (inputSource === "video" && videoRef.current.paused) {
+        animationFrameId = requestAnimationFrame(detect);
+        return;
+      }
+
+      if (inputSource === "skeleton") {
+        const pixelRatio = window.devicePixelRatio || 1;
+        canvasRef.current.width = Math.max(
+          1,
+          Math.round(canvasRef.current.clientWidth * pixelRatio)
+        );
+        canvasRef.current.height = Math.max(
+          1,
+          Math.round(canvasRef.current.clientHeight * pixelRatio)
+        );
+      } else {
+        syncCanvasToVideo(canvasRef.current, videoRef.current);
+      }
 
       if (now - lastFrameTimeRef.current < 1000 / performanceConfigRef.current.poseFps) {
         animationFrameId = requestAnimationFrame(detect);
@@ -1162,7 +1465,24 @@ export default function SkeletonCanvas({
       let handednessList = hasFreshHands ? previousHandednessRef.current : null;
       let faceLandmarks = hasFreshFace ? previousFaceRef.current : null;
 
-      if (poseRef.current) {
+      if (inputSource === "skeleton") {
+        rawPoseLandmarks = syntheticPoseRef.current.map((point) => ({ ...point }));
+        poseLandmarks = rawPoseLandmarks;
+        angleLandmarks = rawPoseLandmarks;
+        handLandmarksList = [
+          createSyntheticHand(
+            rawPoseLandmarks[15],
+            "left",
+            syntheticHandClosureRef.current.left
+          ),
+          createSyntheticHand(
+            rawPoseLandmarks[16],
+            "right",
+            syntheticHandClosureRef.current.right
+          )
+        ];
+        handednessList = [];
+      } else if (poseRef.current) {
         const result = poseRef.current.detectForVideo(videoRef.current, now);
 
         if (result.landmarks.length > 0) {
@@ -1289,7 +1609,22 @@ export default function SkeletonCanvas({
           handednessList,
           faceLandmarks
         });
-        const level1State = level1MotionRef.current.update(frame.pose, now);
+        const baseLevel1State = level1MotionRef.current.update(frame.pose, now);
+        const auxiliaryScores = getHolisticScores(
+          frame,
+          shouldTrackHandsRef.current,
+          shouldTrackFaceRef.current
+        );
+        const level1State = {
+          ...baseLevel1State,
+          motion_context: {
+            ...(baseLevel1State?.motion_context || {}),
+            auxiliary_features: auxiliaryScores
+          }
+        };
+        const ruleEngineShadowFrame = trackingSessionActiveRef.current
+          ? trackingSessionEngineRef.current?.update(level1State) || null
+          : trackingSessionEngineRef.current?.latestFrame || null;
         const level2State = level2ActionRef.current.update({
           level1State,
           requiredParts: requiredPartsRef.current,
@@ -1325,6 +1660,18 @@ export default function SkeletonCanvas({
           techniqueName: sessionConfigRef.current?.technique_name,
           currentStepName: currentStepNameRef.current
         });
+        const level3UiState = ruleEngineShadowFrame && level3State
+          ? {
+              ...level3State,
+              debug: {
+                ...level3State.debug,
+                rule_engine_shadow: {
+                  frame: ruleEngineShadowFrame,
+                  summary: trackingSessionEngineRef.current?.getSummary()
+                }
+              }
+            }
+          : level3State;
         const level4State = level4UserRef.current.update({
           level3State,
           techniqueName: sessionConfigRef.current?.technique_name,
@@ -1337,11 +1684,7 @@ export default function SkeletonCanvas({
           level4State,
           mode: enableCoachRef.current ? "train" : "practice"
         });
-        const anglesPayload = getHolisticScores(
-          frame,
-          shouldTrackHandsRef.current,
-          shouldTrackFaceRef.current
-        );
+        const anglesPayload = { ...auxiliaryScores };
 
         measurementPartsRef.current?.forEach((part) => {
           const mapping = BODY_PART_MAP[part.body_part];
@@ -1383,7 +1726,7 @@ export default function SkeletonCanvas({
           now - lastLevel3UpdateTimeRef.current > performanceConfig.level3UiIntervalMs
         ) {
           lastLevel3UpdateTimeRef.current = now;
-          onLevel3UpdateRef.current(level3State);
+          onLevel3UpdateRef.current(level3UiState);
         }
 
         if (
@@ -1444,7 +1787,10 @@ export default function SkeletonCanvas({
           angles: anglesPayload
         });
 
-        if (skeletonLayersRef.current.live === false) {
+        if (
+          inputSource === "skeleton" ||
+          skeletonLayersRef.current.live === false
+        ) {
           const context = canvasRef.current?.getContext("2d", { alpha: true });
           context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         } else {
@@ -1533,6 +1879,7 @@ export default function SkeletonCanvas({
     };
 
     const startCamera = async () => {
+      onInputStatus?.("Requesting camera access");
       cameraStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
@@ -1554,10 +1901,40 @@ export default function SkeletonCanvas({
 
       syncCanvasToVideo(canvasRef.current, videoRef.current);
 
+      onInputStatus?.("Live camera active");
+      detect();
+    };
+
+    const startUploadedVideo = async () => {
+      if (!videoRef.current || !inputVideoUrl) {
+        onInputStatus?.("Choose a local video to begin");
+        return;
+      }
+
+      videoRef.current.srcObject = null;
+      videoRef.current.src = inputVideoUrl;
+      videoRef.current.loop = false;
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
+      videoRef.current.onended = () => {
+        onInputStatus?.(`Video finished: ${inputVideoName || "uploaded sample"}`);
+      };
+      await waitForVideoMetadata(videoRef.current);
+      if (isDisposed || !videoRef.current) return;
+
+      await videoRef.current.play();
+      syncCanvasToVideo(canvasRef.current, videoRef.current);
+      onInputStatus?.(`Analyzing video: ${inputVideoName || "uploaded sample"}`);
       detect();
     };
 
     const init = async () => {
+      if (inputSource === "skeleton") {
+        onInputStatus?.("Skeleton Lab active · drag a joint");
+        detect();
+        return;
+      }
+
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm"
       );
@@ -1572,7 +1949,20 @@ export default function SkeletonCanvas({
         numPoses: 1
       });
 
-      startCamera();
+      try {
+        if (inputSource === "video") {
+          await startUploadedVideo();
+        } else {
+          await startCamera();
+        }
+      } catch (error) {
+        console.error("Studio input source failed", error);
+        onInputStatus?.(
+          inputSource === "video"
+            ? "Video could not play in this browser"
+            : "Camera unavailable or permission denied"
+        );
+      }
     };
 
     init();
@@ -1581,6 +1971,13 @@ export default function SkeletonCanvas({
       isDisposed = true;
       cancelAnimationFrame(animationFrameId);
       cameraStream?.getTracks().forEach((track) => track.stop());
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.srcObject = null;
+        videoElement.onended = null;
+        videoElement.removeAttribute("src");
+        videoElement.load();
+      }
       poseRef.current?.close?.();
       handRef.current?.close?.();
       faceRef.current?.close?.();
@@ -1589,7 +1986,7 @@ export default function SkeletonCanvas({
       faceRef.current = null;
       visionRef.current = null;
     };
-  }, []);
+  }, [inputSource, inputVideoName, inputVideoUrl, onInputStatus]);
 
   useEffect(() => {
     if (
@@ -1603,10 +2000,116 @@ export default function SkeletonCanvas({
     sendCoachCommand(coachCommand);
   }, [coachCommand, enableCoach, sendCoachCommand]);
 
+  const displayedSyntheticHands = inputSource === "skeleton"
+    ? [
+        createSyntheticHand(
+          syntheticPose[15],
+          "left",
+          syntheticHandClosure.left
+        ),
+        createSyntheticHand(
+          syntheticPose[16],
+          "right",
+          syntheticHandClosure.right
+        )
+      ]
+    : [];
+
   return (
-    <div className={`skeleton-canvas ${displayMirrored ? "skeleton-canvas--mirrored" : ""}`}>
+    <div
+      className={`skeleton-canvas ${
+        displayMirrored ? "skeleton-canvas--mirrored" : ""
+      } ${inputSource === "skeleton" ? "skeleton-canvas--synthetic" : ""}`}
+    >
       <video aria-hidden="true" ref={videoRef} autoPlay muted playsInline />
       <canvas ref={canvasRef} />
+      {inputSource === "skeleton" ? (
+        <div className="synthetic-skeleton-editor">
+          <div className="synthetic-skeleton-editor__hint">
+            <strong>Skeleton Lab</strong>
+            <span>Drag the glowing joints to create movement</span>
+          </div>
+          <div className="synthetic-skeleton-editor__controls">
+            {["left", "right"].map((side) => (
+              <label key={side}>
+                <span>{side} fist</span>
+                <input
+                  aria-label={`${side} fist closure`}
+                  max="100"
+                  min="0"
+                  onChange={(event) =>
+                    updateSyntheticHandClosure(side, event.target.value)
+                  }
+                  type="range"
+                  value={syntheticHandClosure[side]}
+                />
+                <output>{syntheticHandClosure[side]}%</output>
+              </label>
+            ))}
+            <small>Feet: drag each heel and toe point independently.</small>
+          </div>
+          <svg
+            aria-label="Draggable evaluation skeleton"
+            onPointerCancel={() => {
+              draggedSyntheticJointRef.current = null;
+            }}
+            onPointerMove={moveSyntheticJoint}
+            onPointerUp={() => {
+              draggedSyntheticJointRef.current = null;
+            }}
+            role="application"
+            viewBox="0 0 1000 1000"
+          >
+            {SYNTHETIC_CONNECTIONS.map(([fromIndex, toIndex]) => {
+              const from = syntheticPose[fromIndex];
+              const to = syntheticPose[toIndex];
+              return (
+                <line
+                  key={`${fromIndex}-${toIndex}`}
+                  x1={(displayMirrored ? 1 - from.x : from.x) * 1000}
+                  x2={(displayMirrored ? 1 - to.x : to.x) * 1000}
+                  y1={from.y * 1000}
+                  y2={to.y * 1000}
+                />
+              );
+            })}
+            {displayedSyntheticHands.flatMap((hand, handIndex) =>
+              SYNTHETIC_HAND_CONNECTIONS.map(([fromIndex, toIndex]) => {
+                const from = hand[fromIndex];
+                const to = hand[toIndex];
+                return (
+                  <line
+                    className="is-hand"
+                    key={`hand-${handIndex}-${fromIndex}-${toIndex}`}
+                    x1={(displayMirrored ? 1 - from.x : from.x) * 1000}
+                    x2={(displayMirrored ? 1 - to.x : to.x) * 1000}
+                    y1={from.y * 1000}
+                    y2={to.y * 1000}
+                  />
+                );
+              })
+            )}
+            {SYNTHETIC_DRAGGABLE_JOINTS.map((jointIndex) => {
+              const point = syntheticPose[jointIndex];
+              return (
+                <circle
+                  aria-label={`Move landmark ${jointIndex}`}
+                  cx={(displayMirrored ? 1 - point.x : point.x) * 1000}
+                  cy={point.y * 1000}
+                  key={jointIndex}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    draggedSyntheticJointRef.current = jointIndex;
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  r="13"
+                  role="slider"
+                />
+              );
+            })}
+          </svg>
+        </div>
+      ) : null}
       {skeletonLayers.expected !== false ? (
         <ExpectedPoseGuide
           mirrored={displayMirrored}

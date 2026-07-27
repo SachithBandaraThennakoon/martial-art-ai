@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "wrist-grab-escape",
+  "name": "Wrist Grab Escape",
+  "category": "Self-Defense",
+  "subcategory": "Grab Escapes",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Solo rehearsal only. Keep the left elbow anchored while shaping a compact release path; the camera cannot detect a grab, resistance, partner behavior, or real-world effectiveness."
+}

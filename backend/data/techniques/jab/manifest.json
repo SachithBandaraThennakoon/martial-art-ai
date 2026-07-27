@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "jab",
+  "version": "1.0.0",
+  "display_name": "Jab",
+  "tracking_profile": "cyclic-repetition",
+  "initial_state": "GUARD",
+  "supported_sides": ["left", "right"],
+  "default_side": "left",
+  "required_views": ["front", "front_diagonal"],
+  "required_landmarks": [
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_hip",
+    "right_hip"
+  ],
+  "required_features": [
+    "lead_elbow_angle",
+    "lead_elbow_angular_velocity",
+    "lead_wrist_guard_distance",
+    "lead_wrist_forward_velocity",
+    "rear_wrist_guard_distance",
+    "torso_lean",
+    "torso_rotation",
+    "motion_energy"
+  ],
+  "optional_features": [
+    "lead_fist_closure_score",
+    "rear_fist_closure_score",
+    "face_forward_score",
+    "eyes_forward_score",
+    "face_calm_score"
+  ]
+}

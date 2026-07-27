@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "id": "front-kick",
+  "name": "Front Kick",
+  "tracking_package": "front-kick",
+  "tracking_version": "1.0.0",
+  "category": "Technique Training",
+  "subcategory": "Kicking",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "STARTER_PLAN",
+  "description": "Use a side or 30-degree view with the right leg nearer the camera. Lift the knee before extending and keep the supporting leg stable; train below maximal height."
+}

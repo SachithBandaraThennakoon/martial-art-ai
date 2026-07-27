@@ -383,13 +383,20 @@ def get_practice_session_tape(
 
 @app.get("/practice/analysis")
 def get_practice_analysis(
+    technique_name: str | None = None,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
     user_record = _get_user_from_token(db, token)
-    sessions = db.query(PracticeSession).filter(
+    sessions_query = db.query(PracticeSession).filter(
         PracticeSession.user_id == user_record.id
-    ).order_by(PracticeSession.started_at.desc()).limit(12).all()
+    )
+    selected_technique = (technique_name or "").strip()
+    if selected_technique:
+        sessions_query = sessions_query.filter(
+            func.lower(PracticeSession.technique_name) == selected_technique.lower()
+        )
+    sessions = sessions_query.order_by(PracticeSession.started_at.desc()).limit(12).all()
 
     total_sessions = len(sessions)
     total_reps = sum(session.completed_reps or 0 for session in sessions)
@@ -484,6 +491,10 @@ def get_practice_analysis(
             training_recommendation = "Repeat your latest guided session and hold each target before advancing."
 
     return {
+        "scope": {
+            "technique_name": selected_technique or None,
+            "session_limit": 12,
+        },
         "summary": {
             "total_sessions": total_sessions,
             "total_reps": total_reps,

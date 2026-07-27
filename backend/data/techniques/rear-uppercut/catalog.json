@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "rear-uppercut",
+  "name": "Rear Uppercut",
+  "category": "Technique Training",
+  "subcategory": "Punching",
+  "difficulty": "Beginner",
+  "price": 1.99,
+  "required_plan": "STARTER_PLAN",
+  "description": "Face the camera in an orthodox guard. Use a short upward path with the rear elbow below the fist; avoid leaning or overextending."
+}

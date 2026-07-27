@@ -1,5 +1,5 @@
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
@@ -50,6 +50,10 @@ export default function TrainingStudio({ studioMode = "student" }) {
     level1: false,
     onnx: false
   });
+  const [adminInputSource, setAdminInputSource] = useState("live");
+  const [adminVideo, setAdminVideo] = useState(null);
+  const [adminInputStatus, setAdminInputStatus] = useState("Live camera selected");
+  const videoInputRef = useRef(null);
   const bodyCalibration = useBodyCalibration();
   const requestedMode = searchParams.get("mode");
   const mode = MODES[requestedMode] ? requestedMode : "train";
@@ -61,6 +65,12 @@ export default function TrainingStudio({ studioMode = "student" }) {
   useEffect(() => {
     armVoicePlaybackUnlock();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (adminVideo?.url) URL.revokeObjectURL(adminVideo.url);
+    };
+  }, [adminVideo?.url]);
 
   if (!hasTechniqueSelection && mode !== "analysis") {
     return <Navigate to={isAdminStudio ? "/admin-studio" : "/studio"} replace />;
@@ -115,12 +125,51 @@ export default function TrainingStudio({ studioMode = "student" }) {
     localStorage.setItem("studioPerformanceMode", nextMode);
   };
 
+  const updateAdminInputSource = (nextSource) => {
+    if (!["live", "video", "skeleton"].includes(nextSource)) return;
+    setAdminInputSource(nextSource);
+    setAdminInputStatus(
+      nextSource === "live"
+        ? "Live camera selected"
+        : nextSource === "skeleton"
+          ? "Drag skeleton joints to test rules"
+          : adminVideo
+            ? `Video ready: ${adminVideo.name}`
+            : "Choose a local video to begin"
+    );
+  };
+
+  const selectAdminVideo = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      setAdminInputStatus("Unsupported file. Choose a video file.");
+      event.target.value = "";
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setAdminVideo({
+      url,
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    setAdminInputSource("video");
+    setAdminInputStatus(`Loading video: ${file.name}`);
+    event.target.value = "";
+  };
+
   const activeSkeletonLayers = isAdminStudio
     ? skeletonLayers
     : { level1: false, onnx: false, corrections: true };
 
   return (
-    <main className={`training-shell ${mode === "analysis" ? "training-shell--analysis" : ""}`}>
+    <main
+      className={`training-shell ${isAdminStudio ? "training-shell--admin" : ""} ${
+        mode === "analysis" ? "training-shell--analysis" : ""
+      }`}
+    >
       <div className="studio-mode-switch" aria-label="Training Studio mode">
         <div>
           <p className="eyebrow">{isAdminStudio ? "Admin Studio" : "Training Studio"}</p>
@@ -193,6 +242,64 @@ export default function TrainingStudio({ studioMode = "student" }) {
         ) : null}
 
         {isAdminStudio && mode !== "analysis" ? (
+          <div className="admin-input-source" aria-label="Admin evaluation input source">
+            <div className="admin-input-source__heading">
+              <span>Evaluation input</span>
+              <strong>{adminInputStatus}</strong>
+            </div>
+            <div className="admin-input-source__choices" role="radiogroup">
+              <button
+                aria-checked={adminInputSource === "live"}
+                className={adminInputSource === "live" ? "is-active" : ""}
+                onClick={() => updateAdminInputSource("live")}
+                role="radio"
+                type="button"
+              >
+                Live camera
+              </button>
+              <button
+                aria-checked={adminInputSource === "video"}
+                className={adminInputSource === "video" ? "is-active" : ""}
+                onClick={() => updateAdminInputSource("video")}
+                role="radio"
+                type="button"
+              >
+                Uploaded video
+              </button>
+              <button
+                aria-checked={adminInputSource === "skeleton"}
+                className={adminInputSource === "skeleton" ? "is-active" : ""}
+                onClick={() => updateAdminInputSource("skeleton")}
+                role="radio"
+                type="button"
+              >
+                Skeleton lab
+              </button>
+              <button
+                className="admin-input-source__upload"
+                onClick={() => videoInputRef.current?.click()}
+                type="button"
+              >
+                {adminVideo ? "Replace video" : "Choose video"}
+              </button>
+            </div>
+            <input
+              accept="video/mp4,video/webm,video/quicktime,video/*"
+              aria-label="Choose evaluation video"
+              hidden
+              onChange={selectAdminVideo}
+              ref={videoInputRef}
+              type="file"
+            />
+            {adminVideo ? (
+              <small title={adminVideo.name}>
+                {adminVideo.name} · {(adminVideo.size / (1024 * 1024)).toFixed(1)} MB
+              </small>
+            ) : null}
+          </div>
+        ) : null}
+
+        {isAdminStudio && mode !== "analysis" ? (
           <div className="coach-toggles coach-toggles--skeleton" aria-label="Research skeleton layers">
             <button
               aria-pressed={activeSkeletonLayers.level1}
@@ -231,6 +338,10 @@ export default function TrainingStudio({ studioMode = "student" }) {
           bodyCalibration={bodyCalibration}
           stanceTargetDegrees={stanceTargetDegrees}
           onStanceTargetChange={updateStanceTarget}
+          inputSource={adminInputSource}
+          inputVideoUrl={adminVideo?.url || null}
+          inputVideoName={adminVideo?.name || null}
+          onInputStatus={setAdminInputStatus}
         />
       ) : mode === "practice" ? (
         <PracticeMode
@@ -247,6 +358,10 @@ export default function TrainingStudio({ studioMode = "student" }) {
           performanceMode={performanceMode}
           skeletonLayers={activeSkeletonLayers}
           bodyCalibration={bodyCalibration}
+          inputSource={adminInputSource}
+          inputVideoUrl={adminVideo?.url || null}
+          inputVideoName={adminVideo?.name || null}
+          onInputStatus={setAdminInputStatus}
         />
       ) : (
         <PracticeAnalysisMode

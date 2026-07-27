@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "front-kick",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Chamber knee",
+      "angles": [
+        {
+          "body_part": "knee_right",
+          "min": 45,
+          "max": 85
+        },
+        {
+          "body_part": "hip_right",
+          "min": 45,
+          "max": 105
+        },
+        {
+          "body_part": "knee_left",
+          "min": 145,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Extend kick",
+      "angles": [
+        {
+          "body_part": "knee_right",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "hip_right",
+          "min": 55,
+          "max": 120
+        },
+        {
+          "body_part": "knee_left",
+          "min": 140,
+          "max": 180
+        }
+      ]
+    }
+  ]
+}

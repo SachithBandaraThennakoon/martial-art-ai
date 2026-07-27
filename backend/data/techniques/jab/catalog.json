@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "id": "jab",
+  "name": "Jab",
+  "tracking_package": "jab",
+  "tracking_version": "1.0.0",
+  "category": "Technique Training",
+  "subcategory": "Punching",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Face the camera in an orthodox stance. Extend the left lead hand without forcing elbow lock, then return immediately to a balanced two-hand guard."
+}

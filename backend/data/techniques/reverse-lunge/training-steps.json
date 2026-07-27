@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "reverse-lunge",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Set split stance",
+      "angles": [
+        {
+          "body_part": "knee_left",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 140,
+          "max": 180
+        },
+        {
+          "body_part": "hip_left",
+          "min": 145,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Lower right leg back",
+      "angles": [
+        {
+          "body_part": "knee_left",
+          "min": 80,
+          "max": 120
+        },
+        {
+          "body_part": "knee_right",
+          "min": 70,
+          "max": 125
+        },
+        {
+          "body_part": "hip_right",
+          "min": 115,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Drive to stand",
+      "angles": [
+        {
+          "body_part": "knee_left",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 140,
+          "max": 180
+        },
+        {
+          "body_part": "hip_left",
+          "min": 145,
+          "max": 180
+        }
+      ]
+    }
+  ]
+}

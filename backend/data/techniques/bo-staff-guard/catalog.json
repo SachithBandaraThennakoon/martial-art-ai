@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "bo-staff-guard",
+  "name": "Bo Staff Guard",
+  "category": "Weapons",
+  "subcategory": "Staff",
+  "difficulty": "Intermediate",
+  "price": 6.99,
+  "required_plan": "PRO_PLAN",
+  "description": "Use a lightweight training staff with clear space and supervision. The camera evaluates the visible arm and wrist frame, not the weapon, grip security, or striking safety."
+}

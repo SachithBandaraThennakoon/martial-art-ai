@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "hip-mobility-flow",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Open stance",
+      "angles": [
+        {
+          "body_part": "hip_left",
+          "min": 140,
+          "max": 180
+        },
+        {
+          "body_part": "hip_right",
+          "min": 140,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 145,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Sink into hip stretch",
+      "angles": [
+        {
+          "body_part": "knee_left",
+          "min": 80,
+          "max": 120
+        },
+        {
+          "body_part": "knee_right",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "hip_left",
+          "min": 70,
+          "max": 135
+        }
+      ]
+    }
+  ]
+}

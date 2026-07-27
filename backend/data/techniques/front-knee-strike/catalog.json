@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "front-knee-strike",
+  "name": "Front Knee Strike",
+  "category": "Technique Training",
+  "subcategory": "Knee & Elbow Strikes",
+  "difficulty": "Beginner",
+  "price": 2.99,
+  "required_plan": "STARTER_PLAN",
+  "description": "Use a front or slight diagonal view with the full body visible. Balance on the left leg and lift the right knee under control; do not strike a person while using camera coaching."
+}

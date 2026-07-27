@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "high-cover",
+  "name": "High Cover",
+  "category": "Technique Training",
+  "subcategory": "Defense",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Face the camera. Bring both closed hands beside the temples, keep elbows compact, and look through the guard without pressing on the head."
+}

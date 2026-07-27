@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "low-lunge",
+  "name": "Low Lunge",
+  "category": "Flexibility & Mobility",
+  "subcategory": "Yoga Foundations",
+  "difficulty": "Beginner",
+  "price": 1.99,
+  "required_plan": "STARTER_PLAN",
+  "description": "Use a side view with the left foot forward. Keep a stable front knee and lengthen the rear leg only within a pain-free hip range; use padding if the rear knee lowers."
+}

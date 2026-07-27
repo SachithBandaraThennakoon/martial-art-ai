@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "train": {
+    "ready": "Set your guard.",
+    "EXTENSION": "Drive the fist forward.",
+    "slow_retraction": "Bring the hand back faster.",
+    "dropped_guard": "Keep the other hand protecting.",
+    "excessive_torso_lean": "Stay tall and balanced.",
+    "open_lead_hand_during_strike": "Close the striking fist before extension.",
+    "open_rear_guard_hand": "Keep the guard hand closed and protecting.",
+    "looking_away_during_strike": "Keep your eyes and face toward the target."
+  }
+}

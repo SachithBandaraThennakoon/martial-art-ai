@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rule-condition.schema.json",
+  "title": "Tracking rule condition",
+  "type": "object",
+  "required": ["feature", "operator"],
+  "properties": {
+    "feature": {"type": "string", "minLength": 1},
+    "operator": {
+      "enum": [
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "between",
+        "increasing",
+        "decreasing",
+        "stable",
+        "near_baseline"
+      ]
+    },
+    "value": {"type": "number"},
+    "min": {"type": "number"},
+    "max": {"type": "number"},
+    "margin": {"type": "number", "minimum": 0}
+  },
+  "additionalProperties": false
+}

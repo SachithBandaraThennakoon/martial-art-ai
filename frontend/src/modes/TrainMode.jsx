@@ -102,7 +102,11 @@ export default function TrainMode({
   skeletonLayers = {},
   bodyCalibration,
   stanceTargetDegrees = 0,
-  onStanceTargetChange
+  onStanceTargetChange,
+  inputSource = "live",
+  inputVideoUrl,
+  inputVideoName,
+  onInputStatus
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -127,6 +131,8 @@ export default function TrainMode({
   const [level3State, setLevel3State] = useState(null);
   const [level4State, setLevel4State] = useState(null);
   const [situationAwarenessState, setSituationAwarenessState] = useState(null);
+  const [trainSessionStarted, setTrainSessionStarted] = useState(false);
+  const [ruleEngineSessionSummary, setRuleEngineSessionSummary] = useState(null);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showDataLayers, setShowDataLayers] = useState(false);
   const [showConversationHistory, setShowConversationHistory] = useState(false);
@@ -184,6 +190,25 @@ export default function TrainMode({
   );
   const replyOptions = coachEvent?.question?.options || [];
   const requiresResponse = Boolean(coachEvent?.requires_response && replyOptions.length);
+  const trainSessionComplete = [
+    "confirm_session_complete",
+    "session_complete"
+  ].includes(coachEvent?.state) || coachEvent?.action === "session_complete_prompt";
+  const trainSessionActive = trainSessionStarted && !trainSessionComplete;
+  const trainSessionPaused =
+    trainSessionActive && Boolean(coachEvent?.memory?.paused);
+  const trainSessionState = trainSessionComplete
+    ? "SESSION_COMPLETE"
+    : trainSessionPaused
+      ? "PAUSED"
+      : trainSessionStarted
+        ? "ACTIVE"
+        : "READY";
+  const liveRepetitionSummary =
+    level3State?.session_context?.repetition_summary || null;
+  const liveTrackingQuality = Number.isFinite(level3State?.debug?.average_tracking)
+    ? Math.round(level3State.debug.average_tracking * 100)
+    : null;
   const sessionConfig = useMemo(
     () => ({
       technique_name: currentTechnique?.name || "this technique",
@@ -225,6 +250,9 @@ export default function TrainMode({
 
   const handleCoachEvent = useCallback((event) => {
     setCoachEvent(event);
+    if (event?.memory?.ready || event?.action === "restart_training") {
+      setTrainSessionStarted(true);
+    }
 
     const message = coachText(event);
     const messagePattern = normalizeCoachMessage(message);
@@ -269,6 +297,7 @@ export default function TrainMode({
     }
 
     if (event?.action === "restart_training") {
+      setRuleEngineSessionSummary(null);
       setCurrentStepIndex(0);
       return;
     }
@@ -743,6 +772,10 @@ export default function TrainMode({
     setAngles({});
     setAccuracy(0);
     setFeedback("");
+    if (techniqueChanged) {
+      setTrainSessionStarted(false);
+      setRuleEngineSessionSummary(null);
+    }
     const message = currentStepName
       ? `Settle into ${currentStepName}. I am syncing the live angles.`
       : "Choose a step to begin.";
@@ -818,6 +851,10 @@ export default function TrainMode({
           enableAwareness
           performanceProfile={performanceProfile}
           performanceMode={performanceMode}
+          inputSource={inputSource}
+          inputVideoUrl={inputVideoUrl}
+          inputVideoName={inputVideoName}
+          onInputStatus={onInputStatus}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
           bodyCalibration={bodyCalibration?.profile}
@@ -837,6 +874,9 @@ export default function TrainMode({
           onLevel3Update={setLevel3State}
           onLevel4Update={setLevel4State}
           onSituationAwarenessUpdate={setSituationAwarenessState}
+          onRuleEngineSessionComplete={setRuleEngineSessionSummary}
+          trackingSessionActive={trainSessionActive}
+          trackingSessionPaused={trainSessionPaused}
           onAccuracyUpdate={setAccuracy}
           onFeedbackUpdate={setFeedback}
           onSummaryUpdate={setFeedback}
@@ -880,6 +920,45 @@ export default function TrainMode({
 
         <div className="panel-block panel-block--awareness">
           <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
+        </div>
+
+        <div className="panel-block">
+          <div className="panel-heading">
+            <p className="eyebrow">Session awareness</p>
+            <span>{trainSessionState.replaceAll("_", " ")}</span>
+          </div>
+          <div className="practice-last-session__metrics">
+            <span>
+              <small>Completed</small>
+              <strong>
+                {ruleEngineSessionSummary?.completed_repetitions ??
+                  liveRepetitionSummary?.repetitions_completed ??
+                  0}
+              </strong>
+            </span>
+            <span>
+              <small>Incomplete</small>
+              <strong>
+                {ruleEngineSessionSummary?.aborted_repetitions ??
+                  liveRepetitionSummary?.incomplete_repetitions ??
+                  0}
+              </strong>
+            </span>
+            <span>
+              <small>Tracking</small>
+              <strong>
+                {Number.isFinite(ruleEngineSessionSummary?.tracking_quality_percentage)
+                  ? `${ruleEngineSessionSummary.tracking_quality_percentage}%`
+                  : Number.isFinite(liveTrackingQuality)
+                    ? `${liveTrackingQuality}%`
+                    : "Live"}
+              </strong>
+            </span>
+            <span>
+              <small>Corrections</small>
+              <strong>{ruleEngineSessionSummary?.corrections_applied ?? 0}</strong>
+            </span>
+          </div>
         </div>
 
         <div className="panel-block panel-block--calibration">

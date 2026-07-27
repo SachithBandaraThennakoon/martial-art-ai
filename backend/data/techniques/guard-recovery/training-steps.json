@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "guard-recovery",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Post lead frame",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 120,
+          "max": 175
+        },
+        {
+          "body_part": "shoulder_left",
+          "min": 55,
+          "max": 110
+        },
+        {
+          "body_part": "hand_left_open",
+          "min": 55,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 65,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Recover full guard",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 50,
+          "max": 105
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 50,
+          "max": 105
+        },
+        {
+          "body_part": "fist_left",
+          "min": 65,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 65,
+          "max": 100
+        },
+        {
+          "body_part": "eyes_forward",
+          "min": 55,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

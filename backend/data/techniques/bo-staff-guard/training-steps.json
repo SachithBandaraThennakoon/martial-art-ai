@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "bo-staff-guard",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Staff guard",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 75,
+          "max": 125
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 75,
+          "max": 125
+        },
+        {
+          "body_part": "wrist_left",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "wrist_right",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "fist_left",
+          "min": 55,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 55,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

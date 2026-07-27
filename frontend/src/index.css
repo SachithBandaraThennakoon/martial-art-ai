@@ -1532,6 +1532,147 @@ select:focus {
   gap: 6px;
 }
 
+.admin-input-source {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(106, 168, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(4, 12, 20, 0.72);
+}
+
+.admin-input-source__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-input-source__heading span {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-input-source__heading strong,
+.admin-input-source small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-input-source__choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.admin-input-source__choices button {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.admin-input-source__choices button.is-active {
+  border-color: rgba(96, 211, 148, 0.52);
+  color: var(--text);
+  background: rgba(96, 211, 148, 0.14);
+}
+
+.admin-input-source__choices .admin-input-source__upload {
+  border-color: rgba(106, 168, 255, 0.38);
+  color: #a8cfff;
+}
+
+@media (min-width: 1181px) {
+  .training-shell--admin:not(.training-shell--analysis) .studio-mode-switch,
+  .app-shell--studio
+    .training-shell--admin:not(.training-shell--analysis)
+    .studio-mode-switch {
+    min-height: 136px;
+    align-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 10px 12px;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis)
+    .studio-mode-switch
+    .admin-input-source {
+    order: 4;
+    display: grid;
+    min-width: 0;
+    flex: 1 1 calc(100% - 244px);
+    grid-template-columns: minmax(180px, 0.7fr) minmax(360px, 1.3fr);
+    gap: 6px 12px;
+    padding: 8px 10px;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis)
+    .admin-input-source__heading {
+    min-width: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis)
+    .admin-input-source__choices {
+    align-self: center;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis)
+    .admin-input-source
+    > small {
+    grid-column: 1 / -1;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis)
+    .studio-mode-switch
+    .coach-toggles--skeleton {
+    order: 5;
+    width: 224px;
+    flex: 0 0 224px;
+    align-self: stretch;
+    align-content: center;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(4, 12, 20, 0.58);
+  }
+
+  .training-shell--admin:not(.training-shell--analysis) .training-stage,
+  .app-shell--studio
+    .training-shell--admin:not(.training-shell--analysis)
+    .training-stage {
+    top: 224px;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis) .feedback-banner,
+  .app-shell--studio
+    .training-shell--admin:not(.training-shell--analysis)
+    .feedback-banner {
+    top: 230px;
+  }
+
+  .training-shell--admin:not(.training-shell--analysis) .expected-pose-guide {
+    top: 18px;
+  }
+}
+
 .coach-toggle-button {
   min-height: 32px;
   padding: 0 8px;
@@ -1987,6 +2128,133 @@ select:focus {
 
 .skeleton-canvas--mirrored video {
   transform: scaleX(-1);
+}
+
+.skeleton-canvas--synthetic video {
+  display: none;
+}
+
+.synthetic-skeleton-editor {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(106, 168, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(106, 168, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at center, rgba(96, 211, 148, 0.09), transparent 48%),
+    #02070b;
+  background-size: 32px 32px, 32px 32px, auto, auto;
+  touch-action: none;
+}
+
+.synthetic-skeleton-editor svg {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.synthetic-skeleton-editor line {
+  stroke: #75e3a6;
+  stroke-width: 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 8px rgba(96, 211, 148, 0.8));
+  pointer-events: none;
+}
+
+.synthetic-skeleton-editor line.is-hand {
+  stroke-width: 2.5;
+  opacity: 0.9;
+}
+
+.synthetic-skeleton-editor circle {
+  fill: #f4fff9;
+  stroke: #60d394;
+  stroke-width: 5;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+  filter: drop-shadow(0 0 10px rgba(96, 211, 148, 0.9));
+}
+
+.synthetic-skeleton-editor circle:active {
+  cursor: grabbing;
+  fill: #60d394;
+}
+
+.synthetic-skeleton-editor__hint {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
+  padding: 9px 13px;
+  border: 1px solid rgba(96, 211, 148, 0.34);
+  border-radius: 8px;
+  color: var(--text);
+  text-align: center;
+  background: rgba(2, 10, 15, 0.84);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.synthetic-skeleton-editor__hint strong {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.synthetic-skeleton-editor__hint span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.synthetic-skeleton-editor__controls {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 3;
+  display: grid;
+  width: min(270px, calc(100% - 36px));
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid rgba(106, 168, 255, 0.28);
+  border-radius: 9px;
+  color: var(--text);
+  background: rgba(2, 10, 15, 0.88);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+}
+
+.synthetic-skeleton-editor__controls label {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 7px;
+}
+
+.synthetic-skeleton-editor__controls label > span,
+.synthetic-skeleton-editor__controls output {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.synthetic-skeleton-editor__controls output {
+  color: #75e3a6;
+  text-align: right;
+}
+
+.synthetic-skeleton-editor__controls input[type="range"] {
+  width: 100%;
+  accent-color: #60d394;
+  cursor: ew-resize;
+}
+
+.synthetic-skeleton-editor__controls small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .expected-pose-guide {
@@ -5449,6 +5717,54 @@ select:focus {
   font: inherit;
   text-align: center;
   background: rgba(255, 255, 255, .035);
+}
+
+.practice-range-control {
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.practice-range-control__header,
+.practice-range-control__scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.practice-range-control__header {
+  color: var(--subtle);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.practice-range-control__header output {
+  color: #7fe6ad;
+  font-size: 10px;
+}
+
+.practice-range-control input[type="range"] {
+  width: 100%;
+  height: 4px;
+  margin: 2px 0;
+  accent-color: #60d394;
+  cursor: pointer;
+}
+
+.practice-range-control input[type="range"]:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+.practice-range-control__scale {
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 800;
 }
 
 .practice-control-heading--sequence {

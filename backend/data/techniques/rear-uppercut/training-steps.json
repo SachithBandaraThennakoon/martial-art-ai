@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "rear-uppercut",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Set compact guard",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 55,
+          "max": 105
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 55,
+          "max": 105
+        },
+        {
+          "body_part": "fist_right",
+          "min": 65,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Drive rear uppercut",
+      "angles": [
+        {
+          "body_part": "elbow_right",
+          "min": 45,
+          "max": 90
+        },
+        {
+          "body_part": "shoulder_right",
+          "min": 35,
+          "max": 85
+        },
+        {
+          "body_part": "wrist_right",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "fist_right",
+          "min": 70,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Recover guard",
+      "angles": [
+        {
+          "body_part": "elbow_right",
+          "min": 55,
+          "max": 110
+        },
+        {
+          "body_part": "fist_right",
+          "min": 65,
+          "max": 100
+        },
+        {
+          "body_part": "face_forward",
+          "min": 55,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

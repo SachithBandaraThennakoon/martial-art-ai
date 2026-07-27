@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "jab",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Guard stance",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 50,
+          "max": 105
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 50,
+          "max": 105
+        },
+        {
+          "body_part": "fist_left",
+          "min": 70,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 70,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Extend lead hand",
+      "counts_rep": true,
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 125,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Return to guard",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 50,
+          "max": 110
+        },
+        {
+          "body_part": "fist_left",
+          "min": 70,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 70,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

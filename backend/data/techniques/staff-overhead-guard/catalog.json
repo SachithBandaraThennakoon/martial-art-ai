@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "staff-overhead-guard",
+  "name": "Staff Overhead Guard",
+  "category": "Weapons",
+  "subcategory": "Staff",
+  "difficulty": "Intermediate",
+  "price": 6.99,
+  "required_plan": "PRO_PLAN",
+  "description": "Use a lightweight training staff only, with clear space and qualified supervision. The camera evaluates the arm frame and closed-hand confidence; it does not detect the staff or certify weapon safety."
+}

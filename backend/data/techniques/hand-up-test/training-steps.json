@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "hand-up-test",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Hands up shoulders",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 15,
+          "max": 90
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 10,
+          "max": 90
+        },
+        {
+          "body_part": "face_forward",
+          "min": 70,
+          "max": 100
+        },
+        {
+          "body_part": "eyes_forward",
+          "min": 55,
+          "max": 100
+        },
+        {
+          "body_part": "face_calm",
+          "min": 55,
+          "max": 100
+        },
+        {
+          "body_part": "fist_left",
+          "min": 65,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 65,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Half hand up right elbow",
+      "angles": [
+        {
+          "body_part": "elbow_right",
+          "min": 90,
+          "max": 105
+        },
+        {
+          "body_part": "face_forward",
+          "min": 75,
+          "max": 100
+        },
+        {
+          "body_part": "eyes_forward",
+          "min": 60,
+          "max": 100
+        },
+        {
+          "body_part": "face_calm",
+          "min": 50,
+          "max": 100
+        },
+        {
+          "body_part": "fist_left",
+          "min": 65,
+          "max": 100
+        },
+        {
+          "body_part": "hand_right_open",
+          "min": 55,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

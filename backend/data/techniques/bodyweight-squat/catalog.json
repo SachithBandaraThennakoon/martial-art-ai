@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "bodyweight-squat",
+  "name": "Bodyweight Squat",
+  "category": "Conditioning & Fitness",
+  "subcategory": "Strength Fundamentals",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Use a front or 30-degree view with feet comfortable and knees tracking in the same direction as the feet. Choose a pain-free depth; the app does not prescribe one universal squat style."
+}

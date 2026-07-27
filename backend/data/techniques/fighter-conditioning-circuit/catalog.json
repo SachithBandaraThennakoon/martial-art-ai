@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "fighter-conditioning-circuit",
+  "name": "Fighter Conditioning Circuit",
+  "category": "Conditioning & Fitness",
+  "subcategory": "Cardio Conditioning",
+  "difficulty": "Intermediate",
+  "price": 4.99,
+  "required_plan": "STARTER_PLAN",
+  "description": "Face the camera for a controlled athletic-stance and right-knee-drive interval. Maintain balance and smooth mechanics before increasing pace."
+}

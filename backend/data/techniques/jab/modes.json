@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "train": {
+    "transition_confidence_min": 0.72,
+    "tracking_confidence_min": 0.65,
+    "candidate_sensitivity": 0.7,
+    "live_corrections": true,
+    "post_session_correction": false,
+    "cue_cooldown_ms": 1400
+  },
+  "practice": {
+    "transition_confidence_min": 0.58,
+    "tracking_confidence_min": 0.55,
+    "candidate_sensitivity": 0.48,
+    "live_corrections": false,
+    "post_session_correction": true,
+    "maximum_repairable_tracking_gap_ms": 180
+  }
+}

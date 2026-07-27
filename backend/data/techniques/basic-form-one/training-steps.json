@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "basic-form-one",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Ready position",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 85,
+          "max": 125
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 85,
+          "max": 125
+        },
+        {
+          "body_part": "fist_left",
+          "min": 60,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 60,
+          "max": 100
+        },
+        {
+          "body_part": "knee_left",
+          "min": 140,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 140,
+          "max": 180
+        }
+      ]
+    }
+  ]
+}

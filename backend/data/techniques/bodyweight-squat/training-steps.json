@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "bodyweight-squat",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Stand tall",
+      "angles": [
+        {
+          "body_part": "hip_left",
+          "min": 155,
+          "max": 180
+        },
+        {
+          "body_part": "hip_right",
+          "min": 155,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 155,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 155,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Reach controlled depth",
+      "angles": [
+        {
+          "body_part": "hip_left",
+          "min": 65,
+          "max": 125
+        },
+        {
+          "body_part": "hip_right",
+          "min": 65,
+          "max": 125
+        },
+        {
+          "body_part": "knee_left",
+          "min": 80,
+          "max": 130
+        },
+        {
+          "body_part": "knee_right",
+          "min": 80,
+          "max": 130
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Stand with control",
+      "angles": [
+        {
+          "body_part": "hip_left",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "hip_right",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 150,
+          "max": 180
+        }
+      ]
+    }
+  ]
+}

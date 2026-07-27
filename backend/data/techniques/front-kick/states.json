@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "initial_state": "STANCE",
+  "state_order": ["STANCE", "CHAMBER", "EXTENSION", "RECOIL", "RECOVERY"],
+  "states": {
+    "STANCE": {
+      "min_duration_ms": 180,
+      "max_duration_ms": 10000,
+      "confirmation": {"min_frames": 5, "min_ms": 150},
+      "enter_rules": {
+        "all": [
+          {"feature": "return_to_stance_distance", "operator": "lte", "value": 0.25},
+          {"feature": "support_leg_stability", "operator": "gte", "value": 0.75},
+          {"feature": "motion_energy", "operator": "lte", "value": 0.035}
+        ]
+      }
+    },
+    "CHAMBER": {
+      "min_duration_ms": 80,
+      "max_duration_ms": 900,
+      "confirmation": {"min_frames": 3, "min_ms": 70},
+      "enter_rules": {
+        "all": [
+          {"feature": "kick_knee_height", "operator": "gte", "value": 0.28},
+          {"feature": "kick_knee_angle", "operator": "between", "min": 45, "max": 95}
+        ]
+      }
+    },
+    "EXTENSION": {
+      "min_duration_ms": 60,
+      "max_duration_ms": 750,
+      "confirmation": {"min_frames": 3, "min_ms": 60},
+      "enter_rules": {
+        "all": [
+          {"feature": "kick_foot_forward_velocity", "operator": "gte", "value": 0.24},
+          {"feature": "kick_knee_angular_velocity", "operator": "gte", "value": 25},
+          {"feature": "kick_knee_angle", "operator": "gte", "value": 120}
+        ]
+      }
+    },
+    "RECOIL": {
+      "min_duration_ms": 70,
+      "max_duration_ms": 850,
+      "confirmation": {"min_frames": 3, "min_ms": 60},
+      "enter_rules": {
+        "all": [
+          {"feature": "kick_foot_forward_velocity", "operator": "lte", "value": -0.06},
+          {"feature": "kick_knee_angular_velocity", "operator": "lte", "value": -20},
+          {"feature": "kick_knee_angle", "operator": "lte", "value": 120}
+        ]
+      }
+    },
+    "RECOVERY": {
+      "min_duration_ms": 130,
+      "max_duration_ms": 1500,
+      "confirmation": {"min_frames": 5, "min_ms": 130},
+      "enter_rules": {
+        "all": [
+          {"feature": "return_to_stance_distance", "operator": "lte", "value": 0.3},
+          {"feature": "support_leg_stability", "operator": "gte", "value": 0.7},
+          {"feature": "motion_energy", "operator": "lte", "value": 0.045}
+        ]
+      }
+    }
+  }
+}

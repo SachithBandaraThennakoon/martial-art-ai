@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "roundhouse-kick",
+  "name": "Roundhouse Kick",
+  "category": "Technique Training",
+  "subcategory": "Kicking",
+  "difficulty": "Intermediate",
+  "price": 3.99,
+  "required_plan": "PRO_PLAN",
+  "description": "Use a front-diagonal view with clear space. Chamber the right leg, turn the body, and extend through a proximal-to-distal sequence; the app does not score foot pivot or impact."
+}

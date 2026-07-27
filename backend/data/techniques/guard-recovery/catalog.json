@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "guard-recovery",
+  "name": "Guard Recovery",
+  "category": "Fighting",
+  "subcategory": "Defense & Movement",
+  "difficulty": "Beginner",
+  "price": 1.99,
+  "required_plan": "STARTER_PLAN",
+  "description": "Face the camera. Extend one hand as a range-finding frame, then recover both hands to a compact guard while keeping visual attention forward."
+}

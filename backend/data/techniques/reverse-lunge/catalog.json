@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "reverse-lunge",
+  "name": "Reverse Lunge",
+  "category": "Conditioning & Fitness",
+  "subcategory": "Strength Fundamentals",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Use a side or 30-degree view. Step the right leg back, lower only to a stable pain-free depth, and keep the front knee controlled over the foot."
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "basic-form-two",
+  "name": "Basic Form Two",
+  "category": "Forms",
+  "subcategory": "Beginner Forms",
+  "difficulty": "Beginner",
+  "price": 3.99,
+  "required_plan": "STARTER_PLAN",
+  "description": "Face the camera. Practice a compact three-position sequence: horse stance, chamber, and balanced twin forearm frame. Move slowly and pause at each checkpoint."
+}

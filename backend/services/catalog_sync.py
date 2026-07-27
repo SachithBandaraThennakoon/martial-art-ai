@@ -1,14 +1,9 @@
-import json
-from pathlib import Path
-
 from sqlalchemy import func, inspect, text
 
 from models.target_angle import TargetAngle
 from models.technique import Technique
 from models.technique_step import TechniqueStep
-
-
-CATALOG_PATH = Path(__file__).resolve().parents[1] / "data" / "technique_tables.sample.json"
+from services.technique_package_loader import TECHNIQUE_ROOT, load_technique_catalog
 
 
 def ensure_session_technique_columns(engine):
@@ -26,9 +21,9 @@ def ensure_session_technique_columns(engine):
             ))
 
 
-def sync_technique_catalog(db, catalog_path=CATALOG_PATH):
-    """Idempotently upsert JSON taxonomy, steps and targets, then link legacy sessions."""
-    payload = json.loads(Path(catalog_path).read_text(encoding="utf-8"))
+def sync_technique_catalog(db, technique_root=TECHNIQUE_ROOT):
+    """Idempotently upsert package taxonomy, steps and targets, then link legacy sessions."""
+    payload = load_technique_catalog(technique_root)
     created = 0
     updated = 0
 

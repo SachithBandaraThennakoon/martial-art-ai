@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "initial_state": "GUARD",
+  "state_order": [
+    "GUARD",
+    "EXTENSION",
+    "FULL_EXTENSION",
+    "RETRACTION",
+    "RECOVERY"
+  ],
+  "states": {
+    "GUARD": {
+      "min_duration_ms": 150,
+      "max_duration_ms": 10000,
+      "confirmation": {"min_frames": 4, "min_ms": 120},
+      "enter_rules": {
+        "all": [
+          {"feature": "lead_elbow_angle", "operator": "between", "min": 50, "max": 115},
+          {"feature": "lead_wrist_guard_distance", "operator": "lte", "value": 0.35},
+          {"feature": "motion_energy", "operator": "lte", "value": 0.4}
+        ]
+      },
+      "exit_hysteresis": {
+        "lead_wrist_guard_distance": 0.42,
+        "motion_energy": 0.5
+      }
+    },
+    "EXTENSION": {
+      "min_duration_ms": 60,
+      "max_duration_ms": 700,
+      "confirmation": {"min_frames": 2, "min_ms": 50},
+      "enter_rules": {
+        "all": [
+          {"feature": "lead_wrist_forward_velocity", "operator": "gte", "value": 0.22},
+          {"feature": "lead_elbow_angular_velocity", "operator": "gte", "value": 25},
+          {"feature": "lead_elbow_angle", "operator": "gte", "value": 105}
+        ]
+      }
+    },
+    "FULL_EXTENSION": {
+      "min_duration_ms": 40,
+      "max_duration_ms": 550,
+      "confirmation": {"min_frames": 2, "min_ms": 35},
+      "enter_rules": {
+        "all": [
+          {"feature": "lead_elbow_angle", "operator": "between", "min": 125, "max": 180},
+          {"feature": "lead_wrist_forward_velocity", "operator": "lte", "value": 0.18}
+        ]
+      },
+      "exit_hysteresis": {
+        "lead_elbow_angle": 118,
+        "lead_wrist_forward_velocity": -0.08
+      }
+    },
+    "RETRACTION": {
+      "min_duration_ms": 60,
+      "max_duration_ms": 700,
+      "confirmation": {"min_frames": 2, "min_ms": 50},
+      "enter_rules": {
+        "all": [
+          {"feature": "lead_wrist_forward_velocity", "operator": "lte", "value": -0.08},
+          {"feature": "lead_elbow_angular_velocity", "operator": "lte", "value": -20}
+        ]
+      }
+    },
+    "RECOVERY": {
+      "min_duration_ms": 100,
+      "max_duration_ms": 1200,
+      "confirmation": {"min_frames": 3, "min_ms": 100},
+      "enter_rules": {
+        "all": [
+          {"feature": "lead_wrist_guard_distance", "operator": "lte", "value": 0.38},
+          {"feature": "lead_elbow_angle", "operator": "between", "min": 50, "max": 120},
+          {"feature": "motion_energy", "operator": "lte", "value": 0.4}
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "basic-form-two",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Set horse stance",
+      "angles": [
+        {
+          "body_part": "knee_left",
+          "min": 95,
+          "max": 145
+        },
+        {
+          "body_part": "knee_right",
+          "min": 95,
+          "max": 145
+        },
+        {
+          "body_part": "hip_left",
+          "min": 105,
+          "max": 165
+        },
+        {
+          "body_part": "hip_right",
+          "min": 105,
+          "max": 165
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Chamber both hands",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 45,
+          "max": 95
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 45,
+          "max": 95
+        },
+        {
+          "body_part": "fist_left",
+          "min": 65,
+          "max": 100
+        },
+        {
+          "body_part": "fist_right",
+          "min": 65,
+          "max": 100
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Set twin forearm frame",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 80,
+          "max": 130
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 80,
+          "max": 130
+        },
+        {
+          "body_part": "shoulder_left",
+          "min": 60,
+          "max": 120
+        },
+        {
+          "body_part": "shoulder_right",
+          "min": 60,
+          "max": 120
+        }
+      ]
+    }
+  ]
+}

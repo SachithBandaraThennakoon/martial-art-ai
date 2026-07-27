@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "incline-push-up",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Set long plank",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 155,
+          "max": 180
+        },
+        {
+          "body_part": "hip_left",
+          "min": 155,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 155,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 2,
+      "step_name": "Lower with control",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 70,
+          "max": 115
+        },
+        {
+          "body_part": "hip_left",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 150,
+          "max": 180
+        }
+      ]
+    },
+    {
+      "step_number": 3,
+      "step_name": "Press to plank",
+      "angles": [
+        {
+          "body_part": "elbow_left",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "hip_left",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 150,
+          "max": 180
+        }
+      ]
+    }
+  ]
+}

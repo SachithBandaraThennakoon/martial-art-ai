@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0",
+  "techniques": [
+    {
+      "id": "jab",
+      "directory": "jab",
+      "enabled": true,
+      "catalog_version": "1.0.0",
+      "tracking_version": "1.0.0"
+    },
+    {
+      "id": "cross",
+      "directory": "cross",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "front-kick",
+      "directory": "front-kick",
+      "enabled": true,
+      "catalog_version": "1.0.0",
+      "tracking_version": "1.0.0"
+    },
+    {
+      "id": "roundhouse-kick",
+      "directory": "roundhouse-kick",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "hip-mobility-flow",
+      "directory": "hip-mobility-flow",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "fighter-conditioning-circuit",
+      "directory": "fighter-conditioning-circuit",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "standing-meditation",
+      "directory": "standing-meditation",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "basic-form-one",
+      "directory": "basic-form-one",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "bo-staff-guard",
+      "directory": "bo-staff-guard",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "wrist-grab-escape",
+      "directory": "wrist-grab-escape",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "distance-control",
+      "directory": "distance-control",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "lead-hook",
+      "directory": "lead-hook",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "rear-uppercut",
+      "directory": "rear-uppercut",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "high-cover",
+      "directory": "high-cover",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "front-knee-strike",
+      "directory": "front-knee-strike",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "side-kick",
+      "directory": "side-kick",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "outside-forearm-block",
+      "directory": "outside-forearm-block",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "bodyweight-squat",
+      "directory": "bodyweight-squat",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "reverse-lunge",
+      "directory": "reverse-lunge",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "high-knee-march",
+      "directory": "high-knee-march",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "incline-push-up",
+      "directory": "incline-push-up",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "warrior-ii",
+      "directory": "warrior-ii",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "chair-pose",
+      "directory": "chair-pose",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "low-lunge",
+      "directory": "low-lunge",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "standing-side-reach",
+      "directory": "standing-side-reach",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "mountain-posture",
+      "directory": "mountain-posture",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "seated-alignment",
+      "directory": "seated-alignment",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "basic-form-two",
+      "directory": "basic-form-two",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "staff-overhead-guard",
+      "directory": "staff-overhead-guard",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "protective-cover-and-palm-exit",
+      "directory": "protective-cover-and-palm-exit",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "bob-and-weave",
+      "directory": "bob-and-weave",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "guard-recovery",
+      "directory": "guard-recovery",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    },
+    {
+      "id": "hand-up-test",
+      "directory": "hand-up-test",
+      "enabled": true,
+      "catalog_version": "1.0.0"
+    }
+  ]
+}

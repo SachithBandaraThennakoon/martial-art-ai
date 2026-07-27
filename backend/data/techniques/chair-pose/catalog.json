@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "chair-pose",
+  "name": "Chair Pose",
+  "category": "Flexibility & Mobility",
+  "subcategory": "Yoga Foundations",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Use a side or 30-degree view. Sit back to a comfortable depth and raise the arms only as far as the ribs and shoulders remain controlled."
+}

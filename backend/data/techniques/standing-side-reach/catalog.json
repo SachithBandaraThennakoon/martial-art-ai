@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "id": "standing-side-reach",
+  "name": "Standing Side Reach",
+  "category": "Flexibility & Mobility",
+  "subcategory": "Shoulder Mobility",
+  "difficulty": "Beginner",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "Face the camera. Reach one straight arm overhead without forcing the neck or shoulder, then switch sides; keep both knees softly extended."
+}

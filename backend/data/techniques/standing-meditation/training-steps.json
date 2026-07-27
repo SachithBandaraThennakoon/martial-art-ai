@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "technique_id": "standing-meditation",
+  "steps": [
+    {
+      "step_number": 1,
+      "step_name": "Stack posture",
+      "angles": [
+        {
+          "body_part": "shoulder_left",
+          "min": 0,
+          "max": 30
+        },
+        {
+          "body_part": "shoulder_right",
+          "min": 0,
+          "max": 30
+        },
+        {
+          "body_part": "elbow_left",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "elbow_right",
+          "min": 150,
+          "max": 180
+        },
+        {
+          "body_part": "knee_left",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "knee_right",
+          "min": 145,
+          "max": 180
+        },
+        {
+          "body_part": "face_forward",
+          "min": 60,
+          "max": 100
+        },
+        {
+          "body_part": "face_calm",
+          "min": 50,
+          "max": 100
+        }
+      ]
+    }
+  ]
+}

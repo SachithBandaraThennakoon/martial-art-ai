@@ -1,9 +1,10 @@
-import json
 import unittest
-from pathlib import Path
 
-
-DATASET_PATH = Path(__file__).resolve().parents[1] / "data" / "technique_tables.sample.json"
+from services.technique_package_loader import (
+    TECHNIQUE_ROOT,
+    load_technique_catalog,
+    load_technique_packages,
+)
 
 SUPPORTED_TARGETS = {
     "elbow_left",
@@ -31,12 +32,38 @@ SUPPORTED_TARGETS = {
 class TechniqueDatasetTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dataset = json.loads(DATASET_PATH.read_text(encoding="utf-8"))
+        cls.dataset = load_technique_catalog()
         cls.techniques = cls.dataset["techniques"]
+        cls.packages = load_technique_packages()
+
+    def test_index_discovers_every_technique_package(self):
+        self.assertEqual(len(self.packages), len(self.techniques))
+        self.assertGreaterEqual(len(self.packages), 33)
+        for package in self.packages:
+            with self.subTest(technique=package["catalog"]["name"]):
+                self.assertTrue((package["directory"] / "catalog.json").is_file())
+                self.assertTrue((package["directory"] / "training-steps.json").is_file())
 
     def test_technique_names_are_unique(self):
         names = [technique["name"] for technique in self.techniques]
         self.assertEqual(len(names), len(set(names)))
+
+    def test_technique_ids_are_unique_and_match_directories(self):
+        ids = [technique["id"] for technique in self.techniques]
+        self.assertEqual(len(ids), len(set(ids)))
+        for package in self.packages:
+            self.assertEqual(
+                package["catalog"]["id"],
+                package["directory"].name,
+            )
+
+    def test_temporal_packages_are_complete(self):
+        tracked = {
+            package["catalog"]["id"]
+            for package in self.packages
+            if package["has_tracking"]
+        }
+        self.assertEqual(tracked, {"jab", "front-kick"})
 
     def test_every_technique_has_one_to_three_ordered_steps(self):
         for technique in self.techniques:
