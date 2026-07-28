@@ -42,6 +42,10 @@ from routers import dashboard as dashboard_router
 # Services
 from services.angle_service import compare_angles
 from services.catalog_sync import ensure_session_technique_columns, sync_technique_catalog
+from services.practice_analytics import (
+    load_practice_analytics,
+    upsert_practice_analytics,
+)
 from agents.master_orchestrator import MasterOrchestrator
 
 # Security
@@ -119,8 +123,18 @@ class PracticeRepRequest(BaseModel):
     issue: str | None = None
 
 
+class PracticeCorrectedSummary(BaseModel):
+    completed_reps: int
+    clean_reps: int = 0
+    average_accuracy: float = 0
+    best_accuracy: float = 0
+    average_rep_seconds: float = 0
+    consistency_score: float = 0
+
+
 class PracticeCompleteRequest(BaseModel):
     status: str = "completed"
+    corrected_summary: PracticeCorrectedSummary | None = None
 
 
 class PracticeTapeRequest(BaseModel):
@@ -292,8 +306,39 @@ def complete_practice_session(
     user_record = _get_user_from_token(db, token)
     session = _get_user_practice_session(db, user_record.id, session_id)
     session.status = "completed" if request.status != "cancelled" else "cancelled"
-    session.ended_at = func.now()
+    if not session.ended_at:
+        session.ended_at = func.now()
     _refresh_practice_session_summary(db, session)
+    if request.corrected_summary:
+        summary = request.corrected_summary
+        session.completed_reps = max(
+            0,
+            min(summary.completed_reps, session.target_reps or 50)
+        )
+        session.clean_reps = max(
+            0,
+            min(summary.clean_reps, session.completed_reps)
+        )
+        session.average_accuracy = max(
+            0,
+            min(summary.average_accuracy, 100)
+        )
+        session.best_accuracy = max(0, min(summary.best_accuracy, 100))
+        session.average_rep_seconds = max(
+            0,
+            min(summary.average_rep_seconds, 120)
+        )
+        session.consistency_score = max(
+            0,
+            min(summary.consistency_score, 100)
+        )
+        session.status = (
+            "completed"
+            if session.completed_reps >= (session.target_reps or 0)
+            else "cancelled"
+        )
+        db.commit()
+        db.refresh(session)
     return _practice_session_payload(session)
 
 
@@ -338,6 +383,16 @@ def store_practice_session_tape(
     tape.payload = compressed_payload
     tape.uncompressed_bytes = len(raw_payload)
     tape.compressed_bytes = len(compressed_payload)
+    analytics_payload = upsert_practice_analytics(
+        db,
+        session.id,
+        {
+            **request.metadata,
+            "captureDurationMs": tape_document["duration_ms"],
+            "canonicalCompletedReps": session.completed_reps,
+            "canonicalTargetReps": session.target_reps,
+        },
+    )
     db.commit()
     db.refresh(tape)
     return {
@@ -345,7 +400,8 @@ def store_practice_session_tape(
         "session_id": session.id,
         "frame_count": tape.frame_count,
         "duration_ms": tape.duration_ms,
-        "compressed_bytes": tape.compressed_bytes
+        "compressed_bytes": tape.compressed_bytes,
+        "analytics": analytics_payload,
     }
 
 
@@ -419,6 +475,7 @@ def get_practice_analysis(
     )
 
     session_ids = [session.id for session in sessions]
+    session_analytics = load_practice_analytics(db, session_ids)
     reps = []
     if session_ids:
         reps = db.query(PracticeRep).filter(
@@ -427,11 +484,48 @@ def get_practice_analysis(
 
     focus_counts = {}
     pace_counts = {}
+    form_error_counts = {}
     for rep in reps:
         if rep.focus_body_part:
             focus_counts[rep.focus_body_part] = focus_counts.get(rep.focus_body_part, 0) + 1
         if rep.speed_label:
             pace_counts[rep.speed_label] = pace_counts.get(rep.speed_label, 0) + 1
+
+    for analytics in session_analytics.values():
+        for error in analytics.get("common_form_errors") or []:
+            error_id = error.get("error_id")
+            if error_id:
+                form_error_counts[error_id] = (
+                    form_error_counts.get(error_id, 0) + int(error.get("count") or 0)
+                )
+
+    tracking_values = [
+        analytics.get("tracking_quality_percentage")
+        for analytics in session_analytics.values()
+        if analytics.get("tracking_quality_percentage") is not None
+    ]
+    response_values = [
+        analytics.get("average_response_time_ms")
+        for analytics in session_analytics.values()
+        if analytics.get("average_response_time_ms") is not None
+    ]
+    aborted_reps = sum(
+        int(analytics.get("aborted_repetitions") or 0)
+        for analytics in session_analytics.values()
+    )
+    corrections_applied = sum(
+        int(analytics.get("corrections_applied") or 0)
+        for analytics in session_analytics.values()
+    )
+    step_duration_values = {}
+    for analytics in session_analytics.values():
+        for step, duration in (analytics.get("per_step_duration_ms") or {}).items():
+            step_duration_values.setdefault(step, []).append(float(duration))
+    average_step_durations = {
+        step: round(sum(values) / len(values))
+        for step, values in step_duration_values.items()
+        if values
+    }
 
     weak_focus = max(focus_counts, key=focus_counts.get) if focus_counts else None
     recent_sessions = list(reversed(sessions[:6]))
@@ -448,7 +542,15 @@ def get_practice_analysis(
     latest = sessions[0] if sessions else None
     recommendation = "Start a fixed-count practice set."
     if latest:
-        if (latest.average_accuracy or 0) >= 85 and latest.completed_reps >= latest.target_reps:
+        latest_analytics = session_analytics.get(latest.id) or {}
+        latest_tracking = latest_analytics.get("tracking_quality_percentage")
+        latest_errors = latest_analytics.get("common_form_errors") or []
+        if latest_tracking is not None and latest_tracking < 70:
+            recommendation = "Improve camera framing and lighting before judging form."
+        elif latest_errors:
+            readable_error = latest_errors[0]["error_id"].replace("_", " ")
+            recommendation = f"Repeat the set slowly and focus on {readable_error}."
+        elif (latest.average_accuracy or 0) >= 85 and latest.completed_reps >= latest.target_reps:
             recommendation = "Strong set. Return to Train or raise the count."
         elif latest.completed_reps < latest.target_reps:
             recommendation = "Finish the target count before increasing reps."
@@ -457,7 +559,14 @@ def get_practice_analysis(
 
     training_sessions = db.query(TrainingSession).filter(
         TrainingSession.user_id == user_record.id
-    ).order_by(TrainingSession.started_at.desc()).limit(12).all()
+    )
+    if selected_technique:
+        training_sessions = training_sessions.filter(
+            func.lower(TrainingSession.technique_name) == selected_technique.lower()
+        )
+    training_sessions = training_sessions.order_by(
+        TrainingSession.started_at.desc()
+    ).limit(12).all()
     training_ids = [session.id for session in training_sessions]
     training_feedback = []
     if training_ids:
@@ -506,6 +615,23 @@ def get_practice_analysis(
             "consistency_score": round(average_consistency, 1),
             "weak_focus": weak_focus,
             "pace_mix": pace_counts,
+            "tracking_quality_percentage": round(
+                sum(tracking_values) / len(tracking_values), 1
+            ) if tracking_values else 0,
+            "average_response_time_ms": round(
+                sum(response_values) / len(response_values)
+            ) if response_values else None,
+            "aborted_reps": aborted_reps,
+            "corrections_applied": corrections_applied,
+            "common_form_errors": [
+                {"error_id": key, "count": value}
+                for key, value in sorted(
+                    form_error_counts.items(),
+                    key=lambda pair: pair[1],
+                    reverse=True,
+                )
+            ],
+            "per_step_duration_ms": average_step_durations,
             "trend": trend,
             "recommendation": recommendation
         },
@@ -529,7 +655,13 @@ def get_practice_analysis(
                 for session in training_sessions[:5]
             ],
         },
-        "sessions": [_practice_session_payload(session) for session in sessions]
+        "sessions": [
+            _practice_session_payload(
+                session,
+                session_analytics.get(session.id),
+            )
+            for session in sessions
+        ]
     }
 
 
@@ -980,8 +1112,8 @@ def _practice_consistency_score(reps):
     return max(0, min(100, 100 - (variance ** 0.5)))
 
 
-def _practice_session_payload(session):
-    return {
+def _practice_session_payload(session, analytics=None):
+    payload = {
         "id": session.id,
         "technique_id": session.technique_id,
         "technique_name": session.technique_name,
@@ -998,6 +1130,9 @@ def _practice_session_payload(session):
         "started_at": session.started_at.isoformat() if session.started_at else None,
         "ended_at": session.ended_at.isoformat() if session.ended_at else None,
     }
+    if analytics:
+        payload["analytics"] = analytics
+    return payload
 
 
 def _practice_rep_payload(rep):

@@ -65,7 +65,7 @@ test("only an active set with exhausted cues and missing reps expires", () => {
   );
 });
 
-test("setup frames cannot advance the movement classifier before recording starts", () => {
+test("whole-session awareness starts with recording and does not wait for a count", () => {
   assert.equal(
     shouldProcessPracticeFrame({
       sessionStatus: "active",
@@ -80,7 +80,7 @@ test("setup frames cannot advance the movement classifier before recording start
       sessionStatus: "active",
       classifierReady: true,
       recordingStarted: true,
-      cueStarted: true
+      cueStarted: false
     }),
     true
   );
@@ -102,10 +102,97 @@ test("tape trimming preserves margins around activity and renormalizes timing", 
   });
 
   assert.equal(trimmed[0].elapsedMs, 0);
-  assert.equal(trimmed[0].countTimestampMs, 300);
-  assert.equal(trimmed[trimmed.length - 1].elapsedMs, 1500);
+  assert.equal(trimmed[0].countTimestampMs, 0);
+  assert.equal(trimmed[trimmed.length - 1].elapsedMs, 1200);
   assert.equal(trimmed[0].frame, 1);
   assert.equal(trimmed.at(-1).frame, trimmed.length);
+});
+
+test("tape trimming excludes a long setup hold before the first repetition peak", () => {
+  const frames = Array.from({ length: 101 }, (_, index) => ({
+    frame: index + 1,
+    elapsedMs: index * 100,
+    sourceTimestampMs: index * 100,
+    scorable: index >= 5 && index <= 80,
+    temporalPhase: index === 60
+      ? "rep_peak"
+      : index >= 5 && index <= 80
+        ? "step_hold"
+        : "waiting_for_movement",
+    countTimestampMs: 1000
+  }));
+
+  const trimmed = trimPracticeTapeFrames(frames, {
+    paddingBeforeMs: 300,
+    paddingAfterMs: 300,
+    maximumLeadInMs: 2000,
+    maximumRecoveryMs: 1000
+  });
+
+  assert.equal(trimmed[0].sourceTimestampMs, 3700);
+  assert.equal(trimmed[0].countTimestampMs, -2700);
+  assert.equal(trimmed.at(-1).elapsedMs, 3600);
+});
+
+test("tape trimming keeps preparation context before Step 2 instead of starting at recovery", () => {
+  const frames = Array.from({ length: 181 }, (_, index) => ({
+    frame: index + 1,
+    elapsedMs: index * 100,
+    sourceTimestampMs: index * 100,
+    rep: 1,
+    step: index < 120 ? 1 : index < 160 ? 2 : 3,
+    scorable: index >= 10 && index <= 170,
+    temporalPhase: index === 170
+      ? "rep_peak"
+      : index < 120
+        ? "step_exit"
+        : index < 160
+          ? "step_hold"
+          : "step_enter"
+  }));
+
+  const trimmed = trimPracticeTapeFrames(frames, {
+    paddingBeforeMs: 300,
+    paddingAfterMs: 300,
+    preparationContextMs: 1500
+  });
+
+  assert.equal(trimmed[0].sourceTimestampMs, 10200);
+  assert.equal(trimmed[0].step, 1);
+  assert.ok(trimmed.some((frame) => frame.step === 2));
+  assert.ok(trimmed.some((frame) => frame.step === 3));
+});
+
+test("tape trimming retains bounded opening context across a long pause", () => {
+  const frames = Array.from({ length: 91 }, (_, index) => ({
+    frame: index + 1,
+    elapsedMs: index * 100,
+    sourceTimestampMs: index * 100,
+    rep: 1,
+    step: index < 60 ? 1 : index < 75 ? 2 : 3,
+    matchedStep: index === 20 ? 1 : index === 70 ? 2 : index === 80 ? 3 : null,
+    scorable: [20, 70, 80].includes(index),
+    temporalPhase: index === 20
+      ? "step_hold"
+      : index === 70
+        ? "step_peak"
+        : index === 80
+          ? "rep_peak"
+          : index < 60
+            ? "step_exit"
+            : "seeking_step"
+  }));
+
+  const trimmed = trimPracticeTapeFrames(frames, {
+    paddingBeforeMs: 300,
+    paddingAfterMs: 300,
+    preparationContextMs: 1500
+  });
+
+  assert.equal(trimmed[0].sourceTimestampMs, 5500);
+  assert.ok(trimmed.some((frame) => frame.step === 1));
+  assert.ok(trimmed.some((frame) => frame.matchedStep === 2));
+  assert.ok(trimmed.some((frame) => frame.matchedStep === 3));
 });
 
 test("count time does not advance a movement repetition", () => {

@@ -25,7 +25,6 @@ import {
   getPracticeCuePrompt,
   reclassifyPracticeSequence,
   shouldProcessPracticeFrame,
-  shouldExpireUnmatchedPracticeSet,
   trimPracticeTapeFrames
 } from "../utils/practiceMovementClassifier";
 import { scorePracticeAngles } from "../utils/practiceAngleScoring";
@@ -33,6 +32,14 @@ import {
   attachRuleEngineAnalysisToTape,
   reanalyzePracticeTapeWithRuleEngine
 } from "../tracking/practiceTapeRuleEngineBridge";
+import {
+  buildPracticeSessionAnalysis,
+  buildPracticeSessionMetrics
+} from "../utils/practiceSessionAnalysis";
+import {
+  selectLatestPracticeSession,
+  sortPracticeSessions
+} from "../utils/practiceSessionSelectors";
 
 const COUNT_OPTIONS = [3, 5, 10];
 const GAP_OPTIONS = [
@@ -43,6 +50,7 @@ const GAP_OPTIONS = [
 const CLEAN_ACCURACY = 80;
 const PRACTICE_PRE_ROLL_MS = 600;
 const PRACTICE_POST_ROLL_MS = 700;
+const PRACTICE_FINAL_ANALYSIS_GRACE_MS = 4000;
 const LOCAL_SESSION = { id: null, status: "active" };
 const PRACTICE_VOICE_GENDER = "male";
 const TAPE_CONNECTIONS = [
@@ -228,6 +236,12 @@ const encodePracticeTapeFrame = (frame) => ({
   ls: frame.liveStep,
   lph: frame.livePhase,
   ltp: frame.liveTemporalPhase,
+  es: frame.expectedStep,
+  ms: frame.matchedStep,
+  mk: frame.matchKind,
+  nr: frame.countedRep,
+  dr: frame.completedRep,
+  qs: frame.sequenceState,
   ps: frame.postSessionClassified,
   sc: frame.scorable
 });
@@ -297,6 +311,12 @@ const decodePracticeTapeFrame = (frame, index) => ({
   liveStep: frame.ls ?? null,
   livePhase: frame.lph || null,
   liveTemporalPhase: frame.ltp || null,
+  expectedStep: frame.es ?? null,
+  matchedStep: frame.ms ?? null,
+  matchKind: frame.mk || null,
+  countedRep: frame.nr ?? null,
+  completedRep: frame.dr ?? null,
+  sequenceState: frame.qs || null,
   postSessionClassified: frame.ps === true,
   scorable: frame.sc !== false
 });
@@ -350,61 +370,68 @@ const analyzePracticeTape = ({
 };
 
 const buildRepTapeFromFrames = (frames, steps) =>
-  [...new Set(frames.map((frame) => frame.rep))].sort((a, b) => a - b).map((rep) => {
-    const repFrames = frames.filter((frame) => frame.rep === rep);
-    const scoredRepFrames = repFrames.filter(
-      (frame) => frame.scorable !== false && Number.isFinite(frame.accuracy)
-    );
-    const weakestFrame = scoredRepFrames.reduce(
-      (weakest, frame) =>
-        !weakest || frame.accuracy < weakest.accuracy ? frame : weakest,
-      null
-    );
-    const accuracy = scoredRepFrames.length
-      ? Math.round(
-          scoredRepFrames.reduce((total, frame) => total + frame.accuracy, 0) /
-            scoredRepFrames.length
-        )
-      : 0;
-    return {
-      rep,
-      elapsedMs: repFrames[0]?.elapsedMs ?? 0,
-      durationMs: Math.max(
-        0,
-        (repFrames[repFrames.length - 1]?.elapsedMs || 0) -
-          (repFrames[0]?.elapsedMs || 0)
-      ),
-      accuracy,
-      clean: accuracy >= CLEAN_ACCURACY,
-      focusBodyPart: weakestFrame?.focusBodyPart || null,
-      issue: weakestFrame?.issue || null,
-      landmarks: weakestFrame?.landmarks || [],
-      stepResults: steps.map((step, index) => {
-        const stepFrames = scoredRepFrames.filter((frame) => frame.step === index + 1);
-        const stepWeakest = stepFrames.reduce(
-          (weakest, frame) =>
-            !weakest || frame.accuracy < weakest.accuracy ? frame : weakest,
-          null
-        );
-        return {
-          step: index + 1,
-          name: step?.step_name || `Step ${index + 1}`,
-          accuracy: stepFrames.length
-            ? Math.round(
-                stepFrames.reduce(
-                  (total, frame) => total + (frame.accuracy || 0),
-                  0
-                ) / stepFrames.length
-              )
-            : 0,
-          captured: Boolean(stepFrames.length),
-          focusBodyPart: stepWeakest?.focusBodyPart || null,
-          issue: stepWeakest?.issue || "not_reached",
-          landmarks: stepWeakest?.landmarks || []
-        };
-      })
-    };
-  });
+  [...new Set(frames.map((frame) => frame.analysisRep ?? frame.rep))]
+    .filter((rep) => Number.isFinite(Number(rep)))
+    .sort((a, b) => a - b)
+    .map((rep) => {
+      const repFrames = frames.filter(
+        (frame) => (frame.analysisRep ?? frame.rep) === rep
+      );
+      const scoredRepFrames = repFrames.filter(
+        (frame) => frame.scorable !== false && Number.isFinite(frame.accuracy)
+      );
+      const weakestFrame = scoredRepFrames.reduce(
+        (weakest, frame) =>
+          !weakest || frame.accuracy < weakest.accuracy ? frame : weakest,
+        null
+      );
+      const accuracy = scoredRepFrames.length
+        ? Math.round(
+            scoredRepFrames.reduce((total, frame) => total + frame.accuracy, 0) /
+              scoredRepFrames.length
+          )
+        : 0;
+      return {
+        rep,
+        elapsedMs: repFrames[0]?.elapsedMs ?? 0,
+        durationMs: Math.max(
+          0,
+          (repFrames[repFrames.length - 1]?.elapsedMs || 0) -
+            (repFrames[0]?.elapsedMs || 0)
+        ),
+        accuracy,
+        clean: accuracy >= CLEAN_ACCURACY,
+        focusBodyPart: weakestFrame?.focusBodyPart || null,
+        issue: weakestFrame?.issue || null,
+        landmarks: weakestFrame?.landmarks || [],
+        stepResults: steps.map((step, index) => {
+          const stepFrames = scoredRepFrames.filter(
+            (frame) => frame.step === index + 1
+          );
+          const stepWeakest = stepFrames.reduce(
+            (weakest, frame) =>
+              !weakest || frame.accuracy < weakest.accuracy ? frame : weakest,
+            null
+          );
+          return {
+            step: index + 1,
+            name: step?.step_name || `Step ${index + 1}`,
+            accuracy: stepFrames.length
+              ? Math.round(
+                  stepFrames.reduce(
+                    (total, frame) => total + (frame.accuracy || 0),
+                    0
+                  ) / stepFrames.length
+                )
+              : 0,
+            captured: Boolean(stepFrames.length),
+            focusBodyPart: stepWeakest?.focusBodyPart || null,
+            issue: stepWeakest?.issue || "not_reached",
+            landmarks: stepWeakest?.landmarks || []
+          };
+        })
+      };
+    });
 
 const getPoseMotion = (previous = [], current = []) => {
   const distances = MOTION_JOINTS.map((index) => {
@@ -656,7 +683,10 @@ function PracticeAccuracyTimeline({
     .join(" ");
   const frameMatchesFilter = (frame) =>
     Number.isFinite(frame.accuracy) &&
-    (countFilter === "all" || frame.rep === Number(countFilter)) &&
+    (
+      countFilter === "all" ||
+      (frame.analysisRep ?? frame.rep) === Number(countFilter)
+    ) &&
     (stepFilter === "all" ||
       (frame.step === Number(stepFilter) && frame.scorable !== false));
   const activeSegments = frames.reduce((segments, frame) => {
@@ -768,7 +798,7 @@ function PracticeAccuracyTimeline({
           })}
           {dropPoints.map((frame) => (
             <circle
-              aria-label={`Accuracy drop at ${formatTapeTime(frame.elapsedMs)}, rep ${frame.rep}, step ${frame.step}, ${frame.accuracy}%`}
+              aria-label={`Accuracy drop at ${formatTapeTime(frame.elapsedMs)}, rep ${frame.analysisRep ?? frame.rep}, step ${frame.step}, ${frame.accuracy}%`}
               className={frame.frame - 1 === selectedFrame ? "is-selected" : ""}
               cx={xAt(frame.elapsedMs)}
               cy={yAt(frame.accuracy)}
@@ -785,13 +815,126 @@ function PracticeAccuracyTimeline({
               tabIndex={0}
             >
               <title>
-                {`Rep ${frame.rep} · Step ${frame.step} · ${frame.accuracy}% · ${formatTapeTime(frame.elapsedMs)}`}
+                {`Rep ${frame.analysisRep ?? frame.rep} · Step ${frame.step} · ${frame.accuracy}% · ${formatTapeTime(frame.elapsedMs)}`}
               </title>
             </circle>
           ))}
         </svg>
       </div>
     </div>
+  );
+}
+
+function PracticeSessionMap({
+  analysis,
+  onSelectFrame,
+  selectedFrame
+}) {
+  if (!analysis?.segments?.length) return null;
+  const durationMs = Math.max(analysis.duration_ms, 1);
+  const timelineRange = (startMs, rangeDurationMs, minimumWidth = 0.35) => {
+    const left = Math.min(
+      100,
+      Math.max(0, (Math.max(0, Number(startMs) || 0) / durationMs) * 100)
+    );
+    const width = Math.min(
+      100 - left,
+      Math.max(
+        minimumWidth,
+        (Math.max(Number(rangeDurationMs) || 0, 34) / durationMs) * 100
+      )
+    );
+    return { left, width };
+  };
+
+  return (
+    <section className="practice-session-map" aria-label="Canonical session map">
+      <div className="practice-session-map__header">
+        <div>
+          <p className="eyebrow">Session map</p>
+          <strong>Movement timeline</strong>
+        </div>
+        <span>
+          {analysis.clustered_completed_repetitions}/
+          {analysis.target_repetitions} completed
+        </span>
+      </div>
+
+      <div className="practice-session-map__timeline">
+        <div className="practice-session-map__tracks">
+          <div className="practice-session-map__segments">
+            {analysis.segments.map((segment, index) => {
+              const selected =
+                selectedFrame >= segment.start_frame_index &&
+                selectedFrame <= segment.end_frame_index;
+              const range = timelineRange(
+                segment.start_ms,
+                segment.duration_ms
+              );
+              return (
+                <button
+                  className={`is-${segment.kind} ${segment.has_review ? "has-review" : ""} ${selected ? "is-selected" : ""}`}
+                  key={`${segment.key}:${segment.start_frame_index}:${index}`}
+                  onClick={() => onSelectFrame?.(segment.start_frame_index)}
+                  style={{
+                    "--segment-left": `${range.left}%`,
+                    "--segment-width": `${range.width}%`
+                  }}
+                  title={`${segment.kind === "repetition" ? `Rep ${segment.rep} · ${segment.step_name}` : segment.phase_label} · ${segment.phase_label} · ${Math.round(segment.duration_ms)} ms`}
+                  type="button"
+                >
+                  <span>
+                    {segment.kind === "preparation"
+                      ? "PREP"
+                      : segment.kind === "tracking"
+                        ? "LOST"
+                        : segment.kind === "unconfirmed"
+                          ? "UNCONF"
+                        : segment.kind === "complete"
+                          ? "END"
+                          : `R${segment.rep} S${segment.step}`}
+                  </span>
+                  <small>{segment.phase_label}</small>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="practice-session-map__reps">
+            {analysis.repetitions.map((repetition) => {
+              const range = timelineRange(
+                repetition.start_ms,
+                repetition.duration_ms,
+                1
+              );
+              return (
+                <button
+                  className={`is-${repetition.status}`}
+                  key={`session-map-rep-${repetition.rep}`}
+                  onClick={() =>
+                    onSelectFrame?.(repetition.start_frame_index)
+                  }
+                  style={{
+                    "--rep-left": `${range.left}%`,
+                    "--rep-width": `${range.width}%`
+                  }}
+                  type="button"
+                >
+                  <span>Rep {repetition.rep}</span>
+                  <strong>{repetition.status}</strong>
+                  <small>
+                    {repetition.step_coverage_percentage}% steps ·{" "}
+                    {Number.isFinite(repetition.average_accuracy)
+                      ? `${Math.round(repetition.average_accuracy)}% form`
+                      : "form unavailable"}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -963,6 +1106,7 @@ export default function PracticeMode({
   const [isTapePopupOpen, setIsTapePopupOpen] = useState(false);
   const [isTapePopupExpanded, setIsTapePopupExpanded] = useState(true);
   const [isCameraRollExpanded, setIsCameraRollExpanded] = useState(false);
+  const [showRawFrameInspector, setShowRawFrameInspector] = useState(false);
   const [cameraRollZoom, setCameraRollZoom] = useState(3);
   const [analysisCountFilter, setAnalysisCountFilter] = useState("all");
   const [analysisStepFilter, setAnalysisStepFilter] = useState("all");
@@ -1098,11 +1242,71 @@ export default function PracticeMode({
   const lastPracticeFeedbackIntentRef = useRef("");
   const lastPracticeSpokenIntentRef = useRef("");
 
-  const fullTapeFrame = fullTapeFrames[fullTapeCursor] || null;
+  const tapeAnalysisSteps = analysisTapeMetadata?.steps?.length
+    ? analysisTapeMetadata.steps
+    : steps;
+  const tapeTargetReps =
+    analysisTapeMetadata?.authoritativeSession?.target_reps ||
+    analysisTapeMetadata?.targetReps ||
+    targetReps;
+  const popupRepTape = analysisTapeMetadata?.repTape || repTape;
+  const fullTapeDurationMs = fullTapeFrames.length
+    ? (fullTapeFrames.length / 30) * 1000
+    : 0;
+  const scoredFullTapeFrames = fullTapeFrames.filter(
+    (frame) => frame.scorable !== false && Number.isFinite(frame.accuracy)
+  );
+  const fullTapeAverageAccuracy = scoredFullTapeFrames.length
+    ? Math.round(
+        scoredFullTapeFrames.reduce((total, frame) => total + frame.accuracy, 0) /
+          scoredFullTapeFrames.length
+      )
+    : 0;
+  const authoritativeSession = analysisTapeMetadata?.authoritativeSession || null;
+  const correctedRuleSummary = analysisTapeMetadata?.ruleEngineAnalysis?.summary || null;
+  const canonicalSessionAnalysis = useMemo(
+    () => buildPracticeSessionAnalysis(fullTapeFrames, {
+      steps: tapeAnalysisSteps,
+      targetReps: tapeTargetReps,
+      strictSummary: correctedRuleSummary
+    }),
+    [
+      correctedRuleSummary,
+      fullTapeFrames,
+      tapeAnalysisSteps,
+      tapeTargetReps
+    ]
+  );
+  const canonicalSessionMetrics = useMemo(
+    () =>
+      buildPracticeSessionMetrics(canonicalSessionAnalysis, {
+        cleanAccuracy: CLEAN_ACCURACY
+      }),
+    [canonicalSessionAnalysis]
+  );
+  const analysisTapeFrames = useMemo(
+    () => fullTapeFrames.map((frame, index) => {
+      const assignment = canonicalSessionAnalysis.frame_assignments[index];
+      return {
+        ...frame,
+        analysisKind: assignment?.kind || "preparation",
+        analysisRep: assignment?.rep ?? null,
+        sourceStep: frame.step,
+        step: assignment?.step ?? frame.step,
+        sourceTemporalPhase: frame.temporalPhase,
+        temporalPhase: assignment?.phase ?? frame.temporalPhase
+      };
+    }),
+    [canonicalSessionAnalysis.frame_assignments, fullTapeFrames]
+  );
+  const fullTapeFrame = analysisTapeFrames[fullTapeCursor] || null;
   const correctedFrameState =
     fullTapeFrame?.ruleEngineAnalysis?.corrected ||
     fullTapeFrame?.ruleEngineAnalysis?.raw ||
     null;
+  const fullTapeFrameIsPreparation =
+    fullTapeFrame?.analysisKind !== "repetition";
+  const displayedFrameRep = fullTapeFrame?.analysisRep;
   const fullTapeFrameScorable =
     fullTapeFrame?.scorable !== false &&
     Number.isFinite(fullTapeFrame?.accuracy);
@@ -1113,26 +1317,11 @@ export default function PracticeMode({
       fullTapeFrame.accuracy < CLEAN_ACCURACY
     ) ||
     fullTapeFrameRuleErrors.length > 0;
-  const tapeAnalysisSteps = analysisTapeMetadata?.steps?.length
-    ? analysisTapeMetadata.steps
-    : steps;
-  const tapeTargetReps =
-    analysisTapeMetadata?.authoritativeSession?.target_reps ||
-    analysisTapeMetadata?.targetReps ||
-    targetReps;
-  const popupRepTape = analysisTapeMetadata?.repTape || repTape;
-  const tapeRepFilterOptions = fullTapeFrames.length
-    ? [...new Set(
-        fullTapeFrames
-          .map((frame) => Number(frame.rep))
-          .filter((rep) => Number.isInteger(rep) && rep > 0)
-      )].sort((left, right) => left - right)
-    : popupRepTape.map((rep) => rep.rep);
   const timelineContentWidth = Math.max(
     900,
-    fullTapeFrames.length * cameraRollZoom
+    analysisTapeFrames.length * cameraRollZoom
   );
-  const filteredTapeFrames = filterPracticeTapeFrames(fullTapeFrames, {
+  const filteredTapeFrames = filterPracticeTapeFrames(analysisTapeFrames, {
     rep: analysisCountFilter,
     step: analysisStepFilter
   });
@@ -1149,29 +1338,28 @@ export default function PracticeMode({
     0,
     filteredTapeFrames.findIndex((entry) => entry.index === fullTapeCursor)
   );
-  const fullTapeDurationMs = fullTapeFrames.length
-    ? (fullTapeFrames.length / 30) * 1000
-    : 0;
-  const scoredFullTapeFrames = fullTapeFrames.filter(
-    (frame) => frame.scorable !== false && Number.isFinite(frame.accuracy)
-  );
-  const fullTapeAverageAccuracy = scoredFullTapeFrames.length
-    ? Math.round(
-        scoredFullTapeFrames.reduce((total, frame) => total + frame.accuracy, 0) /
-          scoredFullTapeFrames.length
-      )
-    : 0;
-  const authoritativeSession = analysisTapeMetadata?.authoritativeSession || null;
-  const correctedRuleSummary = analysisTapeMetadata?.ruleEngineAnalysis?.summary || null;
-  const displayedSessionAverage = Number.isFinite(correctedRuleSummary?.average_accuracy)
-    ? Math.round(correctedRuleSummary.average_accuracy * 100)
+  const tapeRepFilterOptions = canonicalSessionAnalysis.repetitions.length
+    ? canonicalSessionAnalysis.repetitions.map((repetition) => repetition.rep)
+    : popupRepTape.map((repetition) => repetition.rep);
+  const displayedSessionAverage = canonicalSessionMetrics.completed_reps
+    ? Math.round(canonicalSessionMetrics.average_accuracy)
+    : Number.isFinite(correctedRuleSummary?.average_accuracy)
+      ? Math.round(correctedRuleSummary.average_accuracy * 100)
     : Number.isFinite(authoritativeSession?.average_accuracy)
       ? Math.round(authoritativeSession.average_accuracy)
     : fullTapeAverageAccuracy;
-  const displayedCompletedReps = Number.isFinite(correctedRuleSummary?.completed_repetitions)
-    ? correctedRuleSummary.completed_repetitions
+  const displayedCompletedReps = Number.isFinite(
+    canonicalSessionAnalysis?.clustered_completed_repetitions
+  )
+    ? canonicalSessionAnalysis.clustered_completed_repetitions
+    : Number.isFinite(analysisTapeMetadata?.clusteredCompletedReps)
+      ? analysisTapeMetadata.clusteredCompletedReps
+    : Number.isFinite(analysisTapeMetadata?.completedReps)
+      ? analysisTapeMetadata.completedReps
     : Number.isFinite(authoritativeSession?.completed_reps)
       ? authoritativeSession.completed_reps
+    : Number.isFinite(correctedRuleSummary?.completed_repetitions)
+      ? correctedRuleSummary.completed_repetitions
     : popupRepTape.length;
   const fullTapeReviewFrames = fullTapeFrames.filter(
     (frame) =>
@@ -1191,44 +1379,13 @@ export default function PracticeMode({
   const fullTapePrimaryIssue = Object.entries(fullTapeIssueCounts).sort(
     (left, right) => right[1] - left[1]
   )[0]?.[0] || null;
-  const countAttentionResults = Array.from(
-    fullTapeFrames.reduce((results, frame) => {
-      if (frame.countCue && !results.has(frame.countCue)) {
-        results.set(frame.countCue, {
-          cue: frame.countCue,
-          offsetMs: frame.attentionOffsetMs,
-          timing: frame.attentionTiming,
-          timestampMs: frame.countTimestampMs
-        });
-      }
-      return results;
-    }, new Map()).values()
-  );
-  const onTimeCount = countAttentionResults.filter(
-    (result) => result.timing === "on-time"
-  ).length;
-  const attentionRate = countAttentionResults.length
-    ? Math.round((onTimeCount / countAttentionResults.length) * 100)
-    : 0;
-  const sequenceStepStats = tapeAnalysisSteps.map((step, index) => {
-    const results = popupRepTape
-      .map((rep) => rep.stepResults?.[index])
-      .filter(Boolean);
-    return {
-      step: index + 1,
-      name: step?.step_name || `Step ${index + 1}`,
-      accuracy: results.length
-        ? Math.round(results.reduce((total, result) => total + result.accuracy, 0) / results.length)
-        : 0,
-      coverage: popupRepTape.length
-        ? Math.round((results.filter((result) => result.captured).length / popupRepTape.length) * 100)
-        : 0
-    };
-  });
-  const weakestSequenceStep = [...sequenceStepStats].sort(
-    (left, right) => left.accuracy - right.accuracy
-  )[0] || null;
-  const repAccuracyValues = popupRepTape.map((rep) => rep.accuracy);
+  const canonicalAccuracyValues = canonicalSessionAnalysis.repetitions
+    .filter((repetition) => repetition.status === "completed")
+    .map((repetition) => Number(repetition.average_accuracy))
+    .filter(Number.isFinite);
+  const repAccuracyValues = canonicalAccuracyValues.length
+    ? canonicalAccuracyValues
+    : popupRepTape.map((rep) => rep.accuracy);
   const repAccuracyMean = repAccuracyValues.length
     ? repAccuracyValues.reduce((total, value) => total + value, 0) / repAccuracyValues.length
     : 0;
@@ -1246,12 +1403,10 @@ export default function PracticeMode({
         )
       )
     : 0;
-  const fullTapeRecommendation = attentionRate < 70 && countAttentionResults.length
-    ? "React to the count without rushing. Begin the sequence on the cue, then complete every step at your natural speed."
-    : fullTapeAverageAccuracy >= CLEAN_ACCURACY
-      ? "Keep this rhythm. Repeat the same count gap and aim for the same clean shape."
-    : fullTapePrimaryIssue && weakestSequenceStep
-      ? `Rehearse step ${weakestSequenceStep.step}, ${weakestSequenceStep.name}, with focus on ${formatBodyPart(fullTapePrimaryIssue)}. Add 0.5 seconds to the next count gap.`
+  const fullTapeRecommendation = fullTapeAverageAccuracy >= CLEAN_ACCURACY
+    ? "Keep this rhythm and repeat the same clean movement."
+    : fullTapePrimaryIssue
+      ? `Repeat slowly while focusing on ${formatBodyPart(fullTapePrimaryIssue)}.`
       : "Repeat once with your full body visible so every angle can be measured.";
 
   selectedStepIndexRef.current = selectedStepIndex;
@@ -1288,14 +1443,15 @@ export default function PracticeMode({
   }, [isTapePlaying, repTape, tapeCursor]);
 
   useEffect(() => {
-    if (!isFullTapePlaying || !fullTapeFrames.length) return undefined;
+    if (!isFullTapePlaying || !analysisTapeFrames.length) return undefined;
 
     const timerId = window.setInterval(() => {
       setFullTapeCursor((current) => {
-        for (let next = current + 1; next < fullTapeFrames.length; next += 1) {
-          const frame = fullTapeFrames[next];
+        for (let next = current + 1; next < analysisTapeFrames.length; next += 1) {
+          const frame = analysisTapeFrames[next];
           const matchesCount =
-            analysisCountFilter === "all" || frame.rep === Number(analysisCountFilter);
+            analysisCountFilter === "all" ||
+            frame.analysisRep === Number(analysisCountFilter);
           const matchesStep =
             analysisStepFilter === "all" || frame.step === Number(analysisStepFilter);
           if (matchesCount && matchesStep) return next;
@@ -1309,7 +1465,7 @@ export default function PracticeMode({
   }, [
     analysisCountFilter,
     analysisStepFilter,
-    fullTapeFrames,
+    analysisTapeFrames,
     isFullTapePlaying
   ]);
 
@@ -1428,6 +1584,7 @@ export default function PracticeMode({
 
   useEffect(() => {
     const controller = new AbortController();
+    setPracticeAnalysis(null);
     loadPracticeAnalysis(controller.signal);
     return () => controller.abort();
   }, [loadPracticeAnalysis]);
@@ -1614,12 +1771,19 @@ export default function PracticeMode({
     }
   }, []);
 
-  const completePracticeSession = useCallback(async (status = "completed") => {
+  const completePracticeSession = useCallback(async (
+    status = "completed",
+    correctedSummary = null
+  ) => {
     const activeSession = sessionRef.current;
     const token = localStorage.getItem("token");
     if (!activeSession?.id || !token) {
       if (activeSession) {
-        const updatedSession = { ...activeSession, status };
+        const updatedSession = {
+          ...activeSession,
+          ...(correctedSummary || {}),
+          status
+        };
         sessionRef.current = updatedSession;
         setSession(updatedSession);
       }
@@ -1633,7 +1797,10 @@ export default function PracticeMode({
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({
+          status,
+          corrected_summary: correctedSummary
+        })
       });
 
       if (response.ok) {
@@ -1641,8 +1808,17 @@ export default function PracticeMode({
         setSession(data);
         sessionRef.current = data;
         await loadPracticeAnalysis();
+      } else {
+        throw new Error(`Practice completion failed with ${response.status}`);
       }
     } catch {
+      const updatedSession = {
+        ...activeSession,
+        ...(correctedSummary || {}),
+        status
+      };
+      setSession(updatedSession);
+      sessionRef.current = updatedSession;
       sayPractice("Set complete locally. Analysis storage did not update.");
     }
   }, [loadPracticeAnalysis, sayPractice]);
@@ -1741,98 +1917,10 @@ export default function PracticeMode({
       isSetFinishingRef.current = true;
     }
     await postPracticeRep(repNumber, repAccuracy, durationMs, focus, issue);
-
-    if (repNumber < targetReps) return;
-
-    while (
-      isSetFinishingRef.current &&
-      cueCountRef.current < targetReps
-    ) {
-      await new Promise((resolve) => window.setTimeout(resolve, 100));
-    }
-    if (!isSetFinishingRef.current) return;
-
-    await new Promise((resolve) => window.setTimeout(resolve, PRACTICE_POST_ROLL_MS));
-    if (!isSetFinishingRef.current) return;
-    recordFrameRef.current?.();
-    const tapeEndedAt = performance.now();
-    clearCountBeatTimers();
-    const setStart = setStartedAtRef.current || completedAt;
-    const tapeDurationMs = Math.round(tapeEndedAt - setStart);
-    const analyzedTape = analyzePracticeTape({
-      sourceFrames: recordedFramesRef.current,
-      durationMs: tapeDurationMs,
-      steps,
-      targetReps,
-      countMarkers: countMarkersRef.current,
-      countGapMs
-    });
-    const tapeMetadata = {
-      sessionId: sessionRef.current?.id || null,
-      targetReps,
-      countGapMs,
-      techniqueName: currentTechnique?.name || "Practice",
-      biomechanicsSchema: "observed-filtered-measurement-aggregate-v2",
-      postSessionClassification: true,
-      captureMarginsMs: {
-        before: PRACTICE_PRE_ROLL_MS,
-        after: PRACTICE_POST_ROLL_MS
-      },
-      steps: steps.map((step, index) => ({
-        id: step?.id ?? index,
-        step_name: step?.step_name || `Step ${index + 1}`
-      }))
-    };
-
-    setFullTapeFrames(analyzedTape);
-    setAnalysisTapeMetadata(tapeMetadata);
-    setFullTapeCursor(0);
-    setIsFullTapePlaying(false);
-    setIsTapePopupExpanded(true);
-    setIsCameraRollExpanded(false);
-    setCameraRollZoom(3);
-    setAnalysisCountFilter("all");
-    setAnalysisStepFilter("all");
-    sessionRef.current = { ...sessionRef.current, status: "completed" };
-    await completePracticeSession("completed");
-    const liveRuleEngineResult = await waitForRuleEngineResult();
-    const trackingPackage = getTechniqueTrackingPackage(currentTechnique);
-    const replayedRuleEngineResult = trackingPackage
-      ? reanalyzePracticeTapeWithRuleEngine(analyzedTape, trackingPackage)
-      : null;
-    const ruleEngineResult =
-      replayedRuleEngineResult || liveRuleEngineResult;
-    const verifiedTape = ruleEngineResult
-      ? attachRuleEngineAnalysisToTape(analyzedTape, ruleEngineResult)
-      : analyzedTape;
-    const verifiedMetadata = {
-      ...tapeMetadata,
-      authoritativeSession: sessionRef.current || null,
-      ruleEngineAnalysis: ruleEngineResult?.ruleEngineAnalysis || null
-    };
-    setFullTapeFrames(verifiedTape);
-    setAnalysisTapeMetadata(verifiedMetadata);
-    sayPractice(
-      "Stop. Set finished. Your full sequence analysis is ready.",
-      { force: true, intent: `set_finished:${targetReps}`, speak: true }
-    );
-    await new Promise((resolve) => window.setTimeout(resolve, 1200));
-    if (sessionRef.current?.status === "completed") {
-      setIsTapePopupOpen(true);
-    }
-    await storePracticeTape(sessionRef.current?.id, verifiedTape, verifiedMetadata);
-    isSetFinishingRef.current = false;
   }, [
-    clearCountBeatTimers,
-    completePracticeSession,
-    countGapMs,
-    currentTechnique,
     postPracticeRep,
-    sayPractice,
     steps,
-    storePracticeTape,
-    targetReps,
-    waitForRuleEngineResult
+    targetReps
   ]);
 
   completeMovementRepRef.current = completeMovementRep;
@@ -1878,16 +1966,14 @@ export default function PracticeMode({
       countBeatTimersRef.current = [intervalTimerId];
     } else {
       const finalResponseTimerId = window.setTimeout(async () => {
-        if (!shouldExpireUnmatchedPracticeSet({
-          sessionStatus: sessionRef.current?.status,
-          cueCount: cueCountRef.current,
-          targetReps,
-          repCount: repCountRef.current
-        })) {
+        if (
+          sessionRef.current?.status !== "active" &&
+          !isSetFinishingRef.current
+        ) {
           return;
         }
 
-        const remaining = Math.max(0, targetReps - repCountRef.current);
+        isSetFinishingRef.current = true;
         recordFrameRef.current?.();
         const setStart = setStartedAtRef.current || performance.now();
         const tapeDurationMs = Math.max(0, Math.round(performance.now() - setStart));
@@ -1899,6 +1985,21 @@ export default function PracticeMode({
           countMarkers: countMarkersRef.current,
           countGapMs
         });
+        const correctedAnalysis = buildPracticeSessionAnalysis(analyzedTape, {
+          steps,
+          targetReps
+        });
+        const correctedSummary = buildPracticeSessionMetrics(
+          correctedAnalysis,
+          { cleanAccuracy: CLEAN_ACCURACY }
+        );
+        const correctedCompletedReps = correctedSummary.completed_reps;
+        const completed = correctedCompletedReps >= targetReps;
+        const remaining = Math.max(0, targetReps - correctedCompletedReps);
+        repCountRef.current = correctedCompletedReps;
+        setRepCount(correctedCompletedReps);
+        setCleanReps(correctedSummary.clean_reps);
+        setAccuracy(Math.round(correctedSummary.average_accuracy));
         const tapeMetadata = {
           sessionId: sessionRef.current?.id || null,
           targetReps,
@@ -1906,8 +2007,18 @@ export default function PracticeMode({
           techniqueName: currentTechnique?.name || "Practice",
           biomechanicsSchema: "observed-filtered-measurement-aggregate-v2",
           postSessionClassification: true,
-          completionStatus: "incomplete",
-          completedReps: repCountRef.current,
+          frameOrganizationVersion: 2,
+          clusteredCompletedReps:
+            correctedCompletedReps,
+          completionStatus: completed ? "completed" : "incomplete",
+          completedReps: correctedCompletedReps,
+          correctedSummary,
+          captureWindow: {
+            startedAt: "start_button",
+            endedAfterFinalCueMs:
+              countGapMs + PRACTICE_FINAL_ANALYSIS_GRACE_MS,
+            countUsedForSegmentation: false
+          },
           captureMarginsMs: {
             before: PRACTICE_PRE_ROLL_MS,
             after: PRACTICE_POST_ROLL_MS
@@ -1919,7 +2030,10 @@ export default function PracticeMode({
         };
         const activeSessionId = sessionRef.current?.id;
         clearCountBeatTimers();
-        await completePracticeSession("cancelled");
+        await completePracticeSession(
+          completed ? "completed" : "cancelled",
+          correctedSummary
+        );
         const liveRuleEngineResult = await waitForRuleEngineResult();
         const trackingPackage = getTechniqueTrackingPackage(currentTechnique);
         const replayedRuleEngineResult = trackingPackage
@@ -1944,18 +2058,23 @@ export default function PracticeMode({
           setIsTapePopupOpen(true);
           if (activeSessionId) {
             await storePracticeTape(activeSessionId, verifiedTape, verifiedMetadata);
+            await loadPracticeAnalysis();
           }
         }
-        const message =
-          `Set ended with ${remaining} incomplete ${remaining === 1 ? "rep" : "reps"}. ` +
-          "Keep your full body in view, then start the set again.";
+        const message = completed
+          ? "Stop. Set finished. Your whole-session sequence analysis is ready."
+          : `Set ended with ${remaining} incomplete ${remaining === 1 ? "rep" : "reps"}. ` +
+            "The full capture was analyzed; keep your body in view and try again.";
         setAssistantMessage(message);
         sayPractice(message, {
           force: true,
-          intent: `set_incomplete:${repCountRef.current}:${targetReps}`,
+          intent: completed
+            ? `set_finished:${targetReps}`
+            : `set_incomplete:${correctedCompletedReps}:${targetReps}`,
           speak: true
         });
-      }, countGapMs + 1500);
+        isSetFinishingRef.current = false;
+      }, countGapMs + PRACTICE_FINAL_ANALYSIS_GRACE_MS);
       countBeatTimersRef.current = [finalResponseTimerId];
     }
   }, [
@@ -1964,6 +2083,7 @@ export default function PracticeMode({
     completePracticeSession,
     countGapMs,
     currentTechnique,
+    loadPracticeAnalysis,
     playPracticeAudio,
     sayPractice,
     steps,
@@ -1975,6 +2095,91 @@ export default function PracticeMode({
   ]);
 
   countBeatRef.current = runPracticeCountBeat;
+
+  const beginWholeSessionCapture = useCallback(() => {
+    const captureStartedAt = performance.now();
+    setStartedAtRef.current = captureStartedAt;
+    repStartedAtRef.current = captureStartedAt;
+
+    const recordFrame = () => {
+      const now = performance.now();
+      const holisticFrame = latestHolisticFrameRef.current;
+      const landmarks = (
+        holisticFrame.filteredPose?.length
+          ? holisticFrame.filteredPose
+          : latestLandmarksRef.current
+      ).map((point) => ({ ...point }));
+      const movementClassification = latestMovementClassificationRef.current;
+      const poseMotion = getPoseMotion(
+        previousRecordedLandmarksRef.current,
+        landmarks
+      );
+      previousRecordedLandmarksRef.current = landmarks;
+      recordedFramesRef.current.push({
+        elapsedMs: now - captureStartedAt,
+        sourceTimestampMs: holisticFrame.timestamp || now,
+        rep: movementClassification.rep,
+        step: movementClassification.step,
+        phase: movementClassification.phase,
+        temporalPhase: movementClassification.temporalPhase,
+        stateConfidence: movementClassification.stateConfidence,
+        trackingReliable: movementClassification.trackingReliable,
+        scorable: movementClassification.scorable,
+        accuracy: movementClassification.scorable
+          ? latestPracticeResultRef.current.accuracy
+          : null,
+        focusBodyPart: movementClassification.scorable
+          ? latestPracticeResultRef.current.focusBodyPart
+          : null,
+        issue: movementClassification.scorable
+          ? latestPracticeResultRef.current.issue
+          : "transition",
+        wrongBodyParts: movementClassification.scorable
+          ? [...(latestPracticeResultRef.current.wrongBodyParts || [])]
+          : [],
+        landmarks,
+        observedLandmarks: (holisticFrame.observedPose || [])
+          .map((point) => ({ ...point })),
+        measurementLandmarks: (holisticFrame.measurementPose || [])
+          .map((point) => ({ ...point })),
+        angles: { ...(holisticFrame.angles || {}) },
+        stepScores: [...(holisticFrame.stepScores || [])],
+        trackingConfidence: holisticFrame.trackingConfidence ?? null,
+        displayPoseSource: holisticFrame.displayPoseSource || "observed",
+        facePoints: (holisticFrame.facePoints || [])
+          .filter(
+            (point) =>
+              holisticFrame.faceSource === "pose33" ||
+              TAPE_FACE_INDICES.has(point.index)
+          )
+          .map((point) => ({ ...point })),
+        faceSource: holisticFrame.faceSource || "pose33",
+        handPoints: Object.fromEntries(
+          Object.entries(holisticFrame.handPoints || {}).map(([side, points]) => [
+            side,
+            points.map((point) => ({ ...point }))
+          ])
+        ),
+        aggregateLandmarks: (
+          holisticFrame.predictionAggregate?.aggregateLandmarks || []
+        ).map((point) => point ? ({ ...point }) : point),
+        predictionSourceCounts:
+          holisticFrame.predictionAggregate?.sourceCounts || null,
+        predictionAgreementError:
+          holisticFrame.predictionAggregate?.agreementError ?? null,
+        usedPredictionFallback:
+          holisticFrame.predictionAggregate?.usePredictionFallback === true,
+        predictionConfidence:
+          holisticFrame.predictionAggregate?.predictionConfidence ?? null,
+        motionScore: Math.max(holisticFrame.motionEnergy || 0, poseMotion * 10)
+      });
+    };
+
+    recordFrameRef.current = recordFrame;
+    recordFrame();
+    recordingTimerRef.current = window.setInterval(recordFrame, 1000 / 30);
+    return captureStartedAt;
+  }, []);
 
   const startPracticeForStep = useCallback(async (stepIndex = 0, { intro = true } = {}) => {
     if (!currentTechnique) return;
@@ -2049,6 +2254,7 @@ export default function PracticeMode({
         })} Sequence: all ${steps.length} ${steps.length === 1 ? "step" : "steps"}. Start.`
       : `Step ${startIndex + 1}: ${steps[startIndex]?.step_name || "continue the movement"}. I will cue the rhythm; your movement completes each rep.`;
     sayPractice(setupMessage, { intent: setupIntent, speak: false });
+    beginWholeSessionCapture();
 
     numberAudioRef.current = voiceEnabled
       ? await Promise.all(
@@ -2062,78 +2268,10 @@ export default function PracticeMode({
       lastPracticeSpokenIntentRef.current = setupIntent;
       await playPracticeAudio(setupMessage, setupAudio, requestId);
     }
-    if (requestId !== voiceRequestIdRef.current) return;
-    const rhythmStartedAt = performance.now();
-    setStartedAtRef.current = rhythmStartedAt;
-    repStartedAtRef.current = rhythmStartedAt;
-    const recordFrame = () => {
-      const now = performance.now();
-      const holisticFrame = latestHolisticFrameRef.current;
-      const landmarks = (
-        holisticFrame.filteredPose?.length
-          ? holisticFrame.filteredPose
-          : latestLandmarksRef.current
-      ).map((point) => ({ ...point }));
-      const movementClassification = latestMovementClassificationRef.current;
-      const poseMotion = getPoseMotion(previousRecordedLandmarksRef.current, landmarks);
-      previousRecordedLandmarksRef.current = landmarks;
-      recordedFramesRef.current.push({
-        elapsedMs: now - rhythmStartedAt,
-        sourceTimestampMs: holisticFrame.timestamp || now,
-        rep: movementClassification.rep,
-        step: movementClassification.step,
-        phase: movementClassification.phase,
-        temporalPhase: movementClassification.temporalPhase,
-        stateConfidence: movementClassification.stateConfidence,
-        trackingReliable: movementClassification.trackingReliable,
-        scorable: movementClassification.scorable,
-        accuracy: movementClassification.scorable
-          ? latestPracticeResultRef.current.accuracy
-          : null,
-        focusBodyPart: movementClassification.scorable
-          ? latestPracticeResultRef.current.focusBodyPart
-          : null,
-        issue: movementClassification.scorable
-          ? latestPracticeResultRef.current.issue
-          : "transition",
-        wrongBodyParts: movementClassification.scorable
-          ? [...(latestPracticeResultRef.current.wrongBodyParts || [])]
-          : [],
-        landmarks,
-        observedLandmarks: (holisticFrame.observedPose || [])
-          .map((point) => ({ ...point })),
-        measurementLandmarks: (holisticFrame.measurementPose || [])
-          .map((point) => ({ ...point })),
-        angles: { ...(holisticFrame.angles || {}) },
-        stepScores: [...(holisticFrame.stepScores || [])],
-        trackingConfidence: holisticFrame.trackingConfidence ?? null,
-        displayPoseSource: holisticFrame.displayPoseSource || "observed",
-        facePoints: (holisticFrame.facePoints || [])
-          .filter((point) => holisticFrame.faceSource === "pose33" || TAPE_FACE_INDICES.has(point.index))
-          .map((point) => ({ ...point })),
-        faceSource: holisticFrame.faceSource || "pose33",
-        handPoints: Object.fromEntries(
-          Object.entries(holisticFrame.handPoints || {}).map(([side, points]) => [
-            side,
-            points.map((point) => ({ ...point }))
-          ])
-        ),
-        aggregateLandmarks: (holisticFrame.predictionAggregate?.aggregateLandmarks || [])
-          .map((point) => point ? ({ ...point }) : point),
-        predictionSourceCounts:
-          holisticFrame.predictionAggregate?.sourceCounts || null,
-        predictionAgreementError:
-          holisticFrame.predictionAggregate?.agreementError ?? null,
-        usedPredictionFallback:
-          holisticFrame.predictionAggregate?.usePredictionFallback === true,
-        predictionConfidence:
-          holisticFrame.predictionAggregate?.predictionConfidence ?? null,
-        motionScore: Math.max(holisticFrame.motionEnergy || 0, poseMotion * 10)
-      });
-    };
-    recordFrameRef.current = recordFrame;
-    recordFrame();
-    recordingTimerRef.current = window.setInterval(recordFrame, 1000 / 30);
+    if (requestId !== voiceRequestIdRef.current) {
+      clearCountBeatTimers();
+      return;
+    }
     await new Promise((resolve) => window.setTimeout(resolve, PRACTICE_PRE_ROLL_MS));
     if (requestId !== voiceRequestIdRef.current) {
       clearCountBeatTimers();
@@ -2173,6 +2311,7 @@ export default function PracticeMode({
       });
     }
   }, [
+    beginWholeSessionCapture,
     clearCountBeatTimers,
     countGapMs,
     currentTechnique,
@@ -2582,6 +2721,8 @@ export default function PracticeMode({
       }
       const restoredSteps = data.metadata?.steps || [];
       const savedRuleAnalysis = data.metadata?.ruleEngineAnalysis || null;
+      const usesCurrentFrameOrganization =
+        Number(data.metadata?.frameOrganizationVersion) >= 2;
       const trackingPackage = getTechniqueTrackingPackage(currentTechnique);
       const replayed = trackingPackage
         ? reanalyzePracticeTapeWithRuleEngine(restoredFrames, trackingPackage)
@@ -2589,17 +2730,56 @@ export default function PracticeMode({
       const displayedFrames = replayed?.frames || restoredFrames;
       const ruleEngineAnalysis =
         replayed?.ruleEngineAnalysis || savedRuleAnalysis || null;
+      const authoritativeHistorySession = data.session || historySession;
+      const correctedHistoryAnalysis = buildPracticeSessionAnalysis(
+        displayedFrames,
+        {
+          steps: restoredSteps,
+          targetReps: authoritativeHistorySession.target_reps
+        }
+      );
+      const correctedHistorySummary = buildPracticeSessionMetrics(
+        correctedHistoryAnalysis,
+        { cleanAccuracy: CLEAN_ACCURACY }
+      );
+      let correctedHistorySession = authoritativeHistorySession;
+      if (correctedHistorySummary.completed_reps > 0) {
+        const correctionResponse = await fetch(
+          `${API_BASE_URL}/practice/sessions/${historySession.id}/complete`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              status:
+                correctedHistorySummary.completed_reps >=
+                authoritativeHistorySession.target_reps
+                  ? "completed"
+                  : "cancelled",
+              corrected_summary: correctedHistorySummary
+            })
+          }
+        );
+        if (correctionResponse.ok) {
+          correctedHistorySession = await correctionResponse.json();
+          await loadPracticeAnalysis();
+        }
+      }
       setFullTapeFrames(displayedFrames);
       setAnalysisTapeMetadata({
         ...(data.metadata || {}),
         sessionId: historySession.id,
-        analysisTrust: replayed
-          ? "post_session_reanalyzed"
-          : savedRuleAnalysis || data.metadata?.postSessionClassification
-            ? "post_session_verified"
-            : "legacy_live",
+        analysisTrust: !usesCurrentFrameOrganization
+          ? "legacy_trimmed"
+          : replayed
+            ? "post_session_reanalyzed"
+            : savedRuleAnalysis || data.metadata?.postSessionClassification
+              ? "post_session_verified"
+              : "legacy_live",
         ruleEngineAnalysis,
-        authoritativeSession: data.session || historySession,
+        authoritativeSession: correctedHistorySession,
         repTape: buildRepTapeFromFrames(displayedFrames, restoredSteps)
       });
       setFullTapeCursor(0);
@@ -2616,7 +2796,8 @@ export default function PracticeMode({
   }, [
     analysisTapeMetadata?.sessionId,
     currentTechnique,
-    fullTapeFrames.length
+    fullTapeFrames.length,
+    loadPracticeAnalysis
   ]);
 
   if (!currentTechnique) {
@@ -2632,17 +2813,12 @@ export default function PracticeMode({
   }
 
   const overallKpi = practiceAnalysis?.summary;
-  const recentSet = practiceAnalysis?.sessions?.find(
-    (practiceSession) => practiceSession.status === "completed"
-  ) || practiceAnalysis?.sessions?.[0];
-  const sortedPracticeSessions = [...(practiceAnalysis?.sessions || [])].sort(
-    (left, right) => {
-      const leftTime = new Date(left.ended_at || left.started_at || 0).getTime() || 0;
-      const rightTime = new Date(right.ended_at || right.started_at || 0).getTime() || 0;
-      return sessionSortDirection === "desc"
-        ? rightTime - leftTime
-        : leftTime - rightTime;
-    }
+  const latestSession = selectLatestPracticeSession(
+    practiceAnalysis?.sessions
+  );
+  const sortedPracticeSessions = sortPracticeSessions(
+    practiceAnalysis?.sessions,
+    sessionSortDirection
   );
 
   return (
@@ -2868,35 +3044,35 @@ export default function PracticeMode({
         <div className="panel-block practice-last-session">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">Last {currentTechnique.name} session</p>
+              <p className="eyebrow">Latest {currentTechnique.name} session</p>
               <strong>
-                {recentSet?.technique_name || "No completed session"}
+                {latestSession?.technique_name || "No recorded session"}
               </strong>
             </div>
-            {recentSet ? (
+            {latestSession ? (
               <button
-                aria-label={`Expand ${recentSet.technique_name} session summary`}
-                onClick={() => openHistorySession(recentSet)}
+                aria-label={`Expand ${latestSession.technique_name} session summary`}
+                onClick={() => openHistorySession(latestSession)}
                 type="button"
               >
                 Expand
               </button>
             ) : null}
           </div>
-          {recentSet ? (
+          {latestSession ? (
             <>
-              <time dateTime={recentSet.ended_at || recentSet.started_at || undefined}>
-                {formatSessionTimestamp(recentSet.ended_at || recentSet.started_at)}
+              <time dateTime={latestSession.ended_at || latestSession.started_at || undefined}>
+                {formatSessionTimestamp(latestSession.ended_at || latestSession.started_at)}
               </time>
               <div className="practice-last-session__metrics">
-                <span><small>Reps</small><strong>{recentSet.completed_reps}/{recentSet.target_reps}</strong></span>
-                <span><small>Average</small><strong>{recentSet.average_accuracy}%</strong></span>
-                <span><small>Clean</small><strong>{recentSet.clean_reps}</strong></span>
-                <span><small>Consistency</small><strong>{recentSet.consistency_score}%</strong></span>
+                <span><small>Reps</small><strong>{latestSession.completed_reps}/{latestSession.target_reps}</strong></span>
+                <span><small>Average</small><strong>{latestSession.average_accuracy}%</strong></span>
+                <span><small>Clean</small><strong>{latestSession.clean_reps}</strong></span>
+                <span><small>Consistency</small><strong>{latestSession.consistency_score}%</strong></span>
               </div>
             </>
           ) : (
-            <p className="empty-state">Your latest completed set will appear here.</p>
+            <p className="empty-state">Your latest recorded set will appear here.</p>
           )}
         </div>
 
@@ -3007,6 +3183,14 @@ export default function PracticeMode({
                         <time dateTime={timestamp || undefined}>
                           {formatSessionTimestamp(timestamp)}
                         </time>
+                        <small>
+                          {historySession.completed_reps}/
+                          {historySession.target_reps} reps ·{" "}
+                          {historySession.completed_reps >=
+                          historySession.target_reps
+                            ? "Completed"
+                            : "Incomplete"}
+                        </small>
                       </span>
                       <span>
                         <strong>{historySession.average_accuracy}%</strong>
@@ -3018,7 +3202,7 @@ export default function PracticeMode({
               })}
             </div>
           ) : (
-            <p className="empty-state">Completed sessions will appear here by timestamp.</p>
+            <p className="empty-state">Recorded sessions will appear here by timestamp.</p>
           )}
         </div>
 
@@ -3117,13 +3301,16 @@ export default function PracticeMode({
         <section
           aria-label="Full 30 FPS movement tape"
           aria-modal="true"
-          className={`practice-tape-popup ${isTapePopupExpanded ? "is-expanded" : "is-compact"} ${isCameraRollExpanded ? "is-sequence-expanded" : ""}`}
+          className={`practice-tape-popup ${isTapePopupExpanded ? "is-expanded" : "is-compact"} ${isCameraRollExpanded ? "is-sequence-expanded" : ""} ${showRawFrameInspector ? "is-raw-visible" : "is-raw-hidden"}`}
           role="dialog"
         >
           <div className="practice-tape-popup__header">
             <div>
               <p className="eyebrow">Full session analysis</p>
-              <strong>Skeleton sequence · 30 FPS · {fullTapeFrames.length} frames · {formatTapeTime(fullTapeDurationMs)}</strong>
+              <strong>
+                {displayedCompletedReps}/{tapeTargetReps} reps ·{" "}
+                {formatTapeTime(fullTapeDurationMs)}
+              </strong>
             </div>
             <div>
               <button
@@ -3144,36 +3331,52 @@ export default function PracticeMode({
             </div>
           </div>
 
-          {analysisTapeMetadata?.analysisTrust === "legacy_live" ? (
-            <div className="practice-session-analysis__finding is-warning" role="status">
-              <span>Legacy session</span>
-              <strong>
-                Frame labels were captured live before full-session verification was available.
-                Treat step boundaries and cue timing as estimates.
-              </strong>
-            </div>
-          ) : null}
+          {isAdminStudio ? (
+            <div className="practice-tape-popup__notices">
+            {analysisTapeMetadata?.analysisTrust === "legacy_live" ? (
+              <div className="practice-session-analysis__finding is-warning" role="status">
+                <span>Legacy session</span>
+                <strong>
+                  Frame labels were captured live before full-session verification was available.
+                  Treat step boundaries and cue timing as estimates.
+                </strong>
+              </div>
+            ) : null}
 
-          {analysisTapeMetadata?.analysisTrust === "post_session_reanalyzed" ? (
-            <div className="practice-session-analysis__finding" role="status">
-              <span>Legacy tape reanalyzed</span>
-              <strong>
-                This saved session was replayed through the current temporal rule engine.
-                Rule steps, repetition boundaries, and completion counts below are corrected.
-              </strong>
-            </div>
-          ) : null}
+            {analysisTapeMetadata?.analysisTrust === "legacy_trimmed" ? (
+              <div className="practice-session-analysis__finding is-warning" role="status">
+                <span>Earlier frame organization</span>
+                <strong>
+                  This stored tape may begin inside a repetition because its discarded
+                  source frames cannot be recovered. Record a new set to use the corrected
+                  preparation, Step 1, Step 2, and recovery boundaries.
+                </strong>
+              </div>
+            ) : null}
 
-          {analysisTapeMetadata?.ruleEngineAnalysis ? (
-            <div className="practice-session-analysis__finding" role="status">
-              <span>Rule-engine correction</span>
-              <strong>
-                {analysisTapeMetadata.ruleEngineAnalysis.summary.completed_repetitions} completed,
-                {" "}
-                {analysisTapeMetadata.ruleEngineAnalysis.summary.aborted_repetitions} incomplete,
-                {" "}
-                {analysisTapeMetadata.ruleEngineAnalysis.summary.corrections_applied} timeline corrections
-              </strong>
+            {analysisTapeMetadata?.analysisTrust === "post_session_reanalyzed" ? (
+              <div className="practice-session-analysis__finding" role="status">
+                <span>Legacy tape reanalyzed</span>
+                <strong>
+                  This saved session was replayed through the current temporal rule engine.
+                  Rule steps, repetition boundaries, and completion counts below are corrected.
+                </strong>
+              </div>
+            ) : null}
+
+            {analysisTapeMetadata?.ruleEngineAnalysis ? (
+              <div className="practice-session-analysis__finding" role="status">
+                <span>Sequence cluster and strict verification</span>
+                <strong>
+                  Tape cluster: {displayedCompletedReps} completed. Strict rules:{" "}
+                  {analysisTapeMetadata.ruleEngineAnalysis.summary.completed_repetitions} verified,
+                  {" "}
+                  {analysisTapeMetadata.ruleEngineAnalysis.summary.aborted_repetitions} incomplete,
+                  {" "}
+                  {analysisTapeMetadata.ruleEngineAnalysis.summary.corrections_applied} timeline corrections
+                </strong>
+              </div>
+            ) : null}
             </div>
           ) : null}
 
@@ -3181,7 +3384,7 @@ export default function PracticeMode({
             countFilter={analysisCountFilter}
             contentWidth={timelineContentWidth}
             expanded={isCameraRollExpanded}
-            frames={fullTapeFrames}
+            frames={analysisTapeFrames}
             onScroll={(event) =>
               syncTimelineScroll(event.currentTarget, cameraRollScrollRef)
             }
@@ -3265,19 +3468,29 @@ export default function PracticeMode({
             </div>
 
             <div className="practice-session-analysis__details">
-              <p className="eyebrow">Frame and sequence analytics</p>
-              <h3>Timestamp, rep, form and cue attention</h3>
+              <p className="eyebrow">
+                {isAdminStudio ? "Frame and sequence analytics" : "Movement details"}
+              </p>
+              <h3>
+                {isAdminStudio
+                  ? "Timestamp, rep, form and cue attention"
+                  : "Selected moment"}
+              </h3>
               <div className="practice-session-analysis__frame-meta">
                 <span><small>Timestamp</small><strong>{formatTapeTime(fullTapeFrame?.elapsedMs || 0)}</strong></span>
                 <span>
                   <small>Rep</small>
-                  <strong>{correctedFrameState?.rep_id || fullTapeFrame?.rep || "--"}</strong>
+                  <strong>
+                    {fullTapeFrameIsPreparation
+                      ? "Preparation"
+                      : displayedFrameRep || "--"}
+                  </strong>
                 </span>
                 <span>
                   <small>Step</small>
                   <strong>
-                    {correctedFrameState?.step
-                      ? formatBodyPart(correctedFrameState.step)
+                    {fullTapeFrameIsPreparation
+                      ? "Preparation"
                       : fullTapeFrame?.phase === "transition"
                       ? `Transition to ${fullTapeFrame?.step || "--"}`
                       : fullTapeFrame?.step || "--"}
@@ -3286,19 +3499,21 @@ export default function PracticeMode({
                 <span>
                   <small>Sequence phase</small>
                   <strong>
-                    {correctedFrameState?.phase
-                      ? formatTemporalPhase(correctedFrameState.phase)
+                    {fullTapeFrameIsPreparation
+                      ? "Waiting For Movement"
                       : formatTemporalPhase(fullTapeFrame?.temporalPhase)}
                   </strong>
                 </span>
-                <span>
-                  <small>Classifier confidence</small>
-                  <strong>
-                    {Number.isFinite(fullTapeFrame?.stateConfidence)
-                      ? `${fullTapeFrame.stateConfidence}%`
-                      : "--"}
-                  </strong>
-                </span>
+                {isAdminStudio ? (
+                  <>
+                    <span>
+                      <small>Classifier confidence</small>
+                      <strong>
+                        {Number.isFinite(fullTapeFrame?.stateConfidence)
+                          ? `${fullTapeFrame.stateConfidence}%`
+                          : "--"}
+                      </strong>
+                    </span>
                 <span>
                   <small>Prediction aggregate</small>
                   <strong>
@@ -3337,11 +3552,19 @@ export default function PracticeMode({
                 </span>
                 <span>
                   <small>Rule step</small>
-                  <strong>{formatBodyPart(correctedFrameState?.step) || "--"}</strong>
+                  <strong>
+                    {correctedFrameState?.step
+                      ? formatBodyPart(correctedFrameState.step)
+                      : "--"}
+                  </strong>
                 </span>
                 <span>
                   <small>Rule phase</small>
-                  <strong>{formatBodyPart(correctedFrameState?.phase) || "--"}</strong>
+                  <strong>
+                    {correctedFrameState?.phase
+                      ? formatBodyPart(correctedFrameState.phase)
+                      : "--"}
+                  </strong>
                 </span>
                 <span>
                   <small>Rule confidence</small>
@@ -3351,16 +3574,18 @@ export default function PracticeMode({
                       : "--"}
                   </strong>
                 </span>
-                <span>
-                  <small>Correction status</small>
-                  <strong>
-                    {fullTapeFrame?.ruleEngineAnalysis?.changed
-                      ? "Corrected after session"
-                      : correctedFrameState
-                        ? "Confirmed"
-                        : "Unavailable"}
-                  </strong>
-                </span>
+                    <span>
+                      <small>Correction status</small>
+                      <strong>
+                        {fullTapeFrame?.ruleEngineAnalysis?.changed
+                          ? "Corrected after session"
+                          : correctedFrameState
+                            ? "Confirmed"
+                            : "Unavailable"}
+                      </strong>
+                    </span>
+                  </>
+                ) : null}
                 <span>
                   <small>Accuracy</small>
                   <strong>
@@ -3369,18 +3594,22 @@ export default function PracticeMode({
                       : "Not scored"}
                   </strong>
                 </span>
-                <span>
-                  <small>Count cue</small>
-                  <strong className={`is-${fullTapeFrame?.attentionTiming || "no-response"}`}>
-                    {fullTapeFrame?.attentionTiming === "on-time"
-                      ? "On time"
-                      : formatBodyPart(fullTapeFrame?.attentionTiming)}
-                  </strong>
-                </span>
-                <span>
-                  <small>Response offset</small>
-                  <strong>{formatAttentionOffset(fullTapeFrame?.attentionOffsetMs)}</strong>
-                </span>
+                {isAdminStudio ? (
+                  <>
+                    <span>
+                      <small>Count cue</small>
+                      <strong className={`is-${fullTapeFrame?.attentionTiming || "no-response"}`}>
+                        {fullTapeFrame?.attentionTiming === "on-time"
+                          ? "On time"
+                          : formatBodyPart(fullTapeFrame?.attentionTiming)}
+                      </strong>
+                    </span>
+                    <span>
+                      <small>Response offset</small>
+                      <strong>{formatAttentionOffset(fullTapeFrame?.attentionOffsetMs)}</strong>
+                    </span>
+                  </>
+                ) : null}
               </div>
               <div className={`practice-session-analysis__finding ${!fullTapeFrameScorable ? "is-transition" : fullTapeFrameNeedsReview ? "is-warning" : "is-clean"}`}>
                 <span>
@@ -3388,6 +3617,8 @@ export default function PracticeMode({
                     ? "Tracking lost"
                     : correctedFrameState?.unknown_movement
                       ? "Unknown movement"
+                      : fullTapeFrameIsPreparation
+                        ? "Preparation"
                       : !fullTapeFrameScorable
                         ? formatTemporalPhase(fullTapeFrame?.temporalPhase)
                         : fullTapeFrameNeedsReview
@@ -3399,8 +3630,10 @@ export default function PracticeMode({
                     ? "This interval was excluded from state changes and form scoring"
                     : correctedFrameState?.unknown_movement
                       ? "Movement evidence did not satisfy a valid ordered transition"
-                      : correctedFrameState?.rejected_transition
+                    : correctedFrameState?.rejected_transition
                         ? "An impossible transition was rejected during post-session correction"
+                    : fullTapeFrameIsPreparation
+                    ? "Waiting for the first confirmed ordered movement"
                     : !fullTapeFrameScorable
                     ? fullTapeFrame?.trackingReliable === false
                       ? "Tracking was unreliable, so this frame did not change the sequence"
@@ -3421,53 +3654,6 @@ export default function PracticeMode({
                 <span><small>Review frames</small><strong>{fullTapeReviewFrames}</strong></span>
                 <span><small>Reps</small><strong>{displayedCompletedReps}/{tapeTargetReps}</strong></span>
                 <span><small>Consistency</small><strong>{sequenceConsistency}%</strong></span>
-                <span><small>Count attention</small><strong>{attentionRate}%</strong></span>
-              </div>
-              <div className="practice-count-attention">
-                <div>
-                  <span>Master count timing</span>
-                  <strong>Movement is compared with each spoken cue after the full set.</strong>
-                </div>
-                <div className="practice-count-attention__markers">
-                  {countAttentionResults.map((result) => (
-                    <button
-                      className={`is-${result.timing}`}
-                      key={`attention-${result.cue}`}
-                      onClick={() => {
-                        const markerFrame = fullTapeFrames.findIndex(
-                          (frame) =>
-                            frame.countCue === result.cue &&
-                            Math.abs(frame.elapsedMs - (result.timestampMs || 0)) <= 1000 / 30
-                        );
-                        if (markerFrame >= 0) setFullTapeCursor(markerFrame);
-                      }}
-                      type="button"
-                    >
-                      <span>Count {result.cue}</span>
-                      <strong>{result.timing === "on-time" ? "On time" : formatBodyPart(result.timing)}</strong>
-                      <small>{formatAttentionOffset(result.offsetMs)}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="practice-sequence-intelligence">
-                <div>
-                  <span>Selected sequence</span>
-                  <strong>{sequenceStepStats.length} steps · {formatTapeTime(fullTapeDurationMs)}</strong>
-                </div>
-                <div className="practice-sequence-intelligence__steps">
-                  {sequenceStepStats.map((step) => (
-                    <span
-                      className={step.step === weakestSequenceStep?.step ? "is-weakest" : ""}
-                      key={step.step}
-                      title={step.name}
-                    >
-                      <small>S{step.step}</small>
-                      <strong>{step.accuracy}%</strong>
-                      <em>{step.coverage}% seen</em>
-                    </span>
-                  ))}
-                </div>
               </div>
               <div className="practice-session-analysis__recommendation">
                 <span>AI recommendation</span>
@@ -3547,8 +3733,14 @@ export default function PracticeMode({
 
           <div className="practice-camera-roll-heading">
             <div>
-              <p className="eyebrow">All frames</p>
-              <strong>Skeleton camera roll · click any frame to analyze</strong>
+              <PracticeSessionMap
+                analysis={canonicalSessionAnalysis}
+                onSelectFrame={(frameIndex) => {
+                  setIsFullTapePlaying(false);
+                  setFullTapeCursor(frameIndex);
+                }}
+                selectedFrame={fullTapeCursor}
+              />
               <div className="practice-camera-roll-filters">
                 <label>
                   <span>Rep</span>
@@ -3556,9 +3748,12 @@ export default function PracticeMode({
                     onChange={(event) => {
                       const nextFilter = event.target.value;
                       setAnalysisCountFilter(nextFilter);
-                      const matchIndex = fullTapeFrames.findIndex(
+                      const matchIndex = analysisTapeFrames.findIndex(
                         (frame) =>
-                          (nextFilter === "all" || frame.rep === Number(nextFilter)) &&
+                          (
+                            nextFilter === "all" ||
+                            frame.analysisRep === Number(nextFilter)
+                          ) &&
                           (analysisStepFilter === "all" || frame.step === Number(analysisStepFilter))
                       );
                       if (matchIndex >= 0) setFullTapeCursor(matchIndex);
@@ -3579,9 +3774,12 @@ export default function PracticeMode({
                     onChange={(event) => {
                       const nextFilter = event.target.value;
                       setAnalysisStepFilter(nextFilter);
-                      const matchIndex = fullTapeFrames.findIndex(
+                      const matchIndex = analysisTapeFrames.findIndex(
                         (frame) =>
-                          (analysisCountFilter === "all" || frame.rep === Number(analysisCountFilter)) &&
+                          (
+                            analysisCountFilter === "all" ||
+                            frame.analysisRep === Number(analysisCountFilter)
+                          ) &&
                           (nextFilter === "all" || frame.step === Number(nextFilter))
                       );
                       if (matchIndex >= 0) setFullTapeCursor(matchIndex);
@@ -3598,7 +3796,15 @@ export default function PracticeMode({
                 </label>
               </div>
             </div>
-            <div className="practice-camera-roll-tools">
+            {isAdminStudio ? (
+              <div className="practice-camera-roll-tools">
+              <button
+                aria-expanded={showRawFrameInspector}
+                onClick={() => setShowRawFrameInspector((visible) => !visible)}
+                type="button"
+              >
+                {showRawFrameInspector ? "Hide raw frames" : "Inspect raw frames"}
+              </button>
               <span>{filteredTapeFrames.length}/{fullTapeFrames.length} frames</span>
               <button
                 aria-label="Compress timeline"
@@ -3631,7 +3837,8 @@ export default function PracticeMode({
               >
                 {isCameraRollExpanded ? "Compact sequence + chart" : "Expand sequence + chart"}
               </button>
-            </div>
+              </div>
+            ) : null}
           </div>
 
           <div
@@ -3650,10 +3857,8 @@ export default function PracticeMode({
             }}
           >
             {filteredTapeFrames.map(({ frame, index }) => {
-              const frameRuleState =
-                frame.ruleEngineAnalysis?.corrected ||
-                frame.ruleEngineAnalysis?.raw ||
-                null;
+              const frameIsPreparation =
+                frame.analysisKind !== "repetition";
               const isScorable =
                 frame.scorable !== false && Number.isFinite(frame.accuracy);
               const frameRuleErrors = getFrameRuleErrors(frame);
@@ -3662,7 +3867,7 @@ export default function PracticeMode({
                 frameRuleErrors.length > 0;
               return (
                 <button
-                  aria-label={`Frame ${frame.frame}, rep ${frameRuleState?.rep_id || frame.rep}, step ${frameRuleState?.step || frame.step}, ${isScorable ? `${frame.accuracy}% accuracy` : "movement transition"}`}
+                  aria-label={`Frame ${frame.frame}, ${frameIsPreparation ? "preparation" : `rep ${frame.analysisRep}, step ${frame.step}`}, ${isScorable ? `${frame.accuracy}% accuracy` : "movement transition"}`}
                   className={`${index === fullTapeCursor ? "is-current" : ""} ${!isScorable ? "is-transition" : needsReview ? "is-review" : "is-clean"} is-filter-match`}
                   key={frame.frame}
                   onClick={() => {
@@ -3684,9 +3889,11 @@ export default function PracticeMode({
                   <span className="practice-camera-roll__frame">F{frame.frame}</span>
                   <time>{formatTapeTime(frame.elapsedMs)}</time>
                   <span>
-                    R{frameRuleState?.rep_id || frame.rep} ·{" "}
-                    {frameRuleState?.step
-                      ? formatBodyPart(frameRuleState.step)
+                    {frameIsPreparation
+                      ? "PREP"
+                      : `R${frame.analysisRep}`} ·{" "}
+                    {frameIsPreparation
+                      ? "Waiting"
                       : `S${frame.step}`} ·{" "}
                     {frame.attentionTiming === "on-time"
                       ? "ON"
@@ -3732,10 +3939,10 @@ export default function PracticeMode({
             <span><small>Finished</small><strong>{formatSessionTimestamp(historySessionPopup.ended_at)}</strong></span>
           </div>
           <div className="practice-history-popup__notice">
-            <span>Frame tape availability</span>
+            <span>Summary view</span>
             <strong>
-              The detailed 30 FPS skeleton tape is available for the current completed set.
-              Older saved sessions currently contain summary metrics only.
+              The detailed movement tape could not be loaded for this session.
+              Summary metrics are still available.
             </strong>
           </div>
         </section>

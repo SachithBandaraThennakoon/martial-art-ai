@@ -10,6 +10,7 @@ from database import get_db
 from models.technique import Technique
 from models.training_memory import PracticeRep, PracticeSession, TrainingFeedbackEvent, TrainingSession
 from models.user import User
+from services.practice_analytics import load_practice_analytics
 from utils.security import ALGORITHM, SECRET_KEY
 
 
@@ -119,6 +120,7 @@ def dashboard(
     practice_ids = [item.id for item in practice]
     training_ids = [item.id for item in training]
     reps = db.query(PracticeRep).filter(PracticeRep.practice_session_id.in_(practice_ids)).all() if practice_ids else []
+    practice_analytics = load_practice_analytics(db, practice_ids)
     events = db.query(TrainingFeedbackEvent).filter(TrainingFeedbackEvent.session_id.in_(training_ids)).all() if training_ids else []
 
     if focus:
@@ -129,6 +131,11 @@ def dashboard(
         practice_ids = {item.id for item in practice}
         training_ids = {item.id for item in training}
         reps = [item for item in reps if item.practice_session_id in practice_ids]
+        practice_analytics = {
+            session_id: analytics
+            for session_id, analytics in practice_analytics.items()
+            if session_id in practice_ids
+        }
         events = [item for item in events if item.session_id in training_ids]
 
     pace_counts, issue_counts, focus_counts = {}, {}, {}
@@ -144,6 +151,13 @@ def dashboard(
             issue_counts[item.issue] = issue_counts.get(item.issue, 0) + 1
         if item.body_part:
             focus_counts[item.body_part] = focus_counts.get(item.body_part, 0) + 1
+    for analytics in practice_analytics.values():
+        for error in analytics.get("common_form_errors") or []:
+            error_id = error.get("error_id")
+            if error_id:
+                issue_counts[error_id] = (
+                    issue_counts.get(error_id, 0) + int(error.get("count") or 0)
+                )
 
     daily, technique_groups, sessions = {}, {}, []
 
@@ -154,6 +168,8 @@ def dashboard(
             "subcategory": info.get("subcategory", "General"), "difficulty": info.get("difficulty", "Unspecified"),
             "sessions": 0, "reps": 0, "clean_reps": 0, "accuracy_total": 0,
             "consistency_total": 0, "consistency_samples": 0,
+            "tracking_total": 0, "tracking_samples": 0,
+            "response_total": 0, "response_samples": 0, "aborted_reps": 0,
         })
 
     def record_day(timestamp, accuracy, rep_count=0, clean_count=0):
@@ -177,14 +193,35 @@ def dashboard(
         group["accuracy_total"] += accuracy
         group["consistency_total"] += item.consistency_score or 0
         group["consistency_samples"] += 1
+        analytics = practice_analytics.get(item.id) or {}
+        tracking_quality = analytics.get("tracking_quality_percentage")
+        response_time = analytics.get("average_response_time_ms")
+        if tracking_quality is not None:
+            group["tracking_total"] += tracking_quality
+            group["tracking_samples"] += 1
+        if response_time is not None:
+            group["response_total"] += response_time
+            group["response_samples"] += 1
+        group["aborted_reps"] += int(analytics.get("aborted_repetitions") or 0)
         info = metadata_by_id.get(item.technique_id) or metadata.get((item.technique_name or "").lower(), {})
+        capture_duration = analytics.get("capture_duration_ms")
         sessions.append({
             "id": f"practice-{item.id}", "mode": "practice", "technique_name": item.technique_name,
             "category": info.get("category", "Uncategorized"), "subcategory": info.get("subcategory", "General"),
             "difficulty": info.get("difficulty", "Unspecified"), "status": item.status,
             "accuracy": round(accuracy, 1), "reps": rep_count, "target_reps": item.target_reps or 0,
             "clean_reps": clean_count, "consistency": round(item.consistency_score or 0, 1),
-            "duration_seconds": round((item.average_rep_seconds or 0) * rep_count, 1),
+            "duration_seconds": round(
+                capture_duration / 1000
+                if capture_duration
+                else (item.average_rep_seconds or 0) * rep_count,
+                1,
+            ),
+            "tracking_quality": round(tracking_quality, 1) if tracking_quality is not None else None,
+            "average_response_time_ms": round(response_time) if response_time is not None else None,
+            "aborted_reps": int(analytics.get("aborted_repetitions") or 0),
+            "corrections_applied": int(analytics.get("corrections_applied") or 0),
+            "form_errors": analytics.get("common_form_errors") or [],
             "started_at": iso(item.started_at), "ended_at": iso(item.ended_at),
         })
 
@@ -216,6 +253,9 @@ def dashboard(
         "average_accuracy": round(item["accuracy_total"] / item["sessions"], 1) if item["sessions"] else 0,
         "clean_rate": round(item["clean_reps"] / item["reps"] * 100, 1) if item["reps"] else 0,
         "consistency": round(item["consistency_total"] / item["consistency_samples"], 1) if item["consistency_samples"] else 0,
+        "tracking_quality": round(item["tracking_total"] / item["tracking_samples"], 1) if item["tracking_samples"] else None,
+        "average_response_time_ms": round(item["response_total"] / item["response_samples"]) if item["response_samples"] else None,
+        "aborted_reps": item["aborted_reps"],
     } for item in technique_groups.values()]
     technique_items.sort(key=lambda item: (item["average_accuracy"], item["sessions"]), reverse=True)
     sessions.sort(key=lambda item: item["started_at"] or "", reverse=True)
@@ -225,6 +265,20 @@ def dashboard(
     clean_reps = sum(item.clean_reps or 0 for item in practice)
     duration_seconds = sum(item["duration_seconds"] for item in sessions)
     completed = sum(1 for item in sessions if item["status"] == "completed")
+    tracking_values = [
+        analytics.get("tracking_quality_percentage")
+        for analytics in practice_analytics.values()
+        if analytics.get("tracking_quality_percentage") is not None
+    ]
+    response_values = [
+        analytics.get("average_response_time_ms")
+        for analytics in practice_analytics.values()
+        if analytics.get("average_response_time_ms") is not None
+    ]
+    aborted_reps = sum(
+        int(analytics.get("aborted_repetitions") or 0)
+        for analytics in practice_analytics.values()
+    )
     recommendation = "Complete a session to unlock a training recommendation."
     if technique_items:
         weakest = min(technique_items, key=lambda item: item["average_accuracy"])
@@ -242,6 +296,9 @@ def dashboard(
             "best_accuracy": round(max(accuracies or [0]), 1), "clean_rate": round(clean_reps / total_reps * 100, 1) if total_reps else 0,
             "consistency": round(sum(item.consistency_score or 0 for item in practice) / len(practice), 1) if practice else 0,
             "training_minutes": round(duration_seconds / 60, 1), "active_days": len(daily_items),
+            "tracking_quality": round(sum(tracking_values) / len(tracking_values), 1) if tracking_values else None,
+            "average_response_time_ms": round(sum(response_values) / len(response_values)) if response_values else None,
+            "aborted_reps": aborted_reps,
             "top_technique": technique_items[0]["name"] if technique_items else None, "recommendation": recommendation,
         },
         "daily": daily_items, "techniques": technique_items,

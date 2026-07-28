@@ -14,6 +14,16 @@
     "candidate_sensitivity": 0.48,
     "live_corrections": false,
     "post_session_correction": true,
-    "maximum_repairable_tracking_gap_ms": 180
+    "maximum_repairable_tracking_gap_ms": 180,
+    "offline_decoder": {
+      "enabled": true,
+      "emission_floor": 0.02,
+      "unknown_emission_threshold": 0.38,
+      "transition_penalty": 0.18,
+      "unknown_transition_penalty": 0.55,
+      "unknown_min_duration_ms": 100,
+      "duration_overflow_penalty": 1.4,
+      "minimum_duration_ratio": 0.65
+    }
   }
 }

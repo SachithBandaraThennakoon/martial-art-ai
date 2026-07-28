@@ -3,27 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
+import StudioModeEntry from "../components/StudioModeEntry";
+import { DEFAULT_STUDIO_MODE, STUDIO_MODES } from "../data/studioModes";
 import useBodyCalibration from "../hooks/useBodyCalibration";
 import { STUDIO_PERFORMANCE_MODES } from "../performance/studioPerformanceConfig";
 import {
   armVoicePlaybackUnlock,
   unlockVoicePlayback
 } from "../services/browserVoice";
-
-const MODES = {
-  train: {
-    label: "Train",
-    title: "Steps, targets, and accuracy feedback."
-  },
-  practice: {
-    label: "Practice",
-    title: "Fixed-count reps, pace, and quality tracking."
-  },
-  analysis: {
-    label: "Analysis",
-    title: "Recent practice sets and next recommendation."
-  }
-};
 
 export default function TrainingStudio({ studioMode = "student" }) {
   const location = useLocation();
@@ -56,7 +43,10 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const videoInputRef = useRef(null);
   const bodyCalibration = useBodyCalibration();
   const requestedMode = searchParams.get("mode");
-  const mode = MODES[requestedMode] ? requestedMode : "train";
+  const mode = STUDIO_MODES[requestedMode] ? requestedMode : DEFAULT_STUDIO_MODE;
+  const [requiresModeChoice, setRequiresModeChoice] = useState(
+    () => !STUDIO_MODES[requestedMode]
+  );
   const selectedTechniqueName = searchParams.get("technique");
   const categorySlug = searchParams.get("category");
   const subcategorySlug = searchParams.get("subcategory");
@@ -76,10 +66,15 @@ export default function TrainingStudio({ studioMode = "student" }) {
     return <Navigate to={isAdminStudio ? "/admin-studio" : "/studio"} replace />;
   }
 
-  const updateMode = (nextMode) => {
+  const updateMode = (nextMode, { replace = false } = {}) => {
+    if (!STUDIO_MODES[nextMode]) return;
     const nextParams = new URLSearchParams(searchParams);
     nextParams.set("mode", nextMode);
-    navigate({ pathname: location.pathname, search: nextParams.toString() });
+    setRequiresModeChoice(false);
+    navigate(
+      { pathname: location.pathname, search: nextParams.toString() },
+      { replace }
+    );
   };
 
   const toggleVoice = () => {
@@ -170,17 +165,34 @@ export default function TrainingStudio({ studioMode = "student" }) {
         mode === "analysis" ? "training-shell--analysis" : ""
       }`}
     >
+      {requiresModeChoice ? (
+        <div className="studio-mode-entry-modal studio-mode-entry-modal--in-studio">
+          <StudioModeEntry
+            backTo={isAdminStudio ? "/admin-studio" : "/studio"}
+            isAdminStudio={isAdminStudio}
+            onSelect={(nextMode) => updateMode(nextMode, { replace: true })}
+            techniqueName={selectedTechniqueName}
+          />
+        </div>
+      ) : null}
+
       <div className="studio-mode-switch" aria-label="Training Studio mode">
         <div>
           <p className="eyebrow">{isAdminStudio ? "Admin Studio" : "Training Studio"}</p>
-          <strong>{MODES[mode].title}</strong>
+          <strong>
+            {requiresModeChoice
+              ? `${STUDIO_MODES[mode].label} is ready · choose a mode to continue.`
+              : STUDIO_MODES[mode].title}
+          </strong>
         </div>
 
         <div className="mode-tiles" role="tablist" aria-label="Mode selector">
-          {Object.entries(MODES).map(([modeKey, modeData]) => (
+          {Object.entries(STUDIO_MODES).map(([modeKey, modeData]) => (
             <button
               aria-selected={mode === modeKey}
-              className={`mode-tile ${mode === modeKey ? "mode-tile--active" : ""}`}
+              className={`mode-tile ${
+                mode === modeKey ? "mode-tile--active" : ""
+              }`}
               key={modeKey}
               onClick={() => updateMode(modeKey)}
               role="tab"
@@ -368,6 +380,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           hasTechniqueSelection={hasTechniqueSelection}
           onModeChange={updateMode}
           onOpenLibrary={() => navigate(isAdminStudio ? "/admin-studio" : "/studio")}
+          selectedTechniqueName={selectedTechniqueName}
         />
       )}
     </main>

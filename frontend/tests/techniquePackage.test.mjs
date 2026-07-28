@@ -64,3 +64,17 @@ test("invalid technique packages return actionable validation issues", async () 
     }
   );
 });
+
+test("offline decoder configuration rejects invalid duration values", async () => {
+  const source = await loadTechniqueSource("jab");
+  source.modes.practice.offline_decoder.unknown_min_duration_ms = -1;
+
+  assert.throws(
+    () => validateTechniquePackage(source),
+    (error) => {
+      assert.ok(error instanceof TechniquePackageValidationError);
+      assert.match(error.message, /unknown_min_duration_ms must be non-negative/);
+      return true;
+    }
+  );
+});

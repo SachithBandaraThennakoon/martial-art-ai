@@ -1,5 +1,6 @@
 import { BiomechanicalFeatureExtractor } from "./biomechanicalFeatureExtractor.js";
 import { PersistentErrorEvaluator } from "./persistentErrorEvaluator.js";
+import { evaluateRule } from "./ruleEvaluator.js";
 import { SessionTimelineRecorder } from "./sessionTimelineRecorder.js";
 import { postProcessSessionTimeline } from "./sessionTimelinePostProcessor.js";
 import { TemporalStateMachine } from "./temporalStateMachine.js";
@@ -76,6 +77,7 @@ export class TrackingSessionEngine {
     this.lastStepStartedAtMs = null;
     this.latestFrame = null;
     this.correctedSession = null;
+    this.previousOfflineFeatures = {};
   }
 
   start(timestampMs = null) {
@@ -208,6 +210,17 @@ export class TrackingSessionEngine {
     if (this.sessionState === SESSION_STATES.OUTSIDE_SESSION) this.start();
     this.sessionStartedAtMs ??= timestampMs;
     this.lastTimestampMs = timestampMs;
+    const stateScores = Object.fromEntries(
+      this.techniquePackage.stateNames.map((stateName) => [
+        stateName,
+        evaluateRule(
+          this.techniquePackage.getState(stateName).enter_rules,
+          features,
+          { previousFeatures: this.previousOfflineFeatures }
+        ).score
+      ])
+    );
+    this.previousOfflineFeatures = { ...features };
 
     const temporal = this.stateMachine.update({
       timestampMs,
@@ -346,6 +359,7 @@ export class TrackingSessionEngine {
             : null
         ) ??
         null,
+      state_scores: stateScores,
       rule_evidence: temporal.rule_evidence,
       temporal_event: temporal.event
     };
@@ -376,7 +390,8 @@ export class TrackingSessionEngine {
         config: {
           maximum_repairable_tracking_gap_ms:
             this.policy.maximum_repairable_tracking_gap_ms,
-          maximum_unknown_movement_ms: this.maximumUnknownMovementMs
+          maximum_unknown_movement_ms: this.maximumUnknownMovementMs,
+          offline_decoder: this.policy.offline_decoder
         }
       });
     }

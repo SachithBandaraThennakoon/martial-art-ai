@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import SessionAnalysisPanel from "../components/SessionAnalysisPanel";
+import StoredSessionTapePanel from "../components/StoredSessionTapePanel";
 import { techniqueCatalog } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
 
@@ -175,6 +177,8 @@ function OverviewPage({ data }) {
       <KpiCard label="Average form" value={`${overview.average_accuracy}%`} detail={`Best ${overview.best_accuracy}%`} tone="green" />
       <KpiCard label="Practice reps" value={overview.total_reps} detail={`${overview.clean_rate}% clean`} />
       <KpiCard label="Consistency" value={`${overview.consistency}%`} detail="Repeatability" />
+      <KpiCard label="Tracking quality" value={overview.tracking_quality == null ? "--" : `${overview.tracking_quality}%`} detail="Practice landmark visibility" />
+      <KpiCard label="Response time" value={overview.average_response_time_ms == null ? "--" : `${overview.average_response_time_ms}ms`} detail={`${overview.aborted_reps} incomplete reps`} />
       <KpiCard label="Training time" value={`${overview.training_minutes}m`} detail={`${overview.active_days} active days`} />
       <KpiCard label="Top technique" value={overview.top_technique || "--"} detail="Highest average form" />
     </div>
@@ -192,6 +196,8 @@ function PerformancePage({ data }) {
       <KpiCard label="Clean rate" value={`${data.overview.clean_rate}%`} detail="Practice repetitions" tone="green" />
       <KpiCard label="Consistency" value={`${data.overview.consistency}%`} detail="Stable execution" />
       <KpiCard label="Best score" value={`${data.overview.best_accuracy}%`} detail="Personal high" />
+      <KpiCard label="Tracking quality" value={data.overview.tracking_quality == null ? "--" : `${data.overview.tracking_quality}%`} detail="Analyzed Practice tapes" />
+      <KpiCard label="Response time" value={data.overview.average_response_time_ms == null ? "--" : `${data.overview.average_response_time_ms}ms`} detail={`${data.overview.aborted_reps} incomplete reps`} />
     </div>
     <Panel eyebrow="Performance curve" title="Form accuracy trend" className="dashboard-card--wide"><LineChart data={data.daily} /></Panel>
     <Panel eyebrow="Rep quality" title="Daily clean rate"><BarList items={dailyClean} valueKey="value" suffix="%" /></Panel>
@@ -209,7 +215,7 @@ function TechniquesPage({ data }) {
         <div><span>{item.category}</span><small>{item.subcategory}</small></div>
         <h3>{item.name}</h3>
         <strong>{item.average_accuracy}%</strong>
-        <dl><div><dt>Sessions</dt><dd>{item.sessions}</dd></div><div><dt>Reps</dt><dd>{item.reps}</dd></div><div><dt>Clean</dt><dd>{item.clean_rate}%</dd></div><div><dt>Consistency</dt><dd>{item.consistency}%</dd></div></dl>
+        <dl><div><dt>Sessions</dt><dd>{item.sessions}</dd></div><div><dt>Reps</dt><dd>{item.reps}</dd></div><div><dt>Clean</dt><dd>{item.clean_rate}%</dd></div><div><dt>Consistency</dt><dd>{item.consistency}%</dd></div><div><dt>Tracking</dt><dd>{item.tracking_quality == null ? "--" : `${item.tracking_quality}%`}</dd></div><div><dt>Incomplete</dt><dd>{item.aborted_reps}</dd></div></dl>
       </article>) : <p className="dashboard-empty">No techniques match these filters.</p>}
     </div>
   </>;
@@ -231,11 +237,32 @@ function ActivityPage({ data }) {
 
 function SessionsPage({ data }) {
   const [query, setQuery] = useState("");
+  const [selectedSessionId, setSelectedSessionId] = useState(
+    () =>
+      data.sessions.find((item) => item.mode === "practice")?.id ||
+      data.sessions[0]?.id ||
+      null
+  );
   const sessions = data.sessions.filter((item) => item.technique_name?.toLowerCase().includes(query.toLowerCase()));
+  const selectedSession =
+    data.sessions.find((item) => item.id === selectedSessionId) ||
+    sessions.find((item) => item.mode === "practice") ||
+    sessions[0] ||
+    null;
+
   return <Panel eyebrow="Session explorer" title="Training history" meta={`${sessions.length} results`} className="dashboard-card--full dashboard-session-card">
+    <SessionAnalysisPanel
+      eyebrow="Dashboard session analysis"
+      session={selectedSession}
+    />
+    <StoredSessionTapePanel
+      defaultExpanded
+      key={`dashboard-tape-${selectedSession?.id || "empty"}`}
+      session={selectedSession}
+    />
     <div className="dashboard-session-search"><input aria-label="Search sessions" onChange={(event) => setQuery(event.target.value)} placeholder="Search technique…" value={query} /></div>
-    <div className="dashboard-table-wrap"><table><thead><tr><th>Date and time</th><th>Technique</th><th>Mode</th><th>Status</th><th>Form</th><th>Reps</th><th>Consistency</th></tr></thead><tbody>
-      {sessions.map((item) => <tr key={item.id}><td>{formatDateTime(item.ended_at || item.started_at)}</td><td><strong>{item.technique_name}</strong><span>{item.category} · {item.subcategory}</span></td><td><b className={`dashboard-mode dashboard-mode--${item.mode}`}>{item.mode}</b></td><td>{formatLabel(item.status)}</td><td>{item.accuracy}%</td><td>{item.reps === null ? "--" : `${item.reps}/${item.target_reps}`}</td><td>{item.consistency === null ? "--" : `${item.consistency}%`}</td></tr>)}
+    <div className="dashboard-table-wrap"><table><thead><tr><th>Date and time</th><th>Technique</th><th>Mode</th><th>Status</th><th>Form</th><th>Reps</th><th>Consistency</th><th>Tracking</th><th>Response</th><th><span className="sr-only">Analyze</span></th></tr></thead><tbody>
+      {sessions.map((item) => <tr className={selectedSession?.id === item.id ? "is-selected" : ""} key={item.id}><td>{formatDateTime(item.ended_at || item.started_at)}</td><td><strong>{item.technique_name}</strong><span>{item.category} · {item.subcategory}</span></td><td><b className={`dashboard-mode dashboard-mode--${item.mode}`}>{item.mode}</b></td><td>{formatLabel(item.status)}</td><td>{item.accuracy}%</td><td>{item.reps === null ? "--" : `${item.reps}/${item.target_reps}`}</td><td>{item.consistency === null ? "--" : `${item.consistency}%`}</td><td>{item.tracking_quality == null ? "--" : `${item.tracking_quality}%`}</td><td>{item.average_response_time_ms == null ? "--" : `${item.average_response_time_ms}ms`}</td><td><button aria-label={`Expand ${item.technique_name} session tape`} disabled={item.mode !== "practice" || selectedSession?.id === item.id} onClick={() => setSelectedSessionId(item.id)} type="button">{item.mode === "practice" ? "Expand" : "Summary"}</button></td></tr>)}
     </tbody></table>{sessions.length === 0 ? <p className="dashboard-empty">No sessions match this search and filter combination.</p> : null}</div>
   </Panel>;
 }

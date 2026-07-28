@@ -116,3 +116,24 @@ class PracticeSessionTape(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
+
+
+class PracticeSessionAnalytics(Base):
+    __tablename__ = "practice_session_analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    practice_session_id = Column(
+        Integer,
+        ForeignKey("practice_sessions.id"),
+        nullable=False,
+        unique=True,
+        index=True
+    )
+    schema_version = Column(Integer, default=1)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )

@@ -200,6 +200,44 @@ export function validateTechniquePackage(source) {
         issues.push(`modes.${mode}.${key} must be between 0 and 1`);
       }
     });
+    if (policy.offline_decoder !== undefined) {
+      if (!isRecord(policy.offline_decoder)) {
+        issues.push(`modes.${mode}.offline_decoder must be an object`);
+      } else {
+        const decoder = policy.offline_decoder;
+        if (decoder.enabled !== undefined && typeof decoder.enabled !== "boolean") {
+          issues.push(`modes.${mode}.offline_decoder.enabled must be boolean`);
+        }
+        [
+          "emission_floor",
+          "unknown_emission_threshold",
+          "transition_penalty",
+          "unknown_transition_penalty",
+          "duration_overflow_penalty",
+          "minimum_duration_ratio"
+        ].forEach((key) => {
+          if (
+            decoder[key] !== undefined &&
+            (!Number.isFinite(decoder[key]) || decoder[key] < 0)
+          ) {
+            issues.push(
+              `modes.${mode}.offline_decoder.${key} must be non-negative`
+            );
+          }
+        });
+        if (
+          decoder.unknown_min_duration_ms !== undefined &&
+          (
+            !Number.isFinite(decoder.unknown_min_duration_ms) ||
+            decoder.unknown_min_duration_ms < 0
+          )
+        ) {
+          issues.push(
+            `modes.${mode}.offline_decoder.unknown_min_duration_ms must be non-negative`
+          );
+        }
+      }
+    }
   });
 
   if (issues.length) {

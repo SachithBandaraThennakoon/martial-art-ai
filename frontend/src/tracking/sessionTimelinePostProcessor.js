@@ -1,3 +1,5 @@
+import { decodeDurationAwareSequence } from "./durationAwareSequenceDecoder.js";
+
 function clone(value) {
   return structuredClone(value);
 }
@@ -423,8 +425,33 @@ export function postProcessSessionTimeline({
     };
   }
 
-  const frames = sourceFrames.map(clone);
   const corrections = [];
+  let frames = sourceFrames.map(clone);
+  const offlineDecoderConfig = config.offline_decoder || {};
+  if (
+    offlineDecoderConfig.enabled !== false &&
+    frames.some((frame) => frame.state_scores)
+  ) {
+    const decodedFrames = decodeDurationAwareSequence(
+      frames,
+      techniquePackage,
+      offlineDecoderConfig
+    );
+    const changedFrames = decodedFrames.filter(
+      (frame, index) =>
+        frame.step !== frames[index]?.step ||
+        Boolean(frame.unknown_movement) !==
+          Boolean(frames[index]?.unknown_movement)
+    ).length;
+    frames = decodedFrames;
+    if (changedFrames) {
+      corrections.push({
+        type: "DURATION_AWARE_SEQUENCE_DECODED",
+        changed_frames: changedFrames,
+        decoder: "offline_viterbi_v1"
+      });
+    }
+  }
   const frameIntervalMs = estimateFrameInterval(frames);
   const maximumGapMs = Number(
     config.maximum_repairable_tracking_gap_ms ?? 180

@@ -436,6 +436,12 @@ export function reclassifyPracticeSequence(
       step: classification.step,
       phase: classification.phase,
       temporalPhase: classification.temporalPhase,
+      sequenceState: classification.sequenceState,
+      expectedStep: classification.expectedStep,
+      matchedStep: classification.matchedStep,
+      matchKind: classification.matchKind || null,
+      countedRep: classification.countedRep,
+      completedRep: classification.completedRep,
       stateConfidence: classification.stateConfidence,
       trackingReliable: classification.trackingReliable,
       scorable: classification.scorable,
@@ -525,43 +531,78 @@ export function shouldExpireUnmatchedPracticeSet({
 export function shouldProcessPracticeFrame({
   sessionStatus,
   classifierReady,
-  recordingStarted,
-  cueStarted
+  recordingStarted
 }) {
   return (
     sessionStatus === "active" &&
     classifierReady === true &&
-    recordingStarted === true &&
-    cueStarted === true
+    recordingStarted === true
   );
 }
 
 export function trimPracticeTapeFrames(
   frames,
-  { paddingBeforeMs = 700, paddingAfterMs = 700, motionThreshold = 0.02 } = {}
+  {
+    paddingBeforeMs = 700,
+    paddingAfterMs = 700,
+    motionThreshold = 0.02,
+    maximumLeadInMs = 2500,
+    maximumRecoveryMs = 2500,
+    preparationContextMs = 1500
+  } = {}
 ) {
   if (!frames?.length) return [];
 
-  const activeFrames = frames.filter((frame) =>
+  const classifiedFrames = frames.filter((frame) =>
     frame.scorable === true ||
-    (Number(frame.motionScore) || 0) >= motionThreshold ||
     ["step_enter", "step_hold", "step_peak", "rep_peak", "rep_recovery"].includes(
       frame.temporalPhase
     )
   );
+  const activeFrames = classifiedFrames.length
+    ? classifiedFrames
+    : frames.filter(
+        (frame) => (Number(frame.motionScore) || 0) >= motionThreshold
+      );
   if (!activeFrames.length) return frames.map((frame) => ({ ...frame }));
 
-  const firstCueMs = frames
-    .map((frame) => frame.countTimestampMs)
-    .filter(Number.isFinite)
-    .sort((first, second) => first - second)[0];
-  const firstActivityMs = activeFrames[0].elapsedMs;
-  const lastActivityMs = activeFrames[activeFrames.length - 1].elapsedMs;
+  const repetitionPeaks = frames.filter(
+    (frame) => frame.temporalPhase === "rep_peak"
+  );
+  const firstPeakMs = repetitionPeaks[0]?.elapsedMs;
+  const lastPeakMs = repetitionPeaks[repetitionPeaks.length - 1]?.elapsedMs;
+  const firstProgressionFrame = repetitionPeaks.length
+    ? frames.find(
+        (frame) =>
+          frame.elapsedMs <= firstPeakMs &&
+          Number(frame.step) > 1 &&
+          !["waiting_for_movement", "seeking_step"].includes(
+            frame.temporalPhase
+          )
+      )
+    : null;
+  const boundedStartMs = firstProgressionFrame
+    ? firstProgressionFrame.elapsedMs - preparationContextMs
+    : firstPeakMs - maximumLeadInMs;
+  const boundedActiveFrames = repetitionPeaks.length
+    ? activeFrames.filter(
+        (frame) =>
+          frame.elapsedMs >= boundedStartMs &&
+          frame.elapsedMs <= lastPeakMs + maximumRecoveryMs
+      )
+    : activeFrames;
+  const relevantFrames = boundedActiveFrames.length
+    ? boundedActiveFrames
+    : repetitionPeaks;
+  const firstActivityMs = relevantFrames[0].elapsedMs;
+  const lastActivityMs = relevantFrames[relevantFrames.length - 1].elapsedMs;
   const startMs = Math.max(
     0,
     Math.min(
       firstActivityMs - paddingBeforeMs,
-      Number.isFinite(firstCueMs) ? firstCueMs - Math.min(300, paddingBeforeMs) : Infinity
+      Number.isFinite(boundedStartMs)
+        ? boundedStartMs
+        : firstActivityMs - paddingBeforeMs
     )
   );
   const endMs = lastActivityMs + paddingAfterMs;
@@ -589,7 +630,10 @@ export function filterPracticeTapeFrames(
     .map((frame, index) => ({ frame, index }))
     .filter(
       ({ frame }) =>
-        (rep === "all" || frame.rep === Number(rep)) &&
+        (
+          rep === "all" ||
+          (frame.analysisRep ?? frame.rep) === Number(rep)
+        ) &&
         (step === "all" ||
           (frame.step === Number(step) && frame.scorable !== false))
     );

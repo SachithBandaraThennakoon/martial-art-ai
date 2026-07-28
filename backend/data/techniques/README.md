@@ -26,3 +26,6 @@ must use lowercase kebab case and must remain stable after sessions reference th
 
 Use [CALIBRATION.md](CALIBRATION.md) when promoting a temporal package from
 development to student-facing Train and Practice modes.
+
+Use [TEMPORAL_ARCHITECTURE.md](TEMPORAL_ARCHITECTURE.md) for the stable online
+Train and offline Practice decoding contract.

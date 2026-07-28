@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import SessionAnalysisPanel from "../components/SessionAnalysisPanel";
+import StoredSessionTapePanel from "../components/StoredSessionTapePanel";
 import { API_BASE_URL } from "../services/api";
 
 const formatBodyPart = (bodyPart) =>
@@ -30,11 +32,13 @@ const formatDashboardDate = () =>
 export default function PracticeAnalysisMode({
   hasTechniqueSelection = false,
   onModeChange,
-  onOpenLibrary
+  onOpenLibrary,
+  selectedTechniqueName = ""
 }) {
   const [analysis, setAnalysis] = useState(null);
   const [status, setStatus] = useState("Loading analysis.");
   const [loadState, setLoadState] = useState("loading");
+  const [selectedTapeSessionId, setSelectedTapeSessionId] = useState(null);
 
   const loadAnalysis = useCallback(async (signal) => {
     const token = localStorage.getItem("token");
@@ -47,12 +51,17 @@ export default function PracticeAnalysisMode({
     setLoadState("loading");
     setStatus("Loading your latest training patterns.");
     try {
-      const response = await fetch(`${API_BASE_URL}/practice/analysis`, {
+      const query = new URLSearchParams();
+      if (selectedTechniqueName) query.set("technique_name", selectedTechniqueName);
+      const response = await fetch(
+        `${API_BASE_URL}/practice/analysis${query.size ? `?${query}` : ""}`,
+        {
         headers: {
           Authorization: `Bearer ${token}`
         },
         signal
-      });
+        }
+      );
 
       if (!response.ok) {
         throw new Error(response.status === 401 ? "session" : "request");
@@ -71,7 +80,7 @@ export default function PracticeAnalysisMode({
           : "Analysis is unavailable right now. Your saved training data is safe."
       );
     }
-  }, []);
+  }, [selectedTechniqueName]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -87,13 +96,10 @@ export default function PracticeAnalysisMode({
     .map(([label, value]) => `${label}: ${value}`)
     .join(" / ");
   const hasSessions = sessions.length > 0;
-  const latestSession = sessions.find((session) => session.status === "completed") || sessions[0];
-  const previousSession = sessions.find(
-    (session) => session.id !== latestSession?.id && session.status === "completed"
-  );
-  const accuracyChange = latestSession && previousSession
-    ? Math.round((latestSession.average_accuracy - previousSession.average_accuracy) * 10) / 10
-    : null;
+  const latestSession = sessions[0];
+  const selectedTapeSession =
+    sessions.find((session) => session.id === selectedTapeSessionId) ||
+    latestSession;
 
   if (loadState === "error") {
     return (
@@ -167,28 +173,41 @@ export default function PracticeAnalysisMode({
           <span>Avg pace</span>
           <strong>{summary ? `${summary.average_rep_seconds}s` : "--"}</strong>
         </div>
+        <div className="analysis-kpi">
+          <span>Tracking</span>
+          <strong>
+            {summary?.tracking_quality_percentage != null
+              ? `${summary.tracking_quality_percentage}%`
+              : "--"}
+          </strong>
+        </div>
+        <div className="analysis-kpi">
+          <span>Response</span>
+          <strong>
+            {summary?.average_response_time_ms != null
+              ? `${summary.average_response_time_ms}ms`
+              : "--"}
+          </strong>
+        </div>
+        <div className="analysis-kpi">
+          <span>Incomplete</span>
+          <strong>{summary?.aborted_reps ?? "--"}</strong>
+        </div>
+        <div className="analysis-kpi">
+          <span>Corrections</span>
+          <strong>{summary?.corrections_applied ?? "--"}</strong>
+        </div>
       </div>
 
-      <div className="panel-block analysis-latest-set">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Latest completed set</p>
-            <h2>{latestSession?.technique_name || "No set completed"}</h2>
-          </div>
-          <span className={`analysis-delta ${accuracyChange === null ? "" : accuracyChange >= 0 ? "is-positive" : "is-negative"}`}>
-            {accuracyChange === null ? "First baseline" : `${accuracyChange > 0 ? "+" : ""}${accuracyChange}% vs prior`}
-          </span>
-        </div>
-        <time dateTime={latestSession?.ended_at || latestSession?.started_at || undefined}>
-          {formatDateTime(latestSession?.ended_at || latestSession?.started_at)}
-        </time>
-        <div className="analysis-latest-set__metrics">
-          <div><span>Form</span><strong>{latestSession ? `${latestSession.average_accuracy}%` : "--"}</strong></div>
-          <div><span>Reps</span><strong>{latestSession ? `${latestSession.completed_reps}/${latestSession.target_reps}` : "--"}</strong></div>
-          <div><span>Clean</span><strong>{latestSession?.clean_reps ?? "--"}</strong></div>
-          <div><span>Consistency</span><strong>{latestSession ? `${latestSession.consistency_score}%` : "--"}</strong></div>
-        </div>
-      </div>
+      <SessionAnalysisPanel
+        eyebrow="Latest Practice session"
+        session={latestSession}
+      />
+      <StoredSessionTapePanel
+        defaultExpanded
+        key={`analysis-tape-${selectedTapeSession?.id || "empty"}`}
+        session={selectedTapeSession}
+      />
 
       <div className="panel-block coach-card analysis-recommendation">
         <p className="eyebrow">Recommendation</p>
@@ -226,7 +245,7 @@ export default function PracticeAnalysisMode({
       </div>
 
       <div className="panel-block analysis-insights">
-        <p className="eyebrow">Focus</p>
+        <p className="eyebrow">Practice evidence</p>
         <div className="analysis-insight-grid">
           <div>
             <span>Needs attention</span>
@@ -235,6 +254,28 @@ export default function PracticeAnalysisMode({
           <div>
             <span>Pace mix</span>
             <strong>{paceText || "No reps yet"}</strong>
+          </div>
+          <div>
+            <span>Confirmed form errors</span>
+            <strong>
+              {(summary?.common_form_errors || []).length
+                ? summary.common_form_errors
+                    .slice(0, 3)
+                    .map((item) => `${formatBodyPart(item.error_id)} (${item.count})`)
+                    .join(" · ")
+                : "No confirmed errors"}
+            </strong>
+          </div>
+          <div>
+            <span>Average step timing</span>
+            <strong>
+              {Object.keys(summary?.per_step_duration_ms || {}).length
+                ? Object.entries(summary.per_step_duration_ms)
+                    .slice(0, 3)
+                    .map(([step, duration]) => `${formatBodyPart(step)} ${duration}ms`)
+                    .join(" · ")
+                : "No timing data"}
+            </strong>
           </div>
         </div>
       </div>
@@ -269,7 +310,7 @@ export default function PracticeAnalysisMode({
           {sessions.length === 0 ? (
             <p className="empty-state">Complete a practice set to build analysis.</p>
           ) : (
-            sessions.map((session) => (
+            sessions.map((session, index) => (
               <article className="analysis-row" key={session.id}>
                 <div>
                   <strong>{session.technique_name}</strong>
@@ -281,8 +322,19 @@ export default function PracticeAnalysisMode({
                 </div>
                 <div>
                   <strong>{session.consistency_score}%</strong>
-                  <span>{session.clean_reps} clean</span>
+                  <span>
+                    {session.analytics?.tracking_quality_percentage != null
+                      ? `${session.analytics.tracking_quality_percentage}% tracking`
+                      : `${session.clean_reps} clean`}
+                  </span>
                 </div>
+                <button
+                  disabled={selectedTapeSession?.id === session.id}
+                  onClick={() => setSelectedTapeSessionId(session.id)}
+                  type="button"
+                >
+                  {index === 0 ? "Recent tape" : "Expand tape"}
+                </button>
               </article>
             ))
           )}

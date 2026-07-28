@@ -110,13 +110,13 @@ export default function CategoryPage() {
                     {hasAccess ? (
                       <Link
                         className="btn btn--light btn--small"
-                        to={`/${isAdminStudio ? "admin-training" : "training"}?mode=train&category=${slugify(
+                        to={`/${isAdminStudio ? "admin-training" : "training"}?category=${slugify(
                           category.category
                         )}&subcategory=${slugify(
                           subcategory.name
                         )}&technique=${encodeURIComponent(technique.name)}`}
                       >
-                        {isAdminStudio ? "Inspect" : "Start training"}
+                        {isAdminStudio ? "Open lab" : "Open Studio"}
                       </Link>
                     ) : (
                       <Link className="btn btn--ghost btn--small" to="/pricing">
@@ -139,6 +139,7 @@ export default function CategoryPage() {
           </div>
         ) : null}
       </section>
+
     </main>
   );
 }
