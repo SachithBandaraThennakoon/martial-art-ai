@@ -17,6 +17,71 @@ function buildTechniqueCatalog({
   technique_steps = [],
   target_angles = []
 }) {
+  const normalizePackageStep = (step, index, techniqueId) => {
+    const angleTargets = Array.isArray(step.angle_targets)
+      ? step.angle_targets.map((angle) => ({
+          body_part: angle.body_part,
+          label: angle.label || angle.body_part,
+          target_angle:
+            angle.target_angle ?? Math.round((Number(angle.min) + Number(angle.max)) / 2),
+          min: angle.min,
+          max: angle.max,
+          role: angle.role || "supporting"
+        }))
+      : (step.angles || []).map((angle) => ({
+          body_part: angle.body_part,
+          label: angle.label || angle.body_part,
+          target_angle:
+            angle.target_angle ??
+            Math.round(
+              (Number(angle.min ?? angle.min_angle) + Number(angle.max ?? angle.max_angle)) / 2
+            ),
+          min: angle.min ?? angle.min_angle,
+          max: angle.max ?? angle.max_angle,
+          role: angle.role || "primary"
+        }));
+    const primaryAngles = angleTargets.filter((angle) => angle.role === "primary");
+    const evaluationProfile = step.evaluation_profile || {
+      phase_states: step.phase_states || [],
+      main_angles: primaryAngles.map((angle) => ({
+        feature: angle.body_part,
+        label: angle.label,
+        target: `${angle.min}-${angle.max}°`,
+        priority: "critical"
+      })),
+      non_angle_features: step.non_angle_features || [],
+      full_body_support: (step.body_evidence || []).map((item) => ({
+        ...item,
+        priority: item.priority || "supporting"
+      })),
+      full_body_angles: angleTargets,
+      visibility_policy: {
+        hard_required: step.visibility?.required || [],
+        preferred: step.visibility?.preferred || [],
+        optional: step.visibility?.optional || [],
+        missing_support_action: "reduce_confidence_not_reject"
+      }
+    };
+
+    return {
+      id: step.id ?? `${techniqueId}-step-${step.step_number ?? index + 1}`,
+      step_number: step.step_number ?? index + 1,
+      step_name: step.step_name || `Step ${index + 1}`,
+      counts_rep: Boolean(step.counts_rep),
+      angle_targets: angleTargets,
+      difficulty_profiles: step.difficulty_profiles || null,
+      non_angle_features: step.non_angle_features || [],
+      quality_targets: step.quality_targets || [],
+      feedback_priority: step.feedback_priority || [],
+      evaluation_profile: evaluationProfile,
+      angles: primaryAngles.map(({ body_part, min, max }) => ({
+        body_part,
+        min,
+        max
+      }))
+    };
+  };
+
   const stepAngles = target_angles.reduce((items, angle) => {
     const list = items.get(angle.step_id) || [];
     list.push({
@@ -65,17 +130,9 @@ function buildTechniqueCatalog({
 
     const techniqueId = technique.id ?? slugify(technique.name);
     const steps = Array.isArray(technique.steps)
-      ? technique.steps.map((step, index) => ({
-          id: step.id ?? `${techniqueId}-step-${step.step_number ?? index + 1}`,
-          step_number: step.step_number ?? index + 1,
-          step_name: step.step_name || `Step ${index + 1}`,
-          counts_rep: Boolean(step.counts_rep),
-          angles: (step.angles || []).map((angle) => ({
-            body_part: angle.body_part,
-            min: angle.min ?? angle.min_angle,
-            max: angle.max ?? angle.max_angle
-          }))
-        }))
+      ? technique.steps.map((step, index) =>
+          normalizePackageStep(step, index, techniqueId)
+        )
       : techniqueSteps.get(technique.id) || [];
     steps.sort((first, second) => first.step_number - second.step_number);
 
@@ -109,7 +166,10 @@ function buildTechniqueCatalog({
 export const techniqueCatalog = buildTechniqueCatalog({
   techniques: listTechniqueDataPackages().map(({ catalog, trainingSteps }) => ({
     ...catalog,
-    steps: trainingSteps.steps || []
+    steps: (trainingSteps.steps || []).map((step) => ({
+      ...step,
+      difficulty_profiles: trainingSteps.difficulty_profiles || null
+    }))
   }))
 });
 

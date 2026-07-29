@@ -19,6 +19,7 @@ import ResetPassword from "./pages/ResetPassword";
 
 const Training = lazy(() => import("./pages/Training"));
 const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
+const TemporalDataLab = lazy(() => import("./pages/TemporalDataLab"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 function AppRoutes() {
@@ -65,6 +66,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <ModelTestPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-temporal-data"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <TemporalDataLab />
             </ProtectedRoute>
           }
         />

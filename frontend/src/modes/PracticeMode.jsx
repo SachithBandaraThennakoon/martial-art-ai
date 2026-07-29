@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ActionSkeletonOverlay from "../components/ActionSkeletonOverlay";
+import AdminPracticeDiagnostics from "../components/AdminPracticeDiagnostics";
 import DataLayersPanel from "../components/DataLayersPanel";
 import Level1DebugPanel from "../components/Level1DebugPanel";
 import Level2DebugPanel from "../components/Level2DebugPanel";
@@ -34,7 +35,8 @@ import {
 } from "../tracking/practiceTapeRuleEngineBridge";
 import {
   buildPracticeSessionAnalysis,
-  buildPracticeSessionMetrics
+  buildPracticeSessionMetrics,
+  selectPracticeTimelineView
 } from "../utils/practiceSessionAnalysis";
 import {
   selectLatestPracticeSession,
@@ -115,6 +117,60 @@ const formatCountGap = (milliseconds = 0) => {
   const seconds = Math.max(0, milliseconds) / 1000;
   return `${Number.isInteger(seconds) ? seconds.toFixed(0) : seconds.toFixed(1)}s`;
 };
+
+function StepEvidenceGuide({ step }) {
+  const profile = step?.evaluation_profile;
+  if (!profile) return null;
+
+  const groups = [
+    ["Main angles", profile.main_angles],
+    ["Motion / guard", profile.non_angle_features],
+    ["Full-body support", profile.full_body_support],
+    [
+      "Measured body angles",
+      (profile.full_body_angles || []).map((angle) => ({
+        feature: angle.body_part,
+        label: angle.body_part
+          .split("_")
+          .reverse()
+          .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+          .join(" "),
+        target: `Ideal ${angle.target_angle ?? Math.round((angle.min + angle.max) / 2)}° · ${angle.min}-${angle.max}°`
+      }))
+    ]
+  ];
+
+  return (
+    <details className="panel-block practice-step-evidence">
+      <summary>
+        <span>
+          <small>Current step evidence</small>
+          <strong>Step {step.step_number}: {step.step_name}</strong>
+        </span>
+        <span>{(profile.phase_states || []).join(" → ")}</span>
+      </summary>
+      <div className="practice-step-evidence__groups">
+        {groups.map(([title, items]) => (
+          <section key={title}>
+            <h3>{title}</h3>
+            <ul>
+              {(items || []).map((item) => (
+                <li key={item.feature}>
+                  <span>{item.label}</span>
+                  {item.target ? <small>{item.target}</small> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+      <p>
+        Lead-arm evidence identifies the phase. Full-body evidence improves coaching confidence;
+        missing legs do not reject the Jab.
+      </p>
+    </details>
+  );
+}
 
 const formatAttentionOffset = (milliseconds) => {
   if (!Number.isFinite(milliseconds)) return "No response";
@@ -243,7 +299,18 @@ const encodePracticeTapeFrame = (frame) => ({
   dr: frame.completedRep,
   qs: frame.sequenceState,
   ps: frame.postSessionClassified,
-  sc: frame.scorable
+  sc: frame.scorable,
+  rc: frame.ruleEngineAnalysis?.corrected
+    ? {
+        r: frame.ruleEngineAnalysis.corrected.rep_id ?? null,
+        rs: frame.ruleEngineAnalysis.corrected.rep_state ?? null,
+        s: frame.ruleEngineAnalysis.corrected.step ?? null,
+        p: frame.ruleEngineAnalysis.corrected.phase ?? null,
+        c: frame.ruleEngineAnalysis.corrected.confidence ?? null,
+        tl: frame.ruleEngineAnalysis.corrected.tracking_lost === true,
+        u: frame.ruleEngineAnalysis.corrected.unknown_movement === true
+      }
+    : null
 });
 
 const decodePracticeTapeFrame = (frame, index) => ({
@@ -318,7 +385,20 @@ const decodePracticeTapeFrame = (frame, index) => ({
   completedRep: frame.dr ?? null,
   sequenceState: frame.qs || null,
   postSessionClassified: frame.ps === true,
-  scorable: frame.sc !== false
+  scorable: frame.sc !== false,
+  ruleEngineAnalysis: frame.rc
+    ? {
+        corrected: {
+          rep_id: frame.rc.r ?? null,
+          rep_state: frame.rc.rs ?? null,
+          step: frame.rc.s ?? null,
+          phase: frame.rc.p ?? null,
+          confidence: frame.rc.c ?? null,
+          tracking_lost: frame.rc.tl === true,
+          unknown_movement: frame.rc.u === true
+        }
+      }
+    : null
 });
 
 const analyzePracticeTape = ({
@@ -337,7 +417,24 @@ const analyzePracticeTape = ({
     targetReps
   });
   const rescoredTape = reclassifiedTape.map((frame) => {
-    if (!frame.scorable) {
+    const numericStepScores = (frame.stepScores || []).map(
+      (score) => Number(score) || 0
+    );
+    const strongestScore = Math.max(0, ...numericStepScores);
+    const strongestStepIndex = numericStepScores.indexOf(strongestScore);
+    const runnerUpScore = Math.max(
+      0,
+      ...numericStepScores.filter((_, index) => index !== strongestStepIndex)
+    );
+    const evidenceStep =
+      strongestScore >= 80 && strongestScore - runnerUpScore >= 6
+        ? strongestStepIndex + 1
+        : null;
+    const scoringStep = frame.scorable
+      ? frame.step
+      : evidenceStep;
+
+    if (!scoringStep) {
       return {
         ...frame,
         accuracy: null,
@@ -348,11 +445,14 @@ const analyzePracticeTape = ({
     }
 
     const result = scorePracticeAngles(
-      steps[Math.max(0, frame.step - 1)]?.angles || [],
+      steps[Math.max(0, scoringStep - 1)]?.angles || [],
       frame.angles || {}
     );
     return {
       ...frame,
+      scoreStep: scoringStep,
+      scoreSource: frame.scorable ? "sequence" : "dominant_pose_evidence",
+      scorable: true,
       accuracy: result.accuracy,
       focusBodyPart: result.focusBodyPart,
       issue: result.issue,
@@ -830,18 +930,38 @@ function PracticeSessionMap({
   onSelectFrame,
   selectedFrame
 }) {
+  const [showAdvancedTimeline, setShowAdvancedTimeline] = useState(false);
   if (!analysis?.segments?.length) return null;
-  const durationMs = Math.max(analysis.duration_ms, 1);
+  const timelineView = selectPracticeTimelineView(analysis, {
+    advanced: showAdvancedTimeline
+  });
+  const durationMs = Math.max(
+    timelineView.end_ms - timelineView.start_ms,
+    1
+  );
   const timelineRange = (startMs, rangeDurationMs, minimumWidth = 0.35) => {
     const left = Math.min(
       100,
-      Math.max(0, (Math.max(0, Number(startMs) || 0) / durationMs) * 100)
+      Math.max(
+        0,
+        ((Math.max(timelineView.start_ms, Number(startMs) || 0) -
+          timelineView.start_ms) /
+          durationMs) *
+          100
+      )
+    );
+    const clippedEnd = Math.min(
+      timelineView.end_ms,
+      (Number(startMs) || 0) + Math.max(Number(rangeDurationMs) || 0, 34)
     );
     const width = Math.min(
       100 - left,
       Math.max(
         minimumWidth,
-        (Math.max(Number(rangeDurationMs) || 0, 34) / durationMs) * 100
+        ((clippedEnd -
+          Math.max(timelineView.start_ms, Number(startMs) || 0)) /
+          durationMs) *
+          100
       )
     );
     return { left, width };
@@ -854,16 +974,25 @@ function PracticeSessionMap({
           <p className="eyebrow">Session map</p>
           <strong>Movement timeline</strong>
         </div>
-        <span>
-          {analysis.clustered_completed_repetitions}/
-          {analysis.target_repetitions} completed
-        </span>
+        <div className="practice-session-map__header-actions">
+          <button
+            aria-pressed={showAdvancedTimeline}
+            onClick={() => setShowAdvancedTimeline((isVisible) => !isVisible)}
+            type="button"
+          >
+            {showAdvancedTimeline ? "Hide advanced" : "Advanced frames"}
+          </button>
+          <span>
+            {analysis.clustered_completed_repetitions}/
+            {analysis.target_repetitions} completed
+          </span>
+        </div>
       </div>
 
       <div className="practice-session-map__timeline">
         <div className="practice-session-map__tracks">
           <div className="practice-session-map__segments">
-            {analysis.segments.map((segment, index) => {
+            {timelineView.segments.map((segment, index) => {
               const selected =
                 selectedFrame >= segment.start_frame_index &&
                 selectedFrame <= segment.end_frame_index;
@@ -1059,9 +1188,21 @@ export default function PracticeMode({
   const [selectedStepIndex, setSelectedStepIndex] = useState(0);
   const selectedStep = steps[selectedStepIndex] || steps[0];
   const requiredParts = useMemo(() => selectedStep?.angles || [], [selectedStep]);
+  const practiceFeedbackParts = useMemo(
+    () => [
+      ...(selectedStep?.evaluation_profile?.full_body_angles || []),
+      ...(selectedStep?.quality_targets || []).map((target) => ({
+        ...target,
+        body_part: target.body_part || target.feature
+      }))
+    ],
+    [selectedStep]
+  );
   const measurementParts = useMemo(() => {
     const parts = new Map();
-    steps.flatMap((step) => step?.angles || []).forEach((part) => {
+    steps.flatMap(
+      (step) => step?.evaluation_profile?.full_body_angles || step?.angles || []
+    ).forEach((part) => {
       if (!parts.has(part.body_part)) parts.set(part.body_part, part);
     });
     return [...parts.values()];
@@ -1084,6 +1225,8 @@ export default function PracticeMode({
   const [level3State, setLevel3State] = useState(null);
   const [level4State, setLevel4State] = useState(null);
   const [situationAwarenessState, setSituationAwarenessState] = useState(null);
+  const [ruleEngineLiveFrame, setRuleEngineLiveFrame] = useState(null);
+  const [ruleEngineLiveEvents, setRuleEngineLiveEvents] = useState([]);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [showDataLayers, setShowDataLayers] = useState(false);
   const [showConversationHistory, setShowConversationHistory] = useState(false);
@@ -1149,6 +1292,15 @@ export default function PracticeMode({
       ...(metadata || {}),
       ruleEngineAnalysis
     }));
+  }, []);
+  const handleRuleEngineLiveFrame = useCallback((frame) => {
+    setRuleEngineLiveFrame(frame);
+    const event = frame?.temporal_event;
+    if (!event?.id) return;
+    setRuleEngineLiveEvents((current) => {
+      if (current.some((item) => item.id === event.id)) return current;
+      return [event, ...current].slice(0, 8);
+    });
   }, []);
   const waitForRuleEngineResult = useCallback((timeoutMs = 1600) => {
     if (ruleEngineResultRef.current) {
@@ -1291,8 +1443,9 @@ export default function PracticeMode({
         ...frame,
         analysisKind: assignment?.kind || "preparation",
         analysisRep: assignment?.rep ?? null,
+        scorable: assignment?.scorable === true,
         sourceStep: frame.step,
-        step: assignment?.step ?? frame.step,
+        step: assignment ? assignment.step : frame.step,
         sourceTemporalPhase: frame.temporalPhase,
         temporalPhase: assignment?.phase ?? frame.temporalPhase
       };
@@ -1312,11 +1465,12 @@ export default function PracticeMode({
     Number.isFinite(fullTapeFrame?.accuracy);
   const fullTapeFrameRuleErrors = getFrameRuleErrors(fullTapeFrame);
   const fullTapeFrameNeedsReview =
+    fullTapeFrameScorable &&
     (
       fullTapeFrameScorable &&
       fullTapeFrame.accuracy < CLEAN_ACCURACY
-    ) ||
-    fullTapeFrameRuleErrors.length > 0;
+    || fullTapeFrameRuleErrors.length > 0
+    );
   const timelineContentWidth = Math.max(
     900,
     analysisTapeFrames.length * cameraRollZoom
@@ -1361,21 +1515,24 @@ export default function PracticeMode({
     : Number.isFinite(correctedRuleSummary?.completed_repetitions)
       ? correctedRuleSummary.completed_repetitions
     : popupRepTape.length;
-  const fullTapeReviewFrames = fullTapeFrames.filter(
+  const fullTapeReviewFrames = analysisTapeFrames.filter(
     (frame) =>
+      frame.scorable === true &&
       (
         frame.scorable !== false &&
         Number.isFinite(frame.accuracy) &&
         frame.accuracy < CLEAN_ACCURACY
-      ) ||
-      getFrameRuleErrors(frame).length > 0
+      || getFrameRuleErrors(frame).length > 0
+      )
   ).length;
-  const fullTapeIssueCounts = scoredFullTapeFrames.reduce((counts, frame) => {
+  const fullTapeIssueCounts = analysisTapeFrames
+    .filter((frame) => frame.scorable && Number.isFinite(frame.accuracy))
+    .reduce((counts, frame) => {
     (frame.wrongBodyParts || []).forEach((bodyPart) => {
       counts[bodyPart] = (counts[bodyPart] || 0) + 1;
     });
     return counts;
-  }, {});
+    }, {});
   const fullTapePrimaryIssue = Object.entries(fullTapeIssueCounts).sort(
     (left, right) => right[1] - left[1]
   )[0]?.[0] || null;
@@ -1403,7 +1560,8 @@ export default function PracticeMode({
         )
       )
     : 0;
-  const fullTapeRecommendation = fullTapeAverageAccuracy >= CLEAN_ACCURACY
+  const fullTapeRecommendation =
+    canonicalSessionMetrics.average_accuracy >= CLEAN_ACCURACY
     ? "Keep this rhythm and repeat the same clean movement."
     : fullTapePrimaryIssue
       ? `Repeat slowly while focusing on ${formatBodyPart(fullTapePrimaryIssue)}.`
@@ -1705,16 +1863,16 @@ export default function PracticeMode({
   const selectTargetReps = useCallback((count) => {
     setTargetReps(count);
     sayPractice(
-      buildPracticeSetMessage({ gapMs: countGapMs, reps: count }),
-      { intent: `set_config:${count}:${countGapMs}`, speak: true }
+      `${count} reps selected. Choose the count gap, then start when ready.`,
+      { intent: `set_config:${count}:${countGapMs}`, speak: false }
     );
   }, [countGapMs, sayPractice]);
 
   const selectCountGap = useCallback((gapMs) => {
     setCountGapMs(gapMs);
     sayPractice(
-      buildPracticeSetMessage({ gapMs, reps: targetReps }),
-      { intent: `set_config:${targetReps}:${gapMs}`, speak: true }
+      `${formatCountGap(gapMs)} gap selected. Start when ready.`,
+      { intent: `set_config:${targetReps}:${gapMs}`, speak: false }
     );
   }, [sayPractice, targetReps]);
 
@@ -2061,10 +2219,16 @@ export default function PracticeMode({
             await loadPracticeAnalysis();
           }
         }
+        const averageAccuracy = Math.round(correctedSummary.average_accuracy || 0);
+        const cleanCount = correctedSummary.clean_reps || 0;
         const message = completed
-          ? "Stop. Set finished. Your whole-session sequence analysis is ready."
-          : `Set ended with ${remaining} incomplete ${remaining === 1 ? "rep" : "reps"}. ` +
-            "The full capture was analyzed; keep your body in view and try again.";
+          ? `Set finished. ${correctedCompletedReps} of ${targetReps} reps completed, ` +
+            `${cleanCount} clean, with ${averageAccuracy} percent average accuracy. ` +
+            "Your full session analysis is ready."
+          : `Set ended. ${correctedCompletedReps} of ${targetReps} reps completed, ` +
+            `${cleanCount} clean, with ${averageAccuracy} percent average accuracy. ` +
+            `${remaining} ${remaining === 1 ? "rep was" : "reps were"} incomplete. ` +
+            "Keep your body in view and try again.";
         setAssistantMessage(message);
         sayPractice(message, {
           force: true,
@@ -2640,10 +2804,7 @@ export default function PracticeMode({
     lastPracticeFeedbackIntentRef.current = greetingIntent;
     setAssistantMessage(greeting);
     setConversation([{ role: "ai", text: greeting }]);
-    if (voiceEnabled) {
-      queuePracticeVoice(greeting, { intent: greetingIntent });
-    }
-  }, [currentTechnique, queuePracticeVoice, voiceEnabled]);
+  }, [currentTechnique]);
 
   useEffect(() => {
     if (attentionReminderTimerRef.current) {
@@ -2662,7 +2823,7 @@ export default function PracticeMode({
       const reminder = session?.status === "completed"
         ? "Still with me? Choose practice again, training mode, or analysis."
         : "Still with me? Choose your reps, then say start when ready.";
-      sayPractice(reminder, { speak: true });
+      sayPractice(reminder, { speak: session?.status === "completed" });
       attentionReminderTimerRef.current = null;
     }, 15000);
 
@@ -2847,6 +3008,8 @@ export default function PracticeMode({
           sessionConfig={practiceSessionConfig}
           requiredParts={requiredParts}
           measurementParts={measurementParts}
+          expectedParts={practiceFeedbackParts}
+          feedbackParts={practiceFeedbackParts}
           onAngleUpdate={handleAngleUpdate}
           onLandmarkFrame={handleLandmarkFrame}
           temporalCue={temporalCue}
@@ -2857,6 +3020,9 @@ export default function PracticeMode({
           onLevel3Update={setLevel3State}
           onLevel4Update={setLevel4State}
           onSituationAwarenessUpdate={setSituationAwarenessState}
+          onRuleEngineFrameUpdate={
+            isAdminStudio ? handleRuleEngineLiveFrame : undefined
+          }
           onRuleEngineSessionComplete={handleRuleEngineSessionComplete}
           onAccuracyUpdate={() => {}}
           onFeedbackUpdate={() => {}}
@@ -2925,6 +3091,8 @@ export default function PracticeMode({
           </p>
         </div>
 
+        <StepEvidenceGuide step={selectedStep} />
+
         <div className="panel-block practice-controls">
           <div className="practice-control-heading">
             <p className="eyebrow">Repetitions</p>
@@ -2956,7 +3124,7 @@ export default function PracticeMode({
               min="1"
               onChange={(event) => {
                 const nextCount = Math.max(1, Math.min(50, Number(event.target.value) || 1));
-                setTargetReps(nextCount);
+                selectTargetReps(nextCount);
               }}
               step="1"
               type="range"
@@ -2997,7 +3165,7 @@ export default function PracticeMode({
               min="500"
               onChange={(event) => {
                 const nextGapMs = Math.max(500, Math.min(5000, Number(event.target.value) || 500));
-                setCountGapMs(nextGapMs);
+                selectCountGap(nextGapMs);
               }}
               step="100"
               type="range"
@@ -3091,6 +3259,16 @@ export default function PracticeMode({
 
         {isAdminStudio ? (
           <>
+            <div className="panel-block">
+              <AdminPracticeDiagnostics
+                ruleFrame={ruleEngineLiveFrame}
+                level2State={level2State}
+                level3State={level3State}
+                situationAwarenessState={situationAwarenessState}
+                events={ruleEngineLiveEvents}
+                onClearEvents={() => setRuleEngineLiveEvents([])}
+              />
+            </div>
             <div className="panel-block advanced-analysis-toggle">
               <button
                 aria-expanded={showAdvancedAnalysis}

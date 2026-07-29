@@ -712,7 +712,9 @@ function getCorrectionParts(requiredParts = [], anglesPayload = {}) {
         const canColorSkeleton =
           BODY_PART_MAP[part.body_part] ||
           part.body_part.startsWith("fist_") ||
-          part.body_part.startsWith("hand_");
+          part.body_part.startsWith("hand_") ||
+          part.body_part.startsWith("face_") ||
+          part.body_part.startsWith("eyes_");
 
         if (!canColorSkeleton) return false;
 
@@ -733,6 +735,8 @@ export default function SkeletonCanvas({
   coachCommand,
   requiredParts,
   measurementParts,
+  expectedParts,
+  feedbackParts,
   onAngleUpdate,
   onAccuracyUpdate,
   onFeedbackUpdate,
@@ -744,8 +748,10 @@ export default function SkeletonCanvas({
   onLevel3Update,
   onLevel4Update,
   onSituationAwarenessUpdate,
+  onRuleEngineFrameUpdate,
   onRuleEngineSessionComplete,
   onLandmarkFrame,
+  capturePoseOnly = false,
   temporalCue,
   temporalSessionId,
   trackingSessionActive = true,
@@ -755,6 +761,7 @@ export default function SkeletonCanvas({
   onBodyCalibrationSample,
   onCalibrationStatus,
   stanceTargetDegrees = 0,
+  onStanceTargetChange,
   enableAwareness = false,
   performanceProfile = "student",
   performanceMode = "auto",
@@ -793,6 +800,7 @@ export default function SkeletonCanvas({
   const currentStepNameRef = useRef(currentStepName);
   const requiredPartsRef = useRef(requiredParts);
   const measurementPartsRef = useRef(measurementParts || requiredParts);
+  const feedbackPartsRef = useRef(feedbackParts || measurementParts || requiredParts);
   const sessionConfigRef = useRef(sessionConfig);
   const basePerformanceConfigRef = useRef(getStudioPerformanceConfig(performanceProfile));
   const adaptiveTierRef = useRef("balanced");
@@ -817,6 +825,7 @@ export default function SkeletonCanvas({
   const predictionLedgerRef = useRef(new PredictionLedger());
   const situationAwarenessRef = useRef(new SituationAwarenessLayer());
   const trackingSessionEngineRef = useRef(null);
+  const temporalPhasePredictorRef = useRef(null);
   const trackingSessionActiveRef = useRef(trackingSessionActive);
   const trackingSessionPausedRef = useRef(trackingSessionPaused);
   const bodyCalibrationRef = useRef(bodyCalibration);
@@ -835,6 +844,7 @@ export default function SkeletonCanvas({
   const onLevel3UpdateRef = useRef(onLevel3Update);
   const onLevel4UpdateRef = useRef(onLevel4Update);
   const onSituationAwarenessUpdateRef = useRef(onSituationAwarenessUpdate);
+  const onRuleEngineFrameUpdateRef = useRef(onRuleEngineFrameUpdate);
   const onRuleEngineSessionCompleteRef = useRef(onRuleEngineSessionComplete);
   const onLandmarkFrameRef = useRef(onLandmarkFrame);
   const stanceTargetDegreesRef = useRef(stanceTargetDegrees);
@@ -916,8 +926,35 @@ export default function SkeletonCanvas({
       }
     }
     trackingSessionEngineRef.current = engine;
+    let predictorDisposed = false;
+    (async () => {
+      const { UniversalTemporalOnnxPredictor } = await import(
+        "../tracking/universalTemporalOnnxPredictor.js"
+      );
+      if (predictorDisposed) return;
+      const universal = new UniversalTemporalOnnxPredictor(techniquePackage);
+      await universal.load();
+      if (predictorDisposed) return;
+      if (universal.status === "ready") {
+        temporalPhasePredictorRef.current = universal;
+        return;
+      }
+      if (techniquePackage.id !== "jab") return;
+      const { TemporalPhaseOnnxPredictor } = await import(
+        "../tracking/temporalPhaseOnnxPredictor.js"
+      );
+      if (predictorDisposed) return;
+      const legacy = new TemporalPhaseOnnxPredictor(techniquePackage);
+      await legacy.load();
+      if (!predictorDisposed && legacy.status === "ready") {
+        temporalPhasePredictorRef.current = legacy;
+      }
+    })();
 
     return () => {
+      predictorDisposed = true;
+      temporalPhasePredictorRef.current?.reset();
+      temporalPhasePredictorRef.current = null;
       engine.end(performance.now());
       if (trackingSessionEngineRef.current === engine) {
         trackingSessionEngineRef.current = null;
@@ -1016,13 +1053,16 @@ export default function SkeletonCanvas({
     enableCoachRef.current = enableCoach;
     requiredPartsRef.current = requiredParts;
     measurementPartsRef.current = measurementParts || requiredParts;
+    feedbackPartsRef.current = feedbackParts || measurementParts || requiredParts;
     sessionConfigRef.current = sessionConfig;
     enableAwarenessRef.current = enableAwareness;
     displayMirroredRef.current = displayMirrored;
     skeletonLayersRef.current = skeletonLayers;
     performanceModeRef.current = performanceMode;
     basePerformanceConfigRef.current = getStudioPerformanceConfig(performanceProfile, {
-      onnxEnabled: Boolean(skeletonLayers?.onnx || onLandmarkFrame)
+      onnxEnabled: Boolean(
+        skeletonLayers?.onnx || (onLandmarkFrame && !capturePoseOnly)
+      )
     });
     performanceConfigRef.current = applyStudioPerformanceMode(
       basePerformanceConfigRef.current,
@@ -1035,11 +1075,13 @@ export default function SkeletonCanvas({
       onnxIntervalMs: performanceConfigRef.current.onnxIntervalMs
     };
     shouldTrackHandsRef.current =
-      performanceConfigRef.current.handMode === "always" ||
-      shouldTrackHands(requiredParts, currentStepName) ||
-      Boolean(onLandmarkFrame);
+      !capturePoseOnly && (
+        performanceConfigRef.current.handMode === "always" ||
+        shouldTrackHands(requiredParts, currentStepName) ||
+        Boolean(onLandmarkFrame)
+      );
     shouldTrackFaceRef.current = Boolean(
-      onLandmarkFrame ||
+      (!capturePoseOnly && onLandmarkFrame) ||
       (enableAwareness && performanceConfigRef.current.enableFace)
     );
     if (enableCoach && wsRef.current?.readyState === WebSocket.OPEN) {
@@ -1060,11 +1102,13 @@ export default function SkeletonCanvas({
     enableCoach,
     requiredParts,
     measurementParts,
+    feedbackParts,
     skeletonLayers,
     sessionConfig,
     performanceProfile,
     performanceMode,
-    onLandmarkFrame
+    onLandmarkFrame,
+    capturePoseOnly
   ]);
 
   useEffect(() => {
@@ -1088,6 +1132,7 @@ export default function SkeletonCanvas({
     onLevel3UpdateRef.current = onLevel3Update;
     onLevel4UpdateRef.current = onLevel4Update;
     onSituationAwarenessUpdateRef.current = onSituationAwarenessUpdate;
+    onRuleEngineFrameUpdateRef.current = onRuleEngineFrameUpdate;
     onRuleEngineSessionCompleteRef.current = onRuleEngineSessionComplete;
     onLandmarkFrameRef.current = onLandmarkFrame;
   }, [
@@ -1101,6 +1146,7 @@ export default function SkeletonCanvas({
     onLevel3Update,
     onLevel4Update,
     onRuleEngineSessionComplete,
+    onRuleEngineFrameUpdate,
     onLandmarkFrame,
     onSituationAwarenessUpdate,
     onSummaryUpdate
@@ -1296,6 +1342,8 @@ export default function SkeletonCanvas({
           step_id: currentStepIdRef.current,
           step_name: currentStepNameRef.current,
           required_parts: requiredPartsRef.current,
+          angle_targets: measurementPartsRef.current,
+          feedback_targets: feedbackPartsRef.current,
           angles: anglesPayload
         })
       );
@@ -1622,9 +1670,18 @@ export default function SkeletonCanvas({
             auxiliary_features: auxiliaryScores
           }
         };
+        const learnedStatePrediction = temporalPhasePredictorRef.current?.update({
+          landmarks: frame.worldPose,
+          timestampMs: now
+        }) || null;
         const ruleEngineShadowFrame = trackingSessionActiveRef.current
-          ? trackingSessionEngineRef.current?.update(level1State) || null
+          ? trackingSessionEngineRef.current?.update(level1State, {
+              learnedStatePrediction,
+              learnedModelExpected:
+                trackingSessionEngineRef.current?.techniquePackage?.id === "jab"
+            }) || null
           : trackingSessionEngineRef.current?.latestFrame || null;
+        onRuleEngineFrameUpdateRef.current?.(ruleEngineShadowFrame);
         const level2State = level2ActionRef.current.update({
           level1State,
           requiredParts: requiredPartsRef.current,
@@ -1702,6 +1759,48 @@ export default function SkeletonCanvas({
             }
           }
         });
+
+        if (situationAwarenessState?.situation_context) {
+          const targetStatus = (feedbackPartsRef.current || []).map((target) => {
+            const value = anglesPayload[target.body_part];
+            const ideal =
+              target.target_angle ??
+              target.target ??
+              Math.round((target.min + target.max) / 2);
+            return {
+              body_part: target.body_part,
+              kind: target.feature ? "quality" : "angle",
+              role: target.role || (
+                requiredPartsRef.current?.some(
+                  (part) => part.body_part === target.body_part
+                )
+                  ? "primary"
+                  : "supporting"
+              ),
+              min: target.min,
+              max: target.max,
+              target_angle: ideal,
+              value: Number.isFinite(value) ? Math.round(value) : null,
+              deviation:
+                Number.isFinite(value)
+                  ? Math.round(
+                      value -
+                      ideal
+                    )
+                  : null,
+              in_range:
+                Number.isFinite(value) &&
+                value >= target.min &&
+                value <= target.max
+            };
+          });
+          situationAwarenessState.situation_context.angle_targets = targetStatus;
+          situationAwarenessState.situation_context.angle_target_summary = {
+            measured: targetStatus.filter((target) => target.value !== null).length,
+            in_range: targetStatus.filter((target) => target.in_range).length,
+            total: targetStatus.length
+          };
+        }
 
         if (
           onLevel1UpdateRef.current &&
@@ -1799,12 +1898,12 @@ export default function SkeletonCanvas({
             displayLandmarks,
             skeletonLayersRef.current.corrections === false
               ? new Set()
-              : getCorrectionParts(requiredPartsRef.current, anglesPayload),
+              : getCorrectionParts(feedbackPartsRef.current, anglesPayload),
             {
               mirrored: displayMirroredRef.current,
               correctParts: skeletonLayersRef.current.corrections === false
                 ? new Set()
-                : getCorrectParts(requiredPartsRef.current, anglesPayload),
+                : getCorrectParts(feedbackPartsRef.current, anglesPayload),
               predictedLandmarks: skeletonLayersRef.current.level1
                 ? level1State?.debug?.predictedLandmarks
                 : null,
@@ -2113,8 +2212,10 @@ export default function SkeletonCanvas({
       {skeletonLayers.expected !== false ? (
         <ExpectedPoseGuide
           mirrored={displayMirrored}
-          requiredParts={requiredParts}
+          onViewChange={onStanceTargetChange}
+          requiredParts={expectedParts || requiredParts}
           stepName={currentStepName}
+          viewDegrees={stanceTargetDegrees}
         />
       ) : null}
       <div className="skeleton-canvas__overlay" />
@@ -2126,7 +2227,13 @@ function getCorrectParts(requiredParts = [], anglesPayload = {}) {
   return new Set(
     requiredParts
       .filter((part) => {
-        if (!BODY_PART_MAP[part.body_part]) return false;
+        const canColorSkeleton =
+          BODY_PART_MAP[part.body_part] ||
+          part.body_part.startsWith("fist_") ||
+          part.body_part.startsWith("hand_") ||
+          part.body_part.startsWith("face_") ||
+          part.body_part.startsWith("eyes_");
+        if (!canColorSkeleton) return false;
 
         const value = anglesPayload[part.body_part];
         return Number.isFinite(value) && value >= part.min && value <= part.max;

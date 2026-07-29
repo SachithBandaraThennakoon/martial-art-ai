@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -10,20 +9,15 @@ import {
   SESSION_STATES,
   TrackingSessionEngine
 } from "../src/tracking/trackingSessionEngine.js";
+import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const techniqueRoot = path.resolve(testDirectory, "../../backend/data/techniques");
 
 async function loadTechniquePackage(techniqueId) {
-  const directory = path.join(techniqueRoot, techniqueId);
-  const names = ["manifest", "states", "transitions", "errors", "modes", "cues"];
-  const entries = await Promise.all(
-    names.map(async (name) => [
-      name,
-      JSON.parse(await readFile(path.join(directory, `${name}.json`), "utf8"))
-    ])
+  return createTechniquePackage(
+    await loadTechniqueSource(techniqueRoot, techniqueId)
   );
-  return createTechniquePackage(Object.fromEntries(entries));
 }
 
 function feed(engine, timestamps, features, trackingConfidence = 0.96) {
@@ -73,6 +67,37 @@ const JAB = {
     motion_energy: 0.015
   }
 };
+
+test("model-enabled Jab does not fall back to rule clustering", async () => {
+  const engine = new TrackingSessionEngine(await loadTechniquePackage("jab"));
+
+  const warmingFrames = [0, 40, 80, 120].map((timestampMs) =>
+    engine.updateFeatures({
+      timestampMs,
+      features: JAB.guard,
+      trackingConfidence: 0.96,
+      learnedModelExpected: true
+    })
+  );
+  assert.equal(warmingFrames.at(-1).step, null);
+  assert.equal(warmingFrames.at(-1).learned_model_mode, "warming_up");
+
+  const learnedFrames = [160, 200, 240, 280].map((timestampMs) =>
+    engine.updateFeatures({
+      timestampMs,
+      features: {},
+      trackingConfidence: 0.96,
+      learnedModelExpected: true,
+      learnedStatePrediction: {
+        state: "GUARD",
+        confidence: 0.96,
+        probabilities: { __UNKNOWN__: 0.01, GUARD: 0.96 }
+      }
+    })
+  );
+  assert.equal(learnedFrames.at(-1).step, "GUARD");
+  assert.equal(learnedFrames.at(-1).learned_model_mode, "primary");
+});
 
 test("whole-session engine produces repetition boundaries and final summary", async () => {
   const engine = new TrackingSessionEngine(

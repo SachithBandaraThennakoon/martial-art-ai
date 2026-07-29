@@ -26,6 +26,7 @@ from models.training_memory import (
     PracticeRep,
     PracticeSession,
     PracticeSessionTape,
+    TemporalLabelingDraft,
     TrainingFeedbackEvent,
     TrainingSession,
     TrainingStepAttempt,
@@ -143,6 +144,10 @@ class PracticeTapeRequest(BaseModel):
     duration_ms: int = 0
     frames: list[dict]
     metadata: dict = Field(default_factory=dict)
+
+
+class TemporalLabDraftRequest(BaseModel):
+    payload: dict
 
 
 class BodyCalibrationRequest(BaseModel):
@@ -437,9 +442,71 @@ def get_practice_session_tape(
     }
 
 
+@app.get("/admin/temporal-labeling/drafts/{technique_key}")
+def get_temporal_labeling_draft(
+    technique_key: str,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    if user_record.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    draft = db.query(TemporalLabelingDraft).filter(
+        TemporalLabelingDraft.admin_user_id == user_record.id,
+        TemporalLabelingDraft.technique_key == technique_key
+    ).order_by(TemporalLabelingDraft.updated_at.desc()).first()
+    if not draft:
+        return {"found": False, "technique_key": technique_key, "payload": None}
+    try:
+        payload = json.loads(draft.payload)
+    except json.JSONDecodeError:
+        payload = {}
+    return {
+        "found": True,
+        "technique_key": technique_key,
+        "payload": payload,
+        "updated_at": draft.updated_at.isoformat() if draft.updated_at else None,
+    }
+
+
+@app.put("/admin/temporal-labeling/drafts/{technique_key}")
+def save_temporal_labeling_draft(
+    technique_key: str,
+    request: TemporalLabDraftRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    user_record = _get_user_from_token(db, token)
+    if user_record.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    normalized_key = technique_key.strip().lower()
+    if not normalized_key or len(normalized_key) > 120:
+        raise HTTPException(status_code=422, detail="Invalid technique key")
+    draft = db.query(TemporalLabelingDraft).filter(
+        TemporalLabelingDraft.admin_user_id == user_record.id,
+        TemporalLabelingDraft.technique_key == normalized_key
+    ).first()
+    if not draft:
+        draft = TemporalLabelingDraft(
+            admin_user_id=user_record.id,
+            technique_key=normalized_key,
+            payload="{}"
+        )
+        db.add(draft)
+    draft.payload = json.dumps(request.payload, separators=(",", ":"))
+    db.commit()
+    db.refresh(draft)
+    return {
+        "saved": True,
+        "technique_key": normalized_key,
+        "updated_at": draft.updated_at.isoformat() if draft.updated_at else None,
+    }
+
+
 @app.get("/practice/analysis")
 def get_practice_analysis(
     technique_name: str | None = None,
+    session_limit: int = 12,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
@@ -452,7 +519,10 @@ def get_practice_analysis(
         sessions_query = sessions_query.filter(
             func.lower(PracticeSession.technique_name) == selected_technique.lower()
         )
-    sessions = sessions_query.order_by(PracticeSession.started_at.desc()).limit(12).all()
+    safe_session_limit = max(1, min(int(session_limit or 12), 100))
+    sessions = sessions_query.order_by(
+        PracticeSession.started_at.desc()
+    ).limit(safe_session_limit).all()
 
     total_sessions = len(sessions)
     total_reps = sum(session.completed_reps or 0 for session in sessions)
@@ -602,7 +672,7 @@ def get_practice_analysis(
     return {
         "scope": {
             "technique_name": selected_technique or None,
-            "session_limit": 12,
+            "session_limit": safe_session_limit,
         },
         "summary": {
             "total_sessions": total_sessions,

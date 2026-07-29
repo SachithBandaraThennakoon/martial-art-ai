@@ -11,6 +11,9 @@ function clamp(value, min, max) {
 
 function midpoint(target, fallback) {
   if (!target) return fallback;
+  if (Number.isFinite(Number(target.target_angle))) {
+    return clamp(Number(target.target_angle), 0, 180);
+  }
   return clamp((Number(target.min) + Number(target.max)) / 2, 0, 180);
 }
 
@@ -68,9 +71,55 @@ function buildLeg({ side, shoulder, hip, targets }) {
   return { knee, ankle };
 }
 
+function buildJabPose(stepName = "", targets = new Map()) {
+  const isExtension = /extend/i.test(stepName);
+  const leadElbow = midpoint(targets.get("elbow_left"), isExtension ? 151 : 78);
+  const rearElbow = midpoint(targets.get("elbow_right"), 78);
+  const leadKnee = midpoint(targets.get("knee_left"), isExtension ? 125 : 162);
+  const rearKnee = midpoint(targets.get("knee_right"), isExtension ? 165 : 162);
+  const extension = clamp((leadElbow - 55) / 115, 0, 1);
+  const leadKneeBend = clamp((180 - leadKnee) / 75, 0, 1);
+  const rearKneeBend = clamp((180 - rearKnee) / 75, 0, 1);
+  const points = {
+    head: { x: 49, y: 10 },
+    shoulder_left: { x: 42, y: 24 },
+    shoulder_right: { x: 57, y: 27 },
+    hip_left: { x: 44, y: 58 },
+    hip_right: { x: 56, y: 60 },
+    knee_left: { x: 42 - leadKneeBend * 18, y: 82 },
+    knee_right: { x: 60 + rearKneeBend * 18, y: 84 },
+    ankle_left: { x: 31 - leadKneeBend * 14, y: 108 },
+    ankle_right: { x: 78 + (1 - rearKneeBend) * 8, y: 108 },
+    elbow_right: { x: 68, y: 45 },
+    wrist_right: { x: 57, y: 58 }
+  };
+
+  if (isExtension) {
+    // Karate lunge-punch silhouette: lead arm drives level, rear fist chambers
+    // at the hip, front knee bends over the lead foot, and rear leg stays long.
+    points.elbow_left = { x: 40 - extension * 16, y: 27 + (1 - extension) * 8 };
+    points.wrist_left = { x: 31 - extension * 24, y: 27 + (1 - extension) * 10 };
+    points.elbow_right = { x: 63 + (180 - rearElbow) * 0.06, y: 45 };
+    points.wrist_right = { x: 57, y: 58 };
+  } else {
+    points.elbow_left = { x: 28, y: 42 };
+    points.wrist_left = { x: 41, y: 29 };
+    points.elbow_right = { x: 68, y: 45 };
+    points.wrist_right = { x: 57, y: 58 };
+  }
+
+  return points;
+}
+
 export function buildExpectedPose(requiredParts = [], stepName = "") {
   const targets = new Map(requiredParts.map((target) => [target.body_part, target]));
+
+  if (/guard stance|extend lead hand|return to guard/i.test(stepName)) {
+    return buildJabPose(stepName, targets);
+  }
+
   const points = {
+    head: { x: 50, y: 10 },
     shoulder_left: { x: 43, y: 25 },
     shoulder_right: { x: 57, y: 25 },
     hip_left: { x: 46, y: 60 },

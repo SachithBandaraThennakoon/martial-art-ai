@@ -151,6 +151,33 @@ export function drawSkeleton(
     ctx.fill();
   });
 
+  const qualityMarkers = [
+    { index: 15, parts: ["fist_left", "hand_left_open"], radius: 6 },
+    { index: 16, parts: ["fist_right", "hand_right_open"], radius: 6 },
+    {
+      index: 0,
+      parts: ["face_forward", "eyes_forward", "face_calm"],
+      radius: 7
+    }
+  ];
+  qualityMarkers.forEach(({ index, parts, radius }) => {
+    const point = points[index];
+    if (!isVisible(point)) return;
+    const isCorrection = parts.some((part) => correctionParts.has(part));
+    const isCorrect =
+      !isCorrection && parts.some((part) => correctParts.has(part));
+    if (!isCorrection && !isCorrect) return;
+
+    ctx.fillStyle = isCorrection ? CORRECTION_RED : CORRECT_GREEN;
+    ctx.shadowColor = isCorrection
+      ? "rgba(255, 59, 59, 0.65)"
+      : "rgba(96, 211, 148, 0.65)";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(point.x * width, point.y * height, radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
   if (predictedPoints) {
     drawPredictionLayer(predictedPoints, PREDICTION_YELLOW, "rgba(255, 216, 74, 0.58)", 3);
   }

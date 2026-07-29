@@ -4,6 +4,7 @@ const MALE_VOICE_HINTS = /\b(guy|david|mark|ryan|george|daniel|james|michael|eri
 const FEMALE_VOICE_HINTS = /\b(jenny|aria|sara|susan|zira|emma|female)\b/i;
 
 let playbackUnlockArmed = false;
+let voicesReadyPromise = null;
 
 export function unlockVoicePlayback() {
   const audio = new Audio(SILENT_WAV);
@@ -42,6 +43,30 @@ function selectBrowserVoice(gender = "male") {
     .sort((left, right) => right.score - left.score)[0]?.voice;
 }
 
+function waitForBrowserVoices(timeoutMs = 800) {
+  if (!("speechSynthesis" in window)) return Promise.resolve();
+  if (window.speechSynthesis.getVoices().length) return Promise.resolve();
+  if (voicesReadyPromise) return voicesReadyPromise;
+
+  voicesReadyPromise = new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      window.speechSynthesis.removeEventListener?.("voiceschanged", finish);
+      voicesReadyPromise = null;
+      resolve();
+    };
+    const timeoutId = window.setTimeout(finish, timeoutMs);
+    window.speechSynthesis.addEventListener?.("voiceschanged", finish, {
+      once: true
+    });
+  });
+
+  return voicesReadyPromise;
+}
+
 export function prepareBrowserSpeech(
   text,
   { gender = "male", rate = 0.82, pitch = 0.72, volume = 1 } = {}
@@ -64,37 +89,44 @@ export function createBrowserAudio(data) {
     onplay: null,
     onended: null,
     onerror: null,
-    play() {
+    async play() {
       return new Promise((resolve, reject) => {
         if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
           reject(new Error("Browser speech is unavailable"));
           return;
         }
 
-        const utterance = new SpeechSynthesisUtterance(data.text);
-        utterance.rate = Math.min(1.4, Math.max(0.7, data.rate || 1));
-        utterance.pitch = Math.min(1.4, Math.max(0.5, data.pitch || 1));
-        utterance.volume = Math.min(1, Math.max(0, data.volume ?? 1));
-        const preferredVoice = selectBrowserVoice(data.gender);
-        if (preferredVoice) utterance.voice = preferredVoice;
+        waitForBrowserVoices().then(() => {
+          if (finished) {
+            resolve();
+            return;
+          }
 
-        utterance.onstart = () => {
-          audio.onplay?.();
-          resolve();
-        };
-        utterance.onend = () => {
-          if (finished) return;
-          finished = true;
-          audio.onended?.();
-        };
-        utterance.onerror = (event) => {
-          if (finished) return;
-          finished = true;
-          audio.onerror?.(event);
-          reject(new Error(event.error || "Browser speech failed"));
-        };
+          const utterance = new SpeechSynthesisUtterance(data.text);
+          utterance.rate = Math.min(1.4, Math.max(0.7, data.rate || 1));
+          utterance.pitch = Math.min(1.4, Math.max(0.5, data.pitch || 1));
+          utterance.volume = Math.min(1, Math.max(0, data.volume ?? 1));
+          const preferredVoice = selectBrowserVoice(data.gender);
+          if (preferredVoice) utterance.voice = preferredVoice;
 
-        window.speechSynthesis.speak(utterance);
+          utterance.onstart = () => {
+            audio.onplay?.();
+            resolve();
+          };
+          utterance.onend = () => {
+            if (finished) return;
+            finished = true;
+            audio.onended?.();
+          };
+          utterance.onerror = (event) => {
+            if (finished) return;
+            finished = true;
+            audio.onerror?.(event);
+            reject(new Error(event.error || "Browser speech failed"));
+          };
+
+          window.speechSynthesis.speak(utterance);
+        });
       });
     },
     pause() {

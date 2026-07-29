@@ -10,7 +10,6 @@ TRACKING_FILES = (
     "transitions.json",
     "errors.json",
     "modes.json",
-    "cues.json",
 )
 
 
@@ -65,10 +64,15 @@ def load_technique_packages(root=TECHNIQUE_ROOT):
         tracking_paths = {
             file_name: directory / file_name for file_name in TRACKING_FILES
         }
+        embedded_tracking = training_steps.get("temporal_runtime")
         present_tracking_files = [
             file_name for file_name, path in tracking_paths.items() if path.is_file()
         ]
-        if present_tracking_files and len(present_tracking_files) != len(TRACKING_FILES):
+        if (
+            not embedded_tracking
+            and present_tracking_files
+            and len(present_tracking_files) != len(TRACKING_FILES)
+        ):
             missing_tracking = [
                 file_name
                 for file_name in TRACKING_FILES
@@ -84,7 +88,8 @@ def load_technique_packages(root=TECHNIQUE_ROOT):
             "catalog": catalog,
             "training_steps": training_steps,
             "directory": directory,
-            "has_tracking": len(present_tracking_files) == len(TRACKING_FILES),
+            "has_tracking": bool(embedded_tracking)
+            or len(present_tracking_files) == len(TRACKING_FILES),
         })
 
     return packages
@@ -92,12 +97,31 @@ def load_technique_packages(root=TECHNIQUE_ROOT):
 
 def load_technique_catalog(root=TECHNIQUE_ROOT):
     """Return the legacy-compatible catalog shape assembled from packages."""
+    def legacy_step(step):
+        if step.get("angles"):
+            return step
+        angle_targets = step.get("angle_targets", [])
+        return {
+            **step,
+            "angles": [
+                {
+                    "body_part": target["body_part"],
+                    "min": target["min"],
+                    "max": target["max"],
+                }
+                for target in angle_targets
+            ],
+        }
+
     return {
         "schema_version": "3.0",
         "techniques": [
             {
                 **package["catalog"],
-                "steps": package["training_steps"].get("steps", []),
+                "steps": [
+                    legacy_step(step)
+                    for step in package["training_steps"].get("steps", [])
+                ],
             }
             for package in load_technique_packages(root)
         ],

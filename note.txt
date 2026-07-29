@@ -24,3 +24,20 @@ Ctrl + Shift + P → Reload Window
 npm install @mediapipe/pose @mediapipe/drawing_utils @mediapipe/camera_utils
 
 Remove-Item -Path "C:\Users\DELL\OneDrive - Vantage Ltd\Documents\New project\martial-art-ai\.git\index.lock" -Force
+
+
+/admin-temporal-data
+
+
+Main meanings:
+IDLE: visible but not performing or preparing.
+PREPARATION: getting ready before the first technique state.
+REP_START / REP_END: short repetition boundaries.
+STEP_HOLD: intentionally holding a pose.
+REP_RECOVERY: returning to the starting stance.
+INCOMPLETE_REP: repetition started but never completed.
+INCORRECT_MOVEMENT: movement does not match the selected technique.
+__TRACKING_LOST__: landmarks are missing or unreliable.
+__UNKNOWN__: the correct state cannot be confidently determined.
+GUARD_TO_EXTENSION: movement leaving Guard and entering Extension.
+Other transition labels receive equivalent automatic explanations.

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.1",
+  "name": "martial-art-ai-temporal-phase",
+  "frame_rate": 30,
+  "sequence_length": 90,
+  "stride": 15,
+  "landmarks": {
+    "layout": "MediaPipe Pose 33",
+    "channels": ["x", "y", "z", "visibility"],
+    "normalization": "hip-centered, torso-scale normalized"
+  },
+  "label_source": "manual_annotation.human_verified",
+  "provenance": {
+    "real": "human-verified capture used for training and evaluation",
+    "synthetic": "generator-verified bootstrap data; opt-in and never production test evidence"
+  },
+  "optional_frame_physics": {
+    "field": "ph",
+    "features": [
+      "lead_elbow_angle",
+      "lead_elbow_angular_velocity",
+      "lead_wrist_forward_velocity",
+      "lead_wrist_forward_acceleration",
+      "motion_energy"
+    ]
+  },
+  "reserved_labels": ["__PAD__", "__UNKNOWN__", "__TRACKING_LOST__"],
+  "split_unit": "session",
+  "outputs": {
+    "features": "[window, time, joint, channel]",
+    "labels": "[window, time]",
+    "mask": "[window, time]",
+    "groups": "[window]"
+  }
+}

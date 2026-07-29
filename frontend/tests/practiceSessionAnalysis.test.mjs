@@ -3,7 +3,8 @@ import test from "node:test";
 
 import {
   buildPracticeSessionAnalysis,
-  buildPracticeSessionMetrics
+  buildPracticeSessionMetrics,
+  selectPracticeTimelineView
 } from "../src/utils/practiceSessionAnalysis.js";
 
 const frame = ({
@@ -221,4 +222,78 @@ test("corrected session metrics use post-session repetitions as authority", () =
   assert.equal(metrics.best_accuracy, 100);
   assert.equal(metrics.average_rep_seconds, 2.634);
   assert.equal(metrics.consistency_score, 99.18);
+});
+
+test("missing repetition accuracy is excluded instead of counted as zero", () => {
+  const metrics = buildPracticeSessionMetrics({
+    repetitions: [
+      { status: "completed", average_accuracy: null, duration_ms: 900 },
+      { status: "completed", average_accuracy: 100, duration_ms: 700 },
+      { status: "completed", average_accuracy: 100, duration_ms: 650 }
+    ]
+  });
+
+  assert.equal(metrics.completed_reps, 3);
+  assert.equal(metrics.average_accuracy, 100);
+  assert.equal(metrics.consistency_score, 100);
+});
+
+test("score-driven clustering does not score recovery as the final step", () => {
+  const frames = Array.from({ length: 18 }, (_, index) => {
+    const isImpact = index >= 5 && index <= 7;
+    const isReturn = index >= 14;
+    return frame({
+      elapsedMs: index * 100,
+      rep: 1,
+      step: isImpact ? 2 : 3,
+      temporalPhase: isImpact
+        ? "step_peak"
+        : isReturn
+          ? "step_hold"
+          : "rep_recovery",
+      stepScores: isImpact ? [10, 95, 10] : isReturn ? [92, 20, 90] : [35, 45, 40],
+      accuracy: isImpact || isReturn ? 96 : 40,
+      scorable: true
+    });
+  });
+
+  const analysis = buildPracticeSessionAnalysis(frames, {
+    steps: [{}, {}, {}],
+    targetReps: 1
+  });
+  const recoveryAssignments = analysis.frame_assignments.slice(8, 14);
+
+  assert.ok(recoveryAssignments.every((assignment) => assignment.phase === "rep_recovery"));
+  assert.ok(recoveryAssignments.every((assignment) => assignment.step === null));
+  assert.ok(recoveryAssignments.every((assignment) => assignment.scorable === false));
+  assert.equal(analysis.repetitions[0].average_accuracy, 96);
+});
+
+test("standard timeline hides only outer segments and keeps middle transitions", () => {
+  const analysis = {
+    duration_ms: 5000,
+    repetitions: [{ start_ms: 1000, end_ms: 4000 }],
+    segments: [
+      { kind: "preparation", start_ms: 0, end_ms: 1000, average_accuracy: null },
+      { kind: "repetition", start_ms: 1000, end_ms: 1500, average_accuracy: 95 },
+      { kind: "repetition", start_ms: 1500, end_ms: 3500, average_accuracy: null },
+      { kind: "repetition", start_ms: 3500, end_ms: 4000, average_accuracy: 97 },
+      { kind: "preparation", start_ms: 4000, end_ms: 5000, average_accuracy: null }
+    ]
+  };
+
+  const standard = selectPracticeTimelineView(analysis);
+  const advanced = selectPracticeTimelineView(analysis, { advanced: true });
+
+  assert.deepEqual(standard.segments, [
+    analysis.segments[1],
+    analysis.segments[2],
+    analysis.segments[3]
+  ]);
+  assert.equal(standard.start_ms, 1000);
+  assert.equal(standard.end_ms, 4000);
+  assert.equal(standard.hidden_segment_count, 2);
+  assert.equal(advanced.segments.length, 5);
+  assert.equal(advanced.start_ms, 0);
+  assert.equal(advanced.end_ms, 5000);
 });

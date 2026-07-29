@@ -100,7 +100,15 @@ function buildScoreDrivenWindows(frames, config = {}) {
     return (
       impactScore >= Number(settings.minimum_impact_score) &&
       impactScore - endpointScore(frame) >=
-        Number(settings.impact_dominance_margin)
+      Number(settings.impact_dominance_margin)
+    );
+  };
+  const isEndpoint = (frame) => {
+    const impactScore = scoreAt(frame, impactStepIndex);
+    const returnScore = endpointScore(frame);
+    return (
+      returnScore >= Number(settings.minimum_return_score) &&
+      returnScore - impactScore >= Number(settings.return_dominance_margin)
     );
   };
   const impactIndexes = frames
@@ -140,6 +148,25 @@ function buildScoreDrivenWindows(frames, config = {}) {
     ) {
       startIndex -= 1;
     }
+    let openingRunStart = null;
+    let openingRunLength = 0;
+    let confirmedOpeningStart = null;
+    let confirmedOpeningEnd = null;
+    for (let index = startIndex; index < run.start; index += 1) {
+      if (isEndpoint(frames[index])) {
+        if (openingRunStart === null) openingRunStart = index;
+        openingRunLength += 1;
+        if (
+          openingRunLength >= Number(settings.minimum_return_frames)
+        ) {
+          confirmedOpeningStart = openingRunStart;
+          confirmedOpeningEnd = index;
+        }
+      } else {
+        openingRunStart = null;
+        openingRunLength = 0;
+      }
+    }
 
     const nextImpactStart =
       confirmedRuns[runIndex + 1]?.start ?? frames.length;
@@ -156,13 +183,7 @@ function buildScoreDrivenWindows(frames, config = {}) {
       (Number(frames[index]?.elapsedMs) || 0) <= maximumRecoveryMs;
       index += 1
     ) {
-      const frame = frames[index];
-      const impactScore = scoreAt(frame, impactStepIndex);
-      const returnScore = endpointScore(frame);
-      const isReturn =
-        returnScore >= Number(settings.minimum_return_score) &&
-        returnScore - impactScore >= Number(settings.return_dominance_margin);
-      if (isReturn) {
+      if (isEndpoint(frames[index])) {
         if (returnRunStart === null) returnRunStart = index;
         returnRunLength += 1;
         if (returnRunLength >= Number(settings.minimum_return_frames)) {
@@ -193,6 +214,9 @@ function buildScoreDrivenWindows(frames, config = {}) {
       progression_index: run.start,
       impact_start_index: run.start,
       impact_end_index: run.end,
+      opening_start_index: confirmedOpeningStart,
+      opening_end_index: confirmedOpeningEnd,
+      return_start_index: hasReturnSignal ? returnRunStart : null,
       has_completion_signal: hasReturnSignal,
       boundary_source: "score_cycle"
     };
@@ -295,9 +319,13 @@ function closeSegment(segment, frames) {
     segment.end_frame_index + 1
   );
   const accuracies = segmentFrames
-    .filter((frame) => frame.scorable !== false)
+    .filter((frame) => frame.analysisScorable)
     .map((frame) => Number(frame.accuracy));
-  const errors = new Set(segmentFrames.flatMap(frameErrors));
+  const errors = new Set(
+    segmentFrames
+      .filter((frame) => frame.analysisScorable)
+      .flatMap(frameErrors)
+  );
   const confidence = finiteAverage(
     segmentFrames.map((frame) => Number(frame.stateConfidence))
   );
@@ -350,41 +378,70 @@ export function buildPracticeSessionAnalysis(
       (candidate) =>
         index >= candidate.start_index && index <= candidate.end_index
     );
-    const analysisStep = window?.impact_start_index === undefined
+    const isScoreDriven = window?.impact_start_index !== undefined;
+    const isImpactFrame =
+      isScoreDriven &&
+      index >= window.impact_start_index &&
+      index <= window.impact_end_index;
+    const isConfirmedOpeningFrame =
+      isScoreDriven &&
+      Number.isInteger(window.opening_start_index) &&
+      index >= window.opening_start_index &&
+      index <= window.opening_end_index;
+    const isConfirmedReturnFrame =
+      isScoreDriven &&
+      Number.isInteger(window.return_start_index) &&
+      index >= window.return_start_index;
+    const isTransitionFrame =
+      isScoreDriven &&
+      !isConfirmedOpeningFrame &&
+      !isImpactFrame &&
+      !isConfirmedReturnFrame;
+    const analysisStep = !isScoreDriven
       ? Number(frame.step) || null
       : index < window.impact_start_index
-        ? 1
-        : index <= window.impact_end_index
+        ? isConfirmedOpeningFrame ? 1 : null
+        : isImpactFrame
           ? Number(clusterConfig?.impact_step) ||
             DEFAULT_CLUSTER_CONFIG.impact_step
-          : Math.max(
+          : isConfirmedReturnFrame
+            ? Math.max(
               Number(clusterConfig?.impact_step) ||
                 DEFAULT_CLUSTER_CONFIG.impact_step,
               steps.length || 3
-            );
-    const impactProgress = window?.impact_start_index === undefined
+            )
+            : null;
+    const impactProgress = !isScoreDriven
       ? null
       : (index - window.impact_start_index) /
         Math.max(1, window.impact_end_index - window.impact_start_index);
-    const analysisPhase = window?.impact_start_index === undefined
+    const analysisPhase = !isScoreDriven
       ? frame.temporalPhase
       : index < window.impact_start_index
-        ? "step_hold"
-        : index <= window.impact_end_index
+        ? isConfirmedOpeningFrame ? "step_hold" : "between_steps"
+        : isImpactFrame
           ? impactProgress < 0.25
             ? "step_enter"
             : impactProgress < 0.75
               ? "step_peak"
               : "step_exit"
-          : index === window.end_index && window.has_completion_signal
-            ? "rep_complete"
+          : isConfirmedReturnFrame
+            ? index === window.end_index
+              ? "rep_complete"
+              : "step_hold"
             : "rep_recovery";
+    const analysisScorable =
+      Boolean(window) &&
+      frame.scorable !== false &&
+      Number.isFinite(Number(frame.accuracy)) &&
+      !isTransitionFrame;
     return {
       ...frame,
       analysisKind: window ? "repetition" : "preparation",
       analysisRep: window?.rep ?? null,
       analysisStep,
       analysisPhase,
+      analysisScorable,
       sourceRep: Number(frame.rep) || null
     };
   });
@@ -436,9 +493,13 @@ export function buildPracticeSessionAnalysis(
     const repSegments = segments.filter(
       (segment) => segment.kind === "repetition" && segment.rep === rep
     );
-    const errors = new Set(repFrames.flatMap(frameErrors));
+    const errors = new Set(
+      repFrames
+        .filter((frame) => frame.analysisScorable)
+        .flatMap(frameErrors)
+    );
     const accuracies = repFrames
-      .filter((frame) => frame.scorable !== false)
+      .filter((frame) => frame.analysisScorable)
       .map((frame) => Number(frame.accuracy));
     const detectedSteps = new Set(
       repSegments
@@ -498,6 +559,7 @@ export function buildPracticeSessionAnalysis(
       rep: frame.analysisRep,
       step: frame.analysisStep,
       phase: frame.analysisPhase,
+      scorable: frame.analysisScorable,
       source_rep: frame.sourceRep
     })),
     preparation_duration_ms: preparationSegments.reduce(
@@ -534,7 +596,9 @@ export function buildPracticeSessionMetrics(
     (repetition) => repetition.status === "completed"
   );
   const accuracies = completed
-    .map((repetition) => Number(repetition.average_accuracy))
+    .map((repetition) => repetition.average_accuracy)
+    .filter((accuracy) => accuracy !== null && accuracy !== undefined)
+    .map(Number)
     .filter(Number.isFinite);
   const durations = completed
     .map((repetition) => Number(repetition.duration_ms))
@@ -568,5 +632,41 @@ export function buildPracticeSessionMetrics(
     consistency_score: accuracies.length
       ? Number(Math.max(0, 100 - Math.sqrt(variance)).toFixed(2))
       : 0
+  };
+}
+
+export function selectPracticeTimelineView(analysis, { advanced = false } = {}) {
+  const allSegments = analysis?.segments || [];
+  const firstScoredIndex = allSegments.findIndex(
+    (segment) =>
+      segment.kind === "repetition" &&
+      Number.isFinite(segment.average_accuracy)
+  );
+  const lastScoredIndex = allSegments.findLastIndex(
+    (segment) =>
+      segment.kind === "repetition" &&
+      Number.isFinite(segment.average_accuracy)
+  );
+  const visibleSegments =
+    advanced || firstScoredIndex < 0 || lastScoredIndex < firstScoredIndex
+      ? allSegments
+      : allSegments.slice(firstScoredIndex, lastScoredIndex + 1);
+  const fallbackStart = Number(analysis?.repetitions?.[0]?.start_ms) || 0;
+  const fallbackEnd =
+    Number(analysis?.repetitions?.at(-1)?.end_ms) ||
+    Number(analysis?.duration_ms) ||
+    0;
+  const startMs =
+    Number(visibleSegments[0]?.start_ms) || fallbackStart;
+  const endMs =
+    Number(visibleSegments.at(-1)?.end_ms) || fallbackEnd;
+
+  return {
+    segments: visibleSegments,
+    start_ms: advanced ? 0 : startMs,
+    end_ms: advanced
+      ? Math.max(Number(analysis?.duration_ms) || 0, endMs)
+      : Math.max(startMs, endMs),
+    hidden_segment_count: Math.max(0, allSegments.length - visibleSegments.length)
   };
 }

@@ -15,8 +15,7 @@ const REQUIRED_PARTS = [
   "states",
   "transitions",
   "errors",
-  "modes",
-  "cues"
+  "modes"
 ];
 
 function isRecord(value) {

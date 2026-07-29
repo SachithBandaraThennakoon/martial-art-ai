@@ -256,6 +256,164 @@ export class TemporalStateMachine {
     });
   }
 
+  updateLearned({
+    timestampMs,
+    stateProbabilities,
+    trackingConfidence = 1
+  }) {
+    if (!Number.isFinite(timestampMs)) return null;
+    if (this.lastTimestampMs !== null && timestampMs < this.lastTimestampMs) {
+      throw new Error("Temporal state timestamps must be monotonic");
+    }
+    this.lastTimestampMs = timestampMs;
+
+    if (trackingConfidence < this.policy.tracking_confidence_min) {
+      this.clearCandidate();
+      return this.snapshot({
+        timestampMs,
+        trackingConfidence,
+        trackingLost: true,
+        evaluations: []
+      });
+    }
+
+    const ranked = Object.entries(stateProbabilities || {})
+      .filter(([, probability]) => Number.isFinite(probability))
+      .sort((first, second) => second[1] - first[1]);
+    const [predictedState, predictedConfidence = 0] = ranked[0] || [];
+    if (!predictedState) {
+      this.clearCandidate();
+      return this.snapshot({
+        timestampMs,
+        trackingConfidence,
+        evaluations: []
+      });
+    }
+    if (predictedState === "__TRACKING_LOST__") {
+      this.clearCandidate();
+      return this.snapshot({
+        timestampMs,
+        trackingConfidence,
+        trackingLost: true,
+        evaluations: []
+      });
+    }
+
+    const confident =
+      predictedConfidence >= this.policy.transition_confidence_min;
+    if (!this.currentState) {
+      const initialState = this.techniquePackage.manifest.initial_state;
+      const definition = this.techniquePackage.getState(initialState);
+      if (confident && predictedState === initialState) {
+        this.setCandidate(initialState, timestampMs);
+      } else {
+        this.clearCandidate();
+      }
+      const confirmed =
+        this.candidateState === initialState &&
+        this.candidateFrames >= definition.confirmation.min_frames &&
+        timestampMs - this.candidateStartedAtMs >= definition.confirmation.min_ms;
+      const evidence = {
+        origin: "learned_model",
+        state: predictedState,
+        probability: predictedConfidence
+      };
+      const event = confirmed
+        ? this.commit(
+            initialState,
+            timestampMs,
+            predictedConfidence,
+            evidence,
+            "state_initialized"
+          )
+        : null;
+      return this.snapshot({
+        timestampMs,
+        trackingConfidence,
+        event,
+        evaluations: [{
+          state: predictedState,
+          evaluation: evidence,
+          confidenceResult: { confidence: predictedConfidence }
+        }],
+        unknownMovement: confident && predictedState === "__UNKNOWN__"
+      });
+    }
+
+    const currentDefinition = this.techniquePackage.getState(this.currentState);
+    const stateDurationMs = timestampMs - this.stateStartedAtMs;
+    const transitionDefinition =
+      this.techniquePackage.transitions.transitions[this.currentState];
+    const timeoutMs =
+      transitionDefinition.timeout_ms ?? currentDefinition.max_duration_ms;
+    if (stateDurationMs > timeoutMs) {
+      const timedOutState = this.currentState;
+      this.currentState = null;
+      this.stateStartedAtMs = null;
+      this.clearCandidate();
+      this.sequence += 1;
+      return this.snapshot({
+        timestampMs,
+        trackingConfidence,
+        event: {
+          id: `${Math.round(timestampMs)}:${this.sequence}`,
+          type: "state_timeout",
+          timestamp_ms: timestampMs,
+          from_state: timedOutState,
+          to_state: null,
+          action: transitionDefinition.timeout_action || "RESET",
+          repetition_completed: false
+        },
+        evaluations: [],
+        timedOut: true
+      });
+    }
+
+    const allowed =
+      confident &&
+      transitionDefinition.allowed.includes(predictedState) &&
+      stateDurationMs >= currentDefinition.min_duration_ms;
+    if (allowed) this.setCandidate(predictedState, timestampMs);
+    else this.clearCandidate();
+
+    const targetDefinition = allowed
+      ? this.techniquePackage.getState(predictedState)
+      : null;
+    const confirmed =
+      targetDefinition &&
+      this.candidateFrames >= targetDefinition.confirmation.min_frames &&
+      timestampMs - this.candidateStartedAtMs >= targetDefinition.confirmation.min_ms;
+    const evidence = {
+      origin: "learned_model",
+      state: predictedState,
+      probability: predictedConfidence
+    };
+    const event = confirmed
+      ? this.commit(
+          predictedState,
+          timestampMs,
+          predictedConfidence,
+          evidence
+        )
+      : null;
+    const unknownMovement =
+      confident &&
+      predictedState !== this.currentState &&
+      predictedState === "__UNKNOWN__";
+
+    return this.snapshot({
+      timestampMs,
+      trackingConfidence,
+      event,
+      evaluations: [{
+        state: predictedState,
+        evaluation: evidence,
+        confidenceResult: { confidence: predictedConfidence }
+      }],
+      unknownMovement
+    });
+  }
+
   snapshot({
     timestampMs,
     trackingConfidence,

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "model_type": "temporal-state-emission",
+  "model_version": "jab-temporal-v1",
+  "technique_id": "jab",
+  "runtime_mode": "primary",
+  "evaluation_origin": "synthetic_pipeline_check",
+  "test_macro_f1": 0.860848311591099,
+  "input": {
+    "name": "landmarks",
+    "layout": "BTVC",
+    "sequence_length": 90,
+    "joints": 33,
+    "channels": ["x", "y", "z", "visibility"],
+    "normalization": "hip-centered, torso-scale normalized"
+  },
+  "output": {
+    "name": "state_logits",
+    "type": "per-frame-state-logits",
+    "labels": [
+      "__UNKNOWN__",
+      "__TRACKING_LOST__",
+      "GUARD",
+      "EXTENSION",
+      "FULL_EXTENSION",
+      "RETRACTION",
+      "RECOVERY"
+    ]
+  }
+}

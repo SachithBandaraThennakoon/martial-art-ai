@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -8,6 +7,7 @@ import {
   decodeDurationAwareSequence
 } from "../src/tracking/durationAwareSequenceDecoder.js";
 import { createTechniquePackage } from "../src/tracking/techniquePackage.js";
+import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const jabDirectory = path.resolve(
@@ -16,14 +16,9 @@ const jabDirectory = path.resolve(
 );
 
 async function loadJab() {
-  const names = ["manifest", "states", "transitions", "errors", "modes", "cues"];
-  const entries = await Promise.all(
-    names.map(async (name) => [
-      name,
-      JSON.parse(await readFile(path.join(jabDirectory, `${name}.json`), "utf8"))
-    ])
+  return createTechniquePackage(
+    await loadTechniqueSource(path.dirname(jabDirectory), "jab")
   );
-  return createTechniquePackage(Object.fromEntries(entries));
 }
 
 function evidenceFrame(timestampMs, state, overrides = {}) {

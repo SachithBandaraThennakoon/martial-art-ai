@@ -201,7 +201,20 @@ export default function Studio({ isAdminStudio = false }) {
             </div>
             <div className="studio-readiness"><strong>Before you begin</strong><span>Full body in frame</span><span>Clear floor space</span><span>Even front lighting</span><span>Camera at waist–chest height</span></div>
           </section>
-        ) : null}
+        ) : (
+          <section className="studio-method" aria-label="Temporal model workflow">
+            <div className="studio-method__heading">
+              <p className="eyebrow">Temporal learning</p>
+              <h2>Build one technique dataset at a time.</h2>
+              <p>Record labelled Practice sessions, review coverage, export a Colab bundle, and keep the ordered decoder authoritative.</p>
+            </div>
+            <div className="studio-hero__actions">
+              <Link className="btn btn--light" to="/admin-temporal-data">
+                Open Temporal Data Lab
+              </Link>
+            </div>
+          </section>
+        )}
 
         <footer className="studio-footer-note">
           <span>{isAdminStudio ? "ACP-STGAT research workspace" : "Camera-based coaching · No wearables required"}</span>

@@ -1,25 +1,19 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { postProcessSessionTimeline } from "../src/tracking/sessionTimelinePostProcessor.js";
 import { createTechniquePackage } from "../src/tracking/techniquePackage.js";
+import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const techniqueRoot = path.resolve(testDirectory, "../../backend/data/techniques");
 
 async function loadTechniquePackage(techniqueId) {
-  const directory = path.join(techniqueRoot, techniqueId);
-  const names = ["manifest", "states", "transitions", "errors", "modes", "cues"];
-  const entries = await Promise.all(
-    names.map(async (name) => [
-      name,
-      JSON.parse(await readFile(path.join(directory, `${name}.json`), "utf8"))
-    ])
+  return createTechniquePackage(
+    await loadTechniqueSource(techniqueRoot, techniqueId)
   );
-  return createTechniquePackage(Object.fromEntries(entries));
 }
 
 function frame(timestampMs, step, overrides = {}) {

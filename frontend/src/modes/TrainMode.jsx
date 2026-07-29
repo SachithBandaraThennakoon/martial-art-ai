@@ -7,7 +7,6 @@ import DataLayersPanel from "../components/DataLayersPanel";
 import Level1DebugPanel from "../components/Level1DebugPanel";
 import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
-import StanceViewPanel from "../components/StanceViewPanel";
 import MetricsPanel from "../components/MetricsPanel";
 import { AuthContext } from "../context/auth";
 import { canAccessPlan, formatPlanName } from "../data/planAccess";
@@ -21,6 +20,15 @@ import {
   getCoachFeedbackIntent,
   repeatsPendingQuestion
 } from "../services/feedbackReasoning";
+import {
+  buildNaturalAwarenessFeedback,
+  FORM_DIFFICULTIES,
+  scoreCompositeForm
+} from "../utils/compositeFormScoring";
+import {
+  buildStepTransitionFeedback,
+  parseTrainingStepCommand
+} from "../utils/trainingStepNavigation";
 
 const VOICE_PROFILES = {
   calmMale: {
@@ -52,7 +60,8 @@ const ACTION_LABELS = {
   wait: "Waiting",
   waiting: "Waiting",
   switch_practice: "Practice mode",
-  repeat: "Repeat step"
+  repeat: "Repeat step",
+  step_transition: "Changing step"
 };
 
 // These events make the current instruction obsolete. Live pose corrections do
@@ -65,7 +74,8 @@ const VOICE_INTERRUPT_ACTIONS = new Set([
   "ask_ready",
   "confirm_start",
   "confirm_next",
-  "repeat_step"
+  "repeat_step",
+  "step_transition"
 ]);
 
 const NATURAL_VOICE_CACHE_LIMIT = 24;
@@ -119,10 +129,14 @@ export default function TrainMode({
   );
   const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
 
-  const steps = currentTechnique?.steps || [];
+  const steps = useMemo(() => currentTechnique?.steps || [], [currentTechnique]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [angles, setAngles] = useState({});
-  const [accuracy, setAccuracy] = useState(0);
+  const [, setServerAccuracy] = useState(0);
+  const [formDifficulty, setFormDifficulty] = useState(
+    () => localStorage.getItem("studioFormDifficulty") || "medium"
+  );
+  const [ruleEngineFrame, setRuleEngineFrame] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [coachEvent, setCoachEvent] = useState(null);
   const [awareness, setAwareness] = useState(null);
@@ -160,6 +174,14 @@ export default function TrainMode({
   const lastSpokenMessageRef = useRef("");
   const lastSpokenIntentRef = useRef("");
   const announcedEntryRef = useRef(false);
+  const pendingStepTransitionRef = useRef(null);
+  const compositeFeedbackRef = useRef({
+    signature: "",
+    firstSeenAt: 0,
+    lastSpokenAt: 0,
+    recentParts: new Map()
+  });
+  const localFeedbackPriorityUntilRef = useRef(0);
   const currentAudioRef = useRef(null);
   const voiceRequestIdRef = useRef(0);
   const voiceQueueRef = useRef([]);
@@ -173,6 +195,57 @@ export default function TrainMode({
   const currentStep = steps[safeStepIndex];
   const currentStepName = currentStep?.step_name;
   const requiredParts = useMemo(() => currentStep?.angles || [], [currentStep]);
+  const displayAngleParts = useMemo(
+    () => currentStep?.evaluation_profile?.full_body_angles || requiredParts,
+    [currentStep, requiredParts]
+  );
+  const expectedGuideParts = useMemo(
+    () => [...displayAngleParts, ...(currentStep?.quality_targets || [])],
+    [currentStep, displayAngleParts]
+  );
+  const compositeForm = useMemo(
+    () =>
+      scoreCompositeForm({
+        angleTargets: currentStep?.angle_targets || displayAngleParts,
+        difficulty: formDifficulty,
+        difficultyProfiles: currentStep?.difficulty_profiles,
+        liveAngles: angles,
+        liveFeatures: ruleEngineFrame?.features || {},
+        nonAngleTargets: currentStep?.non_angle_features || [],
+        qualityTargets: currentStep?.quality_targets || [],
+        feedbackPriority: currentStep?.feedback_priority || []
+      }),
+    [angles, currentStep, displayAngleParts, formDifficulty, ruleEngineFrame]
+  );
+  const feedbackAngleParts = useMemo(() => {
+    const profile = currentStep?.difficulty_profiles?.[formDifficulty];
+    const toleranceScale = profile?.tolerance_scale ?? 1;
+    const scaleTarget = (target, ideal) => ({
+      ...target,
+      min: ideal - (ideal - target.min) * toleranceScale,
+      max: ideal + (target.max - ideal) * toleranceScale
+    });
+    const angleParts = displayAngleParts.map((target) => {
+      const ideal =
+        target.target_angle ?? Math.round((target.min + target.max) / 2);
+      return scaleTarget(target, ideal);
+    });
+    const qualityParts = (currentStep?.quality_targets || []).map((target) =>
+      scaleTarget(
+        {
+          ...target,
+          body_part: target.body_part || target.feature
+        },
+        target.target ?? Math.round((target.min + target.max) / 2)
+      )
+    );
+    return [...angleParts, ...qualityParts];
+  }, [currentStep, displayAngleParts, formDifficulty]);
+  const selectFormDifficulty = useCallback((difficulty) => {
+    if (!FORM_DIFFICULTIES.includes(difficulty)) return;
+    setFormDifficulty(difficulty);
+    localStorage.setItem("studioFormDifficulty", difficulty);
+  }, []);
   const masterMessage =
     textEnabled
       ? (voiceEnabled && currentVoiceMessage ? currentVoiceMessage : coachText(coachEvent)) ||
@@ -248,7 +321,106 @@ export default function TrainMode({
     });
   }, []);
 
+  useEffect(() => {
+    const situation = situationAwarenessState?.situation_context;
+    const awarenessPriority = ["tracking_unclear", "warning"].includes(
+      situation?.situation_state
+    );
+    if (
+      (!textEnabled && !voiceEnabled) ||
+      !trainSessionActive ||
+      requiresResponse ||
+      (
+        !awarenessPriority &&
+        (
+          !compositeForm.scorable ||
+          compositeForm.coverage < 50 ||
+          !compositeForm.corrections.length
+        )
+      )
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+    const feedbackState = compositeFeedbackRef.current;
+    const correction = awarenessPriority ? null : compositeForm.corrections[0];
+    const signature = awarenessPriority
+      ? `awareness:${situation.situation_state}`
+      : [
+          currentStep?.id || currentStepName,
+          correction.bodyPart,
+          correction.direction
+        ].join(":");
+
+    if (feedbackState.signature !== signature) {
+      feedbackState.signature = signature;
+      feedbackState.firstSeenAt = now;
+      return;
+    }
+    if (
+      now - feedbackState.firstSeenAt < (awarenessPriority ? 700 : 1200) ||
+      now - feedbackState.lastSpokenAt < 5500 ||
+      (
+        correction &&
+        now - (feedbackState.recentParts.get(correction.bodyPart) || 0) < 10000
+      )
+    ) {
+      return;
+    }
+
+    const message = buildNaturalAwarenessFeedback({
+      correction,
+      form: compositeForm,
+      situation,
+      stepName: currentStepName,
+      strength: compositeForm.strengths?.find(
+        (item) => item.bodyPart !== correction?.bodyPart
+      )
+    });
+    if (!message) return;
+    feedbackState.lastSpokenAt = now;
+    if (correction) {
+      feedbackState.recentParts.set(correction.bodyPart, now);
+    }
+    localFeedbackPriorityUntilRef.current = now + 4000;
+    setCoachEvent({
+      action: awarenessPriority ? "attention_prompt" : "correct",
+      message,
+      summary: message,
+      speak: true,
+      feedback_intent: `composite:${signature}`,
+      focus_body_part:
+        correction?.bodyPart || situation?.attention_target?.body_part || "whole_body",
+      evidence: {
+        accuracy: compositeForm.accuracy,
+        coverage: compositeForm.coverage,
+        group: correction?.group || "awareness",
+        situation_state: situation?.situation_state
+      }
+    });
+    if (textEnabled) {
+      appendConversation({ role: "ai", text: message });
+    }
+  }, [
+    appendConversation,
+    compositeForm,
+    currentStep?.id,
+    currentStepName,
+    requiresResponse,
+    textEnabled,
+    trainSessionActive,
+    voiceEnabled,
+    situationAwarenessState
+  ]);
+
   const handleCoachEvent = useCallback((event) => {
+    if (
+      Date.now() < localFeedbackPriorityUntilRef.current &&
+      ["correct", "observe", "hold_good", "waiting"].includes(event?.action)
+    ) {
+      return;
+    }
     setCoachEvent(event);
     if (event?.memory?.ready || event?.action === "restart_training") {
       setTrainSessionStarted(true);
@@ -399,6 +571,51 @@ export default function TrainMode({
 
     if (!trimmed) return;
 
+    const navigation = parseTrainingStepCommand(trimmed, steps.length);
+    if (navigation) {
+      if (textEnabled) {
+        appendConversation({ role: "user", text: trimmed });
+      }
+      const nextIndex =
+        navigation.type === "index"
+          ? navigation.index
+          : Math.max(
+              0,
+              Math.min(safeStepIndex + navigation.delta, steps.length - 1)
+            );
+      const nextStep = steps[nextIndex];
+      const transitionMessage = buildStepTransitionFeedback({
+        fromStep: currentStep,
+        toStep: nextStep,
+        form: compositeForm,
+        direction:
+          navigation.type === "delta"
+            ? navigation.delta
+            : nextIndex >= safeStepIndex
+              ? 1
+              : -1
+      });
+      const transitionEvent = {
+        action: "step_transition",
+        message: transitionMessage,
+        summary: transitionMessage,
+        speak: true,
+        focus_body_part:
+          nextStep?.angle_targets?.find((target) => target.role === "primary")
+            ?.body_part || null
+      };
+      if (nextIndex !== safeStepIndex) {
+        pendingStepTransitionRef.current = transitionEvent;
+        setCurrentStepIndex(nextIndex);
+      }
+      setCoachEvent(transitionEvent);
+      if (textEnabled) {
+        appendConversation({ role: "ai", text: transitionMessage });
+      }
+      setCoachInput("");
+      return;
+    }
+
     setCoachCommand({
       id: `${Date.now()}-${trimmed}`,
       message: trimmed
@@ -407,7 +624,14 @@ export default function TrainMode({
       appendConversation({ role: "user", text: trimmed });
     }
     setCoachInput("");
-  }, [appendConversation, textEnabled]);
+  }, [
+    appendConversation,
+    compositeForm,
+    currentStep,
+    safeStepIndex,
+    steps,
+    textEnabled
+  ]);
 
   const stopVoiceInput = useCallback((status = "Hands-free listening is off.") => {
     shouldListenRef.current = false;
@@ -770,11 +994,17 @@ export default function TrainMode({
     lastCoachChatPatternRef.current = "";
     lastCoachIntentRef.current = "";
     setAngles({});
-    setAccuracy(0);
+    setServerAccuracy(0);
     setFeedback("");
     if (techniqueChanged) {
       setTrainSessionStarted(false);
       setRuleEngineSessionSummary(null);
+    }
+    const pendingTransition = pendingStepTransitionRef.current;
+    if (pendingTransition) {
+      pendingStepTransitionRef.current = null;
+      setCoachEvent(pendingTransition);
+      return;
     }
     const message = currentStepName
       ? `Settle into ${currentStepName}. I am syncing the live angles.`
@@ -862,11 +1092,15 @@ export default function TrainMode({
           onBodyCalibrationSample={bodyCalibration?.recordSample}
           onCalibrationStatus={bodyCalibration?.reportFit}
           stanceTargetDegrees={stanceTargetDegrees}
+          onStanceTargetChange={onStanceTargetChange}
           currentStepId={currentStep?.id}
           currentStepName={currentStep?.step_name}
           sessionConfig={sessionConfig}
           coachCommand={coachCommand}
           requiredParts={requiredParts}
+          measurementParts={displayAngleParts}
+          expectedParts={expectedGuideParts}
+          feedbackParts={feedbackAngleParts}
           onAngleUpdate={handleAngleUpdate}
           onAwarenessUpdate={setAwareness}
           onLevel1Update={setLevel1State}
@@ -875,9 +1109,10 @@ export default function TrainMode({
           onLevel4Update={setLevel4State}
           onSituationAwarenessUpdate={setSituationAwarenessState}
           onRuleEngineSessionComplete={setRuleEngineSessionSummary}
+          onRuleEngineFrameUpdate={setRuleEngineFrame}
           trackingSessionActive={trainSessionActive}
           trackingSessionPaused={trainSessionPaused}
-          onAccuracyUpdate={setAccuracy}
+          onAccuracyUpdate={setServerAccuracy}
           onFeedbackUpdate={setFeedback}
           onSummaryUpdate={setFeedback}
           onCoachEvent={handleCoachEvent}
@@ -971,9 +1206,6 @@ export default function TrainMode({
           />
         </div>
 
-        <div className="panel-block panel-block--stance">
-          <StanceViewPanel onChange={onStanceTargetChange} value={stanceTargetDegrees} />
-        </div>
       </aside>
 
       <div
@@ -1119,11 +1351,14 @@ export default function TrainMode({
         <MetricsPanel
           steps={steps}
           currentStepIndex={safeStepIndex}
-          accuracy={accuracy}
+          accuracy={compositeForm.scorable ? compositeForm.accuracy : 0}
           angles={angles}
-          requiredParts={requiredParts}
+          requiredParts={displayAngleParts}
           feedback={textEnabled ? feedback : ""}
           coachEvent={textEnabled ? coachEvent : null}
+          compositeForm={compositeForm}
+          difficulty={formDifficulty}
+          onDifficultyChange={selectFormDifficulty}
         />
       </aside>
     </>

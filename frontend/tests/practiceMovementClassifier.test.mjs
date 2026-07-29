@@ -195,6 +195,33 @@ test("tape trimming retains bounded opening context across a long pause", () => 
   assert.ok(trimmed.some((frame) => frame.matchedStep === 3));
 });
 
+test("tape trimming ends after confirmed final recovery, not later false activity", () => {
+  const frames = Array.from({ length: 100 }, (_, index) => ({
+    frame: index + 1,
+    elapsedMs: index * 100,
+    sourceTimestampMs: index * 100,
+    stepScores:
+      index >= 50 && index <= 55
+        ? [0, 100, 5]
+        : [100, 25, 100],
+    scorable: index >= 10,
+    temporalPhase:
+      index === 55
+        ? "rep_peak"
+        : index >= 80
+          ? "step_hold"
+          : "step_exit"
+  }));
+
+  const trimmed = trimPracticeTapeFrames(frames, {
+    paddingBeforeMs: 300,
+    paddingAfterMs: 300
+  });
+
+  assert.equal(trimmed.at(-1).sourceTimestampMs, 6100);
+  assert.ok(!trimmed.some((frame) => frame.sourceTimestampMs >= 8000));
+});
+
 test("count time does not advance a movement repetition", () => {
   const classifier = createPracticeMovementClassifier({
     stepCount: 2,

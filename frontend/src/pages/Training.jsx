@@ -27,7 +27,10 @@ export default function TrainingStudio({ studioMode = "student" }) {
     () => localStorage.getItem("studioDisplayMirrored") !== "false"
   );
   const [stanceTargetDegrees, setStanceTargetDegrees] = useState(
-    () => Number(localStorage.getItem("studioStanceTargetDegrees")) || 0
+    () => {
+      const storedValue = localStorage.getItem("studioStanceTargetDegrees");
+      return storedValue === null ? 30 : Number(storedValue) || 0;
+    }
   );
   const [performanceMode, setPerformanceMode] = useState(() => {
     const storedMode = localStorage.getItem("studioPerformanceMode") || "auto";

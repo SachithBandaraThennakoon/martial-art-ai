@@ -8,17 +8,33 @@ Every technique requires:
 - `catalog.json` for display, access, category, and commercial metadata.
 - `training-steps.json` for instructional keyframes and target measurements.
 
-Techniques using the whole-session temporal rule engine must also provide all six
-tracking files:
+## Training-step angle targets
+
+Schema `2.0` uses one `angle_targets` list per step as the authoritative source
+for joint ranges. Each target has:
+
+- `body_part`, `min`, and `max` for the acceptable degree range.
+- `target_angle` for the ideal reference pose rendered by the target skeleton.
+- `label` for user-facing coaching.
+- `role: "primary"` when it can score/identify the step.
+- `role: "supporting"` when it informs the target skeleton, live values, and
+  situation awareness without rejecting a repetition when tracking is missing.
+
+The frontend derives the legacy scoring `angles`, full-body measurements, target
+shape, and awareness target status from this single list. Do not duplicate angle
+ranges in another step field.
+
+Temporal runtime data should be embedded under
+`training-steps.json.temporal_runtime`. Legacy technique packages may instead
+provide the complete separate-file set:
 
 - `manifest.json`
 - `states.json`
 - `transitions.json`
 - `errors.json`
 - `modes.json`
-- `cues.json`
 
-Partial tracking packages are rejected by both the frontend and backend loaders.
+Partial legacy tracking packages are rejected by both loaders.
 Add the package to `index.json` only after its required files are complete.
 
 Shared schemas and profiles are stored in `_schemas` and `_profiles`. Technique IDs

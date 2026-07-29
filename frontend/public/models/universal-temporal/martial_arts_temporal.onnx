@@ -1,0 +1,1029 @@
+
+pytorch2.11.0+cu128:«£
+ç
+	adjacency
+	landmarkseinsumnode_einsum"Einsum*
+equation"vw,btwc->btvc†Jx
+	namespacek: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/einsum: aten.einsum.defaultJÉ
+pkg.torch.onnx.class_hierarchya['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'aten.einsum.default']J©
+pkg.torch.onnx.fx_nodeé%einsum : [num_users=1] = call_function[target=torch.ops.aten.einsum.default](args = (vw,btwc->btvc, [%b_adjacency, %landmarks]), kwargs = {})J8
+pkg.torch.onnx.name_scopes['', 'spatial1', 'einsum']J”
+pkg.torch.onnx.stack_trace¥File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 71, in forward
+    aggregated = torch.einsum("vw,btwc->btvc", adjacency, inputs)
+à	
+einsum
+val_4val_5node_MatMul_5"MatMulJ™
+	namespaceú: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.project: torch.nn.modules.linear.Linear/linear: aten.linear.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JΩ
+pkg.torch.onnx.fx_node¢%linear : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%einsum, %p_spatial1_project_weight, %p_spatial1_project_bias), kwargs = {})JL
+pkg.torch.onnx.name_scopes.['', 'spatial1', 'spatial1.project', 'linear']JÙ
+pkg.torch.onnx.stack_trace’File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+ì	
+val_5
+spatial1.project.biaslinearnode_linear"AddJ™
+	namespaceú: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.project: torch.nn.modules.linear.Linear/linear: aten.linear.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.linear.Linear', 'aten.linear.default']JΩ
+pkg.torch.onnx.fx_node¢%linear : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%einsum, %p_spatial1_project_weight, %p_spatial1_project_bias), kwargs = {})JL
+pkg.torch.onnx.name_scopes.['', 'spatial1', 'spatial1.project', 'linear']JÙ
+pkg.torch.onnx.stack_trace’File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+õ
+
+linear
+spatial1.norm.weight
+spatial1.norm.bias
+layer_normnode_layer_norm"LayerNormalization*
+
+stash_type†*
+epsilon¨≈'7†*
+axisˇˇˇˇˇˇˇˇˇ†Jπ
+	namespace´: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.norm: torch.nn.modules.normalization.LayerNorm/layer_norm: aten.layer_norm.defaultJ¥
+pkg.torch.onnx.class_hierarchyë['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']J”
+pkg.torch.onnx.fx_node∏%layer_norm : [num_users=1] = call_function[target=torch.ops.aten.layer_norm.default](args = (%linear, [48], %p_spatial1_norm_weight, %p_spatial1_norm_bias, 1e-05, False), kwargs = {})JM
+pkg.torch.onnx.name_scopes/['', 'spatial1', 'spatial1.norm', 'layer_norm']J·
+pkg.torch.onnx.stack_trace¬File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/normalization.py", line 229, in forward
+    return F.layer_norm(
+⁄
+
+layer_norm
+val_8val_9
+node_Div_7"DivJ´
+	namespaceù: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.activation: torch.nn.modules.activation.GELU/gelu: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Já
+pkg.torch.onnx.fx_nodem%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm,), kwargs = {})JM
+pkg.torch.onnx.name_scopes/['', 'spatial1', 'spatial1.activation', 'gelu']J¸
+pkg.torch.onnx.stack_trace›File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+œ
+val_9val_10
+node_Erf_8"ErfJ´
+	namespaceù: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.activation: torch.nn.modules.activation.GELU/gelu: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Já
+pkg.torch.onnx.fx_nodem%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm,), kwargs = {})JM
+pkg.torch.onnx.name_scopes/['', 'spatial1', 'spatial1.activation', 'gelu']J¸
+pkg.torch.onnx.stack_trace›File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+Í
+val_10
+scalar_tensor_default_2val_12node_Add_10"AddJ´
+	namespaceù: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.activation: torch.nn.modules.activation.GELU/gelu: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Já
+pkg.torch.onnx.fx_nodem%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm,), kwargs = {})JM
+pkg.torch.onnx.name_scopes/['', 'spatial1', 'spatial1.activation', 'gelu']J¸
+pkg.torch.onnx.stack_trace›File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+Ÿ
+val_13
+val_12val_14node_Mul_12"MulJ´
+	namespaceù: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.activation: torch.nn.modules.activation.GELU/gelu: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Já
+pkg.torch.onnx.fx_nodem%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm,), kwargs = {})JM
+pkg.torch.onnx.name_scopes/['', 'spatial1', 'spatial1.activation', 'gelu']J¸
+pkg.torch.onnx.stack_trace›File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+Ÿ
+
+layer_norm
+val_14gelu	node_gelu"MulJ´
+	namespaceù: __main__.UniversalTemporalSTGCN/spatial1: train_phase_model.SpatialGraphBlock/spatial1.activation: torch.nn.modules.activation.GELU/gelu: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Já
+pkg.torch.onnx.fx_nodem%gelu : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm,), kwargs = {})JM
+pkg.torch.onnx.name_scopes/['', 'spatial1', 'spatial1.activation', 'gelu']J¸
+pkg.torch.onnx.stack_trace›File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 48, in forward
+    spatial = self.spatial1(landmarks, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+å
+	adjacency
+gelueinsum_1node_einsum_1"Einsum*
+equation"vw,btwc->btvc†Jz
+	namespacem: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/einsum_1: aten.einsum.defaultJÉ
+pkg.torch.onnx.class_hierarchya['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'aten.einsum.default']Jß
+pkg.torch.onnx.fx_nodeå%einsum_1 : [num_users=1] = call_function[target=torch.ops.aten.einsum.default](args = (vw,btwc->btvc, [%b_adjacency, %clone]), kwargs = {})J:
+pkg.torch.onnx.name_scopes['', 'spatial2', 'einsum_1']J—
+pkg.torch.onnx.stack_trace≤File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 71, in forward
+    aggregated = torch.einsum("vw,btwc->btvc", adjacency, inputs)
+ì	
+einsum_1
+val_15val_16node_MatMul_14"MatMulJ¨
+	namespaceû: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.project: torch.nn.modules.linear.Linear/linear_1: aten.linear.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J¡
+pkg.torch.onnx.fx_node¶%linear_1 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%einsum_1, %p_spatial2_project_weight, %p_spatial2_project_bias), kwargs = {})JN
+pkg.torch.onnx.name_scopes0['', 'spatial2', 'spatial2.project', 'linear_1']JÚ
+pkg.torch.onnx.stack_trace”File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+û	
+val_16
+spatial2.project.biaslinear_1node_linear_1"AddJ¨
+	namespaceû: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.project: torch.nn.modules.linear.Linear/linear_1: aten.linear.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J¡
+pkg.torch.onnx.fx_node¶%linear_1 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%einsum_1, %p_spatial2_project_weight, %p_spatial2_project_bias), kwargs = {})JN
+pkg.torch.onnx.name_scopes0['', 'spatial2', 'spatial2.project', 'linear_1']JÚ
+pkg.torch.onnx.stack_trace”File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+ß
+
+linear_1
+spatial2.norm.weight
+spatial2.norm.biaslayer_norm_1node_layer_norm_1"LayerNormalization*
+
+stash_type†*
+epsilon¨≈'7†*
+axisˇˇˇˇˇˇˇˇˇ†Jª
+	namespace≠: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.norm: torch.nn.modules.normalization.LayerNorm/layer_norm_1: aten.layer_norm.defaultJ¥
+pkg.torch.onnx.class_hierarchyë['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.normalization.LayerNorm', 'aten.layer_norm.default']J◊
+pkg.torch.onnx.fx_nodeº%layer_norm_1 : [num_users=1] = call_function[target=torch.ops.aten.layer_norm.default](args = (%linear_1, [96], %p_spatial2_norm_weight, %p_spatial2_norm_bias, 1e-05, False), kwargs = {})JO
+pkg.torch.onnx.name_scopes1['', 'spatial2', 'spatial2.norm', 'layer_norm_1']Jﬂ
+pkg.torch.onnx.stack_trace¿File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/normalization.py", line 229, in forward
+    return F.layer_norm(
+‰
+layer_norm_1
+val_8val_20node_Div_16"DivJ≠
+	namespaceü: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.activation: torch.nn.modules.activation.GELU/gelu_1: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jã
+pkg.torch.onnx.fx_nodeq%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm_1,), kwargs = {})JO
+pkg.torch.onnx.name_scopes1['', 'spatial2', 'spatial2.activation', 'gelu_1']J˙
+pkg.torch.onnx.stack_trace€File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+◊
+val_20val_21node_Erf_17"ErfJ≠
+	namespaceü: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.activation: torch.nn.modules.activation.GELU/gelu_1: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jã
+pkg.torch.onnx.fx_nodeq%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm_1,), kwargs = {})JO
+pkg.torch.onnx.name_scopes1['', 'spatial2', 'spatial2.activation', 'gelu_1']J˙
+pkg.torch.onnx.stack_trace€File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+
+val_21
+scalar_tensor_default_2val_23node_Add_19"AddJ≠
+	namespaceü: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.activation: torch.nn.modules.activation.GELU/gelu_1: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jã
+pkg.torch.onnx.fx_nodeq%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm_1,), kwargs = {})JO
+pkg.torch.onnx.name_scopes1['', 'spatial2', 'spatial2.activation', 'gelu_1']J˙
+pkg.torch.onnx.stack_trace€File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+ﬂ
+val_13
+val_23val_25node_Mul_21"MulJ≠
+	namespaceü: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.activation: torch.nn.modules.activation.GELU/gelu_1: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jã
+pkg.torch.onnx.fx_nodeq%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm_1,), kwargs = {})JO
+pkg.torch.onnx.name_scopes1['', 'spatial2', 'spatial2.activation', 'gelu_1']J˙
+pkg.torch.onnx.stack_trace€File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+Â
+layer_norm_1
+val_25gelu_1node_gelu_1"MulJ≠
+	namespaceü: __main__.UniversalTemporalSTGCN/spatial2: train_phase_model.SpatialGraphBlock/spatial2.activation: torch.nn.modules.activation.GELU/gelu_1: aten.gelu.defaultJ¶
+pkg.torch.onnx.class_hierarchyÉ['__main__.UniversalTemporalSTGCN', 'train_phase_model.SpatialGraphBlock', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jã
+pkg.torch.onnx.fx_nodeq%gelu_1 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%layer_norm_1,), kwargs = {})JO
+pkg.torch.onnx.name_scopes1['', 'spatial2', 'spatial2.activation', 'gelu_1']J˙
+pkg.torch.onnx.stack_trace€File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 49, in forward
+    spatial = self.spatial2(spatial, self.adjacency)
+  File "/content/universal-temporal-work/pipeline/train_phase_model.py", line 72, in forward
+    return self.dropout(self.activation(self.norm(self.project(aggregated))))
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+ÿ
+	landmarks
+val_26selectnode_select"Gather*
+axis†JF
+	namespace9: __main__.UniversalTemporalSTGCN/select: aten.select.intJX
+pkg.torch.onnx.class_hierarchy6['__main__.UniversalTemporalSTGCN', 'aten.select.int']Jã
+pkg.torch.onnx.fx_nodeq%select : [num_users=1] = call_function[target=torch.ops.aten.select.int](args = (%landmarks, 3, 3), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'select']J∫
+pkg.torch.onnx.stack_traceõFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 50, in forward
+    visibility = landmarks[..., 3].clamp(0, 1).unsqueeze(-1)
+«
+select
+
+select_min
+scalar_tensor_default_2clampnode_Clip_59"ClipJG
+	namespace:: __main__.UniversalTemporalSTGCN/clamp: aten.clamp.TensorJ5
+!pkg.onnxscript.rewriter.rule_nameFuseMaxMinToClipJZ
+pkg.torch.onnx.class_hierarchy8['__main__.UniversalTemporalSTGCN', 'aten.clamp.Tensor']J∂
+pkg.torch.onnx.fx_nodeõ%clamp : [num_users=1] = call_function[target=torch.ops.aten.clamp.Tensor](args = (%select, %scalar_tensor_default, %scalar_tensor_default_1), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'clamp']J∫
+pkg.torch.onnx.stack_traceõFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 50, in forward
+    visibility = landmarks[..., 3].clamp(0, 1).unsqueeze(-1)
+Ë
+clamp
+val_29	unsqueezenode_unsqueeze"	UnsqueezeJP
+	namespaceC: __main__.UniversalTemporalSTGCN/unsqueeze: aten.unsqueeze.defaultJ_
+pkg.torch.onnx.class_hierarchy=['__main__.UniversalTemporalSTGCN', 'aten.unsqueeze.default']Jè
+pkg.torch.onnx.fx_nodeu%unsqueeze : [num_users=2] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%clamp, -1), kwargs = {})J/
+pkg.torch.onnx.name_scopes['', 'unsqueeze']J∫
+pkg.torch.onnx.stack_traceõFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 50, in forward
+    visibility = landmarks[..., 3].clamp(0, 1).unsqueeze(-1)
+–
+gelu_1
+	unsqueezemul_42node_mul_42"MulJF
+	namespace9: __main__.UniversalTemporalSTGCN/mul_42: aten.mul.TensorJX
+pkg.torch.onnx.class_hierarchy6['__main__.UniversalTemporalSTGCN', 'aten.mul.Tensor']Jè
+pkg.torch.onnx.fx_nodeu%mul_42 : [num_users=1] = call_function[target=torch.ops.aten.mul.Tensor](args = (%clone_1, %unsqueeze), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'mul_42']Jæ
+pkg.torch.onnx.stack_traceüFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 51, in forward
+    pooled = (spatial * visibility).sum(dim=2) / visibility.sum(
+É
+mul_42
+val_30sum_1
+node_sum_1"	ReduceSum*
+noop_with_empty_axes †*
+keepdims †JJ
+	namespace=: __main__.UniversalTemporalSTGCN/sum_1: aten.sum.dim_IntListJ]
+pkg.torch.onnx.class_hierarchy;['__main__.UniversalTemporalSTGCN', 'aten.sum.dim_IntList']Jã
+pkg.torch.onnx.fx_nodeq%sum_1 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%mul_42, [2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_1']Jæ
+pkg.torch.onnx.stack_traceüFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 51, in forward
+    pooled = (spatial * visibility).sum(dim=2) / visibility.sum(
+â
+	unsqueeze
+val_30sum_2
+node_sum_2"	ReduceSum*
+noop_with_empty_axes †*
+keepdims †JJ
+	namespace=: __main__.UniversalTemporalSTGCN/sum_2: aten.sum.dim_IntListJ]
+pkg.torch.onnx.class_hierarchy;['__main__.UniversalTemporalSTGCN', 'aten.sum.dim_IntList']Jé
+pkg.torch.onnx.fx_nodet%sum_2 : [num_users=1] = call_function[target=torch.ops.aten.sum.dim_IntList](args = (%unsqueeze, [2]), kwargs = {})J+
+pkg.torch.onnx.name_scopes['', 'sum_2']Jæ
+pkg.torch.onnx.stack_traceüFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 51, in forward
+    pooled = (spatial * visibility).sum(dim=2) / visibility.sum(
+›
+sum_2
+scalar_tensor_default_2	clamp_minnode_clamp_min"ClipJO
+	namespaceB: __main__.UniversalTemporalSTGCN/clamp_min: aten.clamp_min.TensorJ^
+pkg.torch.onnx.class_hierarchy<['__main__.UniversalTemporalSTGCN', 'aten.clamp_min.Tensor']J•
+pkg.torch.onnx.fx_nodeä%clamp_min : [num_users=1] = call_function[target=torch.ops.aten.clamp_min.Tensor](args = (%sum_2, %scalar_tensor_default_2), kwargs = {})J/
+pkg.torch.onnx.name_scopes['', 'clamp_min']Jè
+pkg.torch.onnx.stack_traceqFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 53, in forward
+    ).clamp_min(1)
+æ
+sum_1
+	clamp_mindivnode_div"DivJC
+	namespace6: __main__.UniversalTemporalSTGCN/div: aten.div.TensorJX
+pkg.torch.onnx.class_hierarchy6['__main__.UniversalTemporalSTGCN', 'aten.div.Tensor']Jä
+pkg.torch.onnx.fx_nodep%div : [num_users=1] = call_function[target=torch.ops.aten.div.Tensor](args = (%sum_1, %clamp_min), kwargs = {})J)
+pkg.torch.onnx.name_scopes['', 'div']Jæ
+pkg.torch.onnx.stack_traceüFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 51, in forward
+    pooled = (spatial * visibility).sum(dim=2) / visibility.sum(
+±
+technique_embedding.weight
+technique_id	embeddingnode_embedding"Gather*
+axis †Já
+	namespacez: __main__.UniversalTemporalSTGCN/technique_embedding: torch.nn.modules.sparse.Embedding/embedding: aten.embedding.defaultJÑ
+pkg.torch.onnx.class_hierarchyb['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.sparse.Embedding', 'aten.embedding.default']J≤
+pkg.torch.onnx.fx_nodeó%embedding : [num_users=1] = call_function[target=torch.ops.aten.embedding.default](args = (%p_technique_embedding_weight, %technique_id), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'technique_embedding', 'embedding']J∆
+pkg.torch.onnx.stack_traceßFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 54, in forward
+    conditioned = pooled + self.technique_embedding(technique_id).unsqueeze(1)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/sparse.py", line 189, in forward
+    return F.embedding(
+ã
+	embedding
+val_32unsqueeze_1node_unsqueeze_1"	UnsqueezeJR
+	namespaceE: __main__.UniversalTemporalSTGCN/unsqueeze_1: aten.unsqueeze.defaultJ_
+pkg.torch.onnx.class_hierarchy=['__main__.UniversalTemporalSTGCN', 'aten.unsqueeze.default']Jî
+pkg.torch.onnx.fx_nodez%unsqueeze_1 : [num_users=1] = call_function[target=torch.ops.aten.unsqueeze.default](args = (%embedding, 1), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'unsqueeze_1']JÃ
+pkg.torch.onnx.stack_trace≠File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 54, in forward
+    conditioned = pooled + self.technique_embedding(technique_id).unsqueeze(1)
+€
+div
+unsqueeze_1add_91node_add_91"AddJF
+	namespace9: __main__.UniversalTemporalSTGCN/add_91: aten.add.TensorJX
+pkg.torch.onnx.class_hierarchy6['__main__.UniversalTemporalSTGCN', 'aten.add.Tensor']Jç
+pkg.torch.onnx.fx_nodes%add_91 : [num_users=1] = call_function[target=torch.ops.aten.add.Tensor](args = (%div, %unsqueeze_1), kwargs = {})J,
+pkg.torch.onnx.name_scopes['', 'add_91']JÃ
+pkg.torch.onnx.stack_trace≠File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 54, in forward
+    conditioned = pooled + self.technique_embedding(technique_id).unsqueeze(1)
+ˆ
+add_91	transposenode_transpose"	Transpose*
+perm@ @@†JL
+	namespace?: __main__.UniversalTemporalSTGCN/transpose: aten.transpose.intJ[
+pkg.torch.onnx.class_hierarchy9['__main__.UniversalTemporalSTGCN', 'aten.transpose.int']Jé
+pkg.torch.onnx.fx_nodet%transpose : [num_users=1] = call_function[target=torch.ops.aten.transpose.int](args = (%add_91, 1, 2), kwargs = {})J/
+pkg.torch.onnx.name_scopes['', 'transpose']J«
+pkg.torch.onnx.stack_trace®File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+¸
+	transpose
+temporal.0.weight
+temporal.0.biasgetitemnode_Conv_60"Conv*
+group†*
+pads@@†*
+auto_pad"NOTSET†*
+strides@†*
+	dilations@†JÍ
+	namespace‹: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.1: torch.nn.modules.batchnorm.BatchNorm1d/_native_batch_norm_legit_no_training: aten._native_batch_norm_legit_no_training.defaultJ:
+!pkg.onnxscript.rewriter.rule_nameFuseBatchNormIntoConvJŒ
+pkg.torch.onnx.class_hierarchy´['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.batchnorm.BatchNorm1d', 'aten._native_batch_norm_legit_no_training.default']J∞
+pkg.torch.onnx.fx_nodeï%_native_batch_norm_legit_no_training : [num_users=1] = call_function[target=torch.ops.aten._native_batch_norm_legit_no_training.default](args = (%conv1d, %p_temporal_1_weight, %p_temporal_1_bias, %b_temporal_1_running_mean, %b_temporal_1_running_var, 0.1, 1e-05), kwargs = {})Jd
+pkg.torch.onnx.name_scopesF['', 'temporal', 'temporal.1', '_native_batch_norm_legit_no_training']Jƒ
+pkg.torch.onnx.stack_trace•File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/batchnorm.py", line 194, in forward
+    return F.batch_norm(
+µ
+getitem
+val_8val_42node_Div_38"DivJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.2: torch.nn.modules.activation.GELU/gelu_2: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']JÜ
+pkg.torch.onnx.fx_nodel%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.2', 'gelu_2']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+≠
+val_42val_43node_Erf_39"ErfJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.2: torch.nn.modules.activation.GELU/gelu_2: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']JÜ
+pkg.torch.onnx.fx_nodel%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.2', 'gelu_2']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+∆
+val_43
+scalar_tensor_default_2val_45node_Add_41"AddJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.2: torch.nn.modules.activation.GELU/gelu_2: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']JÜ
+pkg.torch.onnx.fx_nodel%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.2', 'gelu_2']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+µ
+val_13
+val_45val_47node_Mul_43"MulJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.2: torch.nn.modules.activation.GELU/gelu_2: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']JÜ
+pkg.torch.onnx.fx_nodel%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.2', 'gelu_2']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+∂
+getitem
+val_47gelu_2node_gelu_2"MulJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.2: torch.nn.modules.activation.GELU/gelu_2: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']JÜ
+pkg.torch.onnx.fx_nodel%gelu_2 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.2', 'gelu_2']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+É
+gelu_2
+temporal.4.weight
+temporal.4.bias	getitem_3node_Conv_61"Conv*
+group†*
+pads@@†*
+auto_pad"NOTSET†*
+strides@†*
+	dilations@†JÏ
+	namespaceﬁ: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.5: torch.nn.modules.batchnorm.BatchNorm1d/_native_batch_norm_legit_no_training_1: aten._native_batch_norm_legit_no_training.defaultJ:
+!pkg.onnxscript.rewriter.rule_nameFuseBatchNormIntoConvJŒ
+pkg.torch.onnx.class_hierarchy´['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.batchnorm.BatchNorm1d', 'aten._native_batch_norm_legit_no_training.default']J¥
+pkg.torch.onnx.fx_nodeô%_native_batch_norm_legit_no_training_1 : [num_users=1] = call_function[target=torch.ops.aten._native_batch_norm_legit_no_training.default](args = (%conv1d_1, %p_temporal_5_weight, %p_temporal_5_bias, %b_temporal_5_running_mean, %b_temporal_5_running_var, 0.1, 1e-05), kwargs = {})Jf
+pkg.torch.onnx.name_scopesH['', 'temporal', 'temporal.5', '_native_batch_norm_legit_no_training_1']Jƒ
+pkg.torch.onnx.stack_trace•File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/batchnorm.py", line 194, in forward
+    return F.batch_norm(
+π
+	getitem_3
+val_8val_55node_Div_51"DivJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.6: torch.nn.modules.activation.GELU/gelu_3: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jà
+pkg.torch.onnx.fx_noden%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem_3,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.6', 'gelu_3']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+Ø
+val_55val_56node_Erf_52"ErfJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.6: torch.nn.modules.activation.GELU/gelu_3: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jà
+pkg.torch.onnx.fx_noden%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem_3,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.6', 'gelu_3']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+»
+val_56
+scalar_tensor_default_2val_58node_Add_54"AddJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.6: torch.nn.modules.activation.GELU/gelu_3: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jà
+pkg.torch.onnx.fx_noden%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem_3,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.6', 'gelu_3']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+∑
+val_13
+val_58val_60node_Mul_56"MulJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.6: torch.nn.modules.activation.GELU/gelu_3: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jà
+pkg.torch.onnx.fx_noden%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem_3,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.6', 'gelu_3']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+∫
+	getitem_3
+val_60gelu_3node_gelu_3"MulJ¶
+	namespaceò: __main__.UniversalTemporalSTGCN/temporal: torch.nn.modules.container.Sequential/temporal.6: torch.nn.modules.activation.GELU/gelu_3: aten.gelu.defaultJ®
+pkg.torch.onnx.class_hierarchyÖ['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.container.Sequential', 'torch.nn.modules.activation.GELU', 'aten.gelu.default']Jà
+pkg.torch.onnx.fx_noden%gelu_3 : [num_users=1] = call_function[target=torch.ops.aten.gelu.default](args = (%getitem_3,), kwargs = {})JF
+pkg.torch.onnx.name_scopes(['', 'temporal', 'temporal.6', 'gelu_3']J„
+pkg.torch.onnx.stack_traceƒFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py", line 253, in forward
+    input = module(input)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/activation.py", line 816, in forward
+    return F.gelu(input, approximate=self.approximate)
+Å
+gelu_3transpose_1node_transpose_1"	Transpose*
+perm@ @@†JN
+	namespaceA: __main__.UniversalTemporalSTGCN/transpose_1: aten.transpose.intJ[
+pkg.torch.onnx.class_hierarchy9['__main__.UniversalTemporalSTGCN', 'aten.transpose.int']Jë
+pkg.torch.onnx.fx_nodew%transpose_1 : [num_users=1] = call_function[target=torch.ops.aten.transpose.int](args = (%clone_3, 1, 2), kwargs = {})J1
+pkg.torch.onnx.name_scopes['', 'transpose_1']J«
+pkg.torch.onnx.stack_trace®File "/content/universal-temporal-work/pipeline/train_universal_model.py", line 55, in forward
+    temporal = self.temporal(conditioned.transpose(1, 2)).transpose(1, 2)
+·
+transpose_1
+val_61val_62node_MatMul_58"MatMulJw
+	namespacej: __main__.UniversalTemporalSTGCN/classifier: torch.nn.modules.linear.Linear/linear_2: aten.linear.defaultJ~
+pkg.torch.onnx.class_hierarchy\['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J∏
+pkg.torch.onnx.fx_nodeù%linear_2 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%transpose_1, %p_classifier_weight, %p_classifier_bias), kwargs = {})J<
+pkg.torch.onnx.name_scopes['', 'classifier', 'linear_2']J∑
+pkg.torch.onnx.stack_traceòFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 56, in forward
+    return self.classifier(temporal)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+Á
+val_62
+classifier.biasphase_logitsnode_linear_2"AddJw
+	namespacej: __main__.UniversalTemporalSTGCN/classifier: torch.nn.modules.linear.Linear/linear_2: aten.linear.defaultJ~
+pkg.torch.onnx.class_hierarchy\['__main__.UniversalTemporalSTGCN', 'torch.nn.modules.linear.Linear', 'aten.linear.default']J∏
+pkg.torch.onnx.fx_nodeù%linear_2 : [num_users=1] = call_function[target=torch.ops.aten.linear.default](args = (%transpose_1, %p_classifier_weight, %p_classifier_bias), kwargs = {})J<
+pkg.torch.onnx.name_scopes['', 'classifier', 'linear_2']J∑
+pkg.torch.onnx.stack_traceòFile "/content/universal-temporal-work/pipeline/train_universal_model.py", line 56, in forward
+    return self.classifier(temporal)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/linear.py", line 134, in forward
+    return F.linear(input, self.weight, self.bias)
+main_graph*ﬁ0Bspatial1.project.biasJ¿Tò>Ëü–>H›@Ωåö¥Ωòπrª•∆AΩ8Î>ﬁõ>)é‹æä›(æijÃ>á9>>É+;º @ïæ$Áòæ¡g‡æ»-æC6)>¡¨>»/U>?ŸæŒ∑ëæÚüÜΩ<ÌÌ>*î™=ÈgˇΩ€Ñi>≥-æ?Ç∞æ∆ ∂>f;`æÁ6∏ΩvÚæø°©>h∫>ﬁ@M>≤`™æ˜µÒæ!’æÜÃ«>ˇes>¢Ì >)¥x>)>ÁºÆƒ≈æ˛“ææ_æ*›0Bspatial1.norm.weightJ¿áy?Æ{?”µÅ?“¬Å?S3}?CNÅ?uÅ?Ω$Ä?ˇ?ÜJÉ?Hs{?å~?¢ôÅ?ˆYÇ?Â„Å?	m{?ÛÉ?OÙÅ?qÿÅ?6Øy?æ"{?∏Ø{?⁄ºÇ?
+|{?:CÄ?}¥}?A§Ç?(…Å?‹¢Å?Áx}?ƒ©|?ª4Ç?{ˆ|?i|?tö|?hÊÅ?h>É?*|?>óÇ?ÄWÇ?s_~?ß {?òh?ä≈É?«ï~?—2Ä?S¬Å?ÇÅ?*€0Bspatial1.norm.biasJ¿´B¡º¸Øº>,∫Q◊´<¿œCºYjÅºs?^;Ìé;c¨º<±©a<R·∆ºõ„ÅºT\d<G;¬%ºd::Òi°ºÔ£øª“™Ä<é–ºã8/<ö^J<m„ä;
+©º≠Ã><£∂e:8´<FÆö<uΩºeºë£z;Y<≈Hñ<J—-ºÍíºb~ã<Ù<V<_Óû<™zÄºàEE<ÜºuwŒºÎTòºW¥<ïXîª5'`ºâ),<Ñ%º*f`Bspatial2.project.biasj+
+locationmartial_arts_temporal.onnx.dataj
+offset0j
+length384p*g`Bspatial2.norm.weightj+
+locationmartial_arts_temporal.onnx.dataj
+offset384j
+length384p*e`Bspatial2.norm.biasj+
+locationmartial_arts_temporal.onnx.dataj
+offset768j
+length384p*p`Btechnique_embedding.weightj+
+locationmartial_arts_temporal.onnx.dataj
+offset1920j
+length768p*m``Btemporal.0.weightj+
+locationmartial_arts_temporal.onnx.dataj
+offset29700j
+length184320p*c`Btemporal.0.biasj+
+locationmartial_arts_temporal.onnx.dataj
+offset1152j
+length384p*n``Btemporal.4.weightj+
+locationmartial_arts_temporal.onnx.dataj
+offset214020j
+length184320p*c`Btemporal.4.biasj+
+locationmartial_arts_temporal.onnx.dataj
+offset1536j
+length384p*;	Bclassifier.biasJ$)°=Ω÷UO=/¶´=K.IΩÌ=Aoö=í-Ω^Ï	=£µn=*`!!B	adjacencyj+
+locationmartial_arts_temporal.onnx.dataj
+offset6912j
+length4356p*[0Bval_4j+
+locationmartial_arts_temporal.onnx.dataj
+offset2688j
+length768p*_0`Bval_15j+
+locationmartial_arts_temporal.onnx.dataj
+offset11268j
+length18432p*!Bscalar_tensor_default_2J  Ä?*]`	Bval_61j+
+locationmartial_arts_temporal.onnx.dataj
+offset3456j
+length3456p*B
+select_minJ    *Bval_8JÛµ?*Bval_13J   ?*Bval_26J       *Bval_29Jˇˇˇˇˇˇˇˇ*Bval_30J       *Bval_32J       Z⁄
+	landmarks
+
+batch
+time
+!
+"=
+/pkg.torch.export.graph_signature.InputSpec.kind
+USER_INPUT"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone".
+!pkg.torch.onnx.original_node_name	landmarksZ–
+technique_id
+	
+batch"=
+/pkg.torch.export.graph_signature.InputSpec.kind
+USER_INPUT"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"1
+!pkg.torch.onnx.original_node_nametechnique_idbõ
+phase_logits
+
+batch
+time
+	"?
+0pkg.torch.export.graph_signature.OutputSpec.kindUSER_OUTPUT"-
+!pkg.torch.onnx.original_node_namelinear_2jﬁ
+spatial1.project.bias
+
+
+0"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"<
+!pkg.torch.onnx.original_node_namep_spatial1_project_biasj‹
+spatial1.norm.weight
+
+
+0"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone";
+!pkg.torch.onnx.original_node_namep_spatial1_norm_weightjÿ
+spatial1.norm.bias
+
+
+0"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"9
+!pkg.torch.onnx.original_node_namep_spatial1_norm_biasjﬁ
+spatial2.project.bias
+
+
+`"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"<
+!pkg.torch.onnx.original_node_namep_spatial2_project_biasj‹
+spatial2.norm.weight
+
+
+`"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone";
+!pkg.torch.onnx.original_node_namep_spatial2_norm_weightjÿ
+spatial2.norm.bias
+
+
+`"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"9
+!pkg.torch.onnx.original_node_namep_spatial2_norm_biasjÏ
+technique_embedding.weight
+
+
+`"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"A
+!pkg.torch.onnx.original_node_namep_technique_embedding_weightj'
+temporal.0.weight
+
+`
+`
+j
+temporal.0.bias
+
+
+`j'
+temporal.4.weight
+
+`
+`
+j
+temporal.4.bias
+
+
+`j“
+classifier.bias
+
+
+	"<
+/pkg.torch.export.graph_signature.InputSpec.kind	PARAMETER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentNone"6
+!pkg.torch.onnx.original_node_namep_classifier_biasj«
+	adjacency
+
+!
+!"9
+/pkg.torch.export.graph_signature.InputSpec.kindBUFFER"=
+5pkg.torch.export.graph_signature.InputSpec.persistentTrue"0
+!pkg.torch.onnx.original_node_nameb_adjacencyj\
+val_4
+
+
+0"C
+$pkg.onnxscript.optimizer.folded_from['spatial1.project.weight']j]
+val_15
+
+0
+`"C
+$pkg.onnxscript.optimizer.folded_from['spatial2.project.weight']jT
+scalar_tensor_default_2
+ "1
+$pkg.onnxscript.optimizer.folded_from	['val_3']jW
+val_61
+
+`
+	"=
+$pkg.onnxscript.optimizer.folded_from['classifier.weight']j
+
+select_min
+ j
+val_8
+ j
+val_13
+ j
+val_26
+ j
+val_29
+
+
+j
+val_30
+
+
+j
+val_32
+
+
+j)
+einsum
+
+batch
+time
+!
+j(
+val_5
+
+batch
+time
+!
+0j)
+linear
+
+batch
+time
+!
+0j-
+
+layer_norm
+
+batch
+time
+!
+0j(
+val_9
+
+batch
+time
+!
+0j)
+val_10
+
+batch
+time
+!
+0j)
+val_12
+
+batch
+time
+!
+0j)
+val_14
+
+batch
+time
+!
+0j'
+gelu
+
+batch
+time
+!
+0j+
+einsum_1
+
+batch
+time
+!
+0j)
+val_16
+
+batch
+time
+!
+`j+
+linear_1
+
+batch
+time
+!
+`j/
+layer_norm_1
+
+batch
+time
+!
+`j)
+val_20
+
+batch
+time
+!
+`j)
+val_21
+
+batch
+time
+!
+`j)
+val_23
+
+batch
+time
+!
+`j)
+val_25
+
+batch
+time
+!
+`j)
+gelu_1
+
+batch
+time
+!
+`j%
+select
+
+batch
+time
+!j$
+clamp
+
+batch
+time
+!j,
+	unsqueeze
+
+batch
+time
+!
+j)
+mul_42
+
+batch
+time
+!
+`j$
+sum_1
+
+batch
+time
+`j$
+sum_2
+
+batch
+time
+j(
+	clamp_min
+
+batch
+time
+j"
+div
+
+batch
+time
+`j 
+	embedding
+
+batch
+`j&
+unsqueeze_1
+
+batch
+
+`j%
+add_91
+
+batch
+time
+`j(
+	transpose
+
+batch
+`
+timej&
+getitem
+
+batch
+`
+timej%
+val_42
+
+batch
+`
+timej%
+val_43
+
+batch
+`
+timej%
+val_45
+
+batch
+`
+timej%
+val_47
+
+batch
+`
+timej%
+gelu_2
+
+batch
+`
+timej(
+	getitem_3
+
+batch
+`
+timej%
+val_55
+
+batch
+`
+timej%
+val_56
+
+batch
+`
+timej%
+val_58
+
+batch
+`
+timej%
+val_60
+
+batch
+`
+timej%
+gelu_3
+
+batch
+`
+timej*
+transpose_1
+
+batch
+time
+`j%
+val_62
+
+batch
+time
+	Ç‘
+0pkg.torch.export.ExportedProgram.graph_signatureü
+# inputs
+p_spatial1_project_weight: PARAMETER target='spatial1.project.weight'
+p_spatial1_project_bias: PARAMETER target='spatial1.project.bias'
+p_spatial1_norm_weight: PARAMETER target='spatial1.norm.weight'
+p_spatial1_norm_bias: PARAMETER target='spatial1.norm.bias'
+p_spatial2_project_weight: PARAMETER target='spatial2.project.weight'
+p_spatial2_project_bias: PARAMETER target='spatial2.project.bias'
+p_spatial2_norm_weight: PARAMETER target='spatial2.norm.weight'
+p_spatial2_norm_bias: PARAMETER target='spatial2.norm.bias'
+p_technique_embedding_weight: PARAMETER target='technique_embedding.weight'
+p_temporal_0_weight: PARAMETER target='temporal.0.weight'
+p_temporal_0_bias: PARAMETER target='temporal.0.bias'
+p_temporal_1_weight: PARAMETER target='temporal.1.weight'
+p_temporal_1_bias: PARAMETER target='temporal.1.bias'
+p_temporal_4_weight: PARAMETER target='temporal.4.weight'
+p_temporal_4_bias: PARAMETER target='temporal.4.bias'
+p_temporal_5_weight: PARAMETER target='temporal.5.weight'
+p_temporal_5_bias: PARAMETER target='temporal.5.bias'
+p_classifier_weight: PARAMETER target='classifier.weight'
+p_classifier_bias: PARAMETER target='classifier.bias'
+b_adjacency: BUFFER target='adjacency' persistent=True
+b_temporal_1_running_mean: BUFFER target='temporal.1.running_mean' persistent=True
+b_temporal_1_running_var: BUFFER target='temporal.1.running_var' persistent=True
+b_temporal_1_num_batches_tracked: BUFFER target='temporal.1.num_batches_tracked' persistent=True
+b_temporal_5_running_mean: BUFFER target='temporal.5.running_mean' persistent=True
+b_temporal_5_running_var: BUFFER target='temporal.5.running_var' persistent=True
+b_temporal_5_num_batches_tracked: BUFFER target='temporal.5.num_batches_tracked' persistent=True
+landmarks: USER_INPUT
+technique_id: USER_INPUT
+
+# outputs
+linear_2: USER_OUTPUT
+Ç^
+2pkg.torch.export.ExportedProgram.range_constraints({s32: VR[0, int_oo], s99: VR[0, int_oo]}B
+ 

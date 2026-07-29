@@ -1,31 +1,37 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { createTechniquePackage } from "../src/tracking/techniquePackage.js";
 import { TemporalStateMachine } from "../src/tracking/temporalStateMachine.js";
+import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const techniqueRoot = path.resolve(testDirectory, "../../backend/data/techniques");
 
 async function loadTechniquePackage(techniqueId) {
-  const directory = path.join(techniqueRoot, techniqueId);
-  const names = ["manifest", "states", "transitions", "errors", "modes", "cues"];
-  const values = await Promise.all(
-    names.map(async (name) =>
-      JSON.parse(await readFile(path.join(directory, `${name}.json`), "utf8"))
-    )
-  );
   return createTechniquePackage(
-    Object.fromEntries(names.map((name, index) => [name, values[index]]))
+    await loadTechniqueSource(techniqueRoot, techniqueId)
   );
 }
 
 function feed(machine, timestamps, features, trackingConfidence = 0.96) {
   return timestamps.map((timestampMs) =>
     machine.update({ timestampMs, features, trackingConfidence })
+  );
+}
+
+function feedLearned(machine, timestamps, state, confidence = 0.96) {
+  return timestamps.map((timestampMs) =>
+    machine.updateLearned({
+      timestampMs,
+      stateProbabilities: {
+        __UNKNOWN__: 0.01,
+        [state]: confidence
+      },
+      trackingConfidence: 0.96
+    })
   );
 }
 
@@ -85,6 +91,37 @@ test("Jab completes only after the configured ordered state sequence", async () 
   assert.equal(completed.event.repetition_completed, true);
   assert.equal(completed.phase, "ENTRY");
   assert.ok(completed.event.confidence >= 0.72);
+});
+
+test("learned Jab emissions drive the ordered state sequence", async () => {
+  const machine = new TemporalStateMachine(await loadTechniquePackage("jab"));
+
+  assert.equal(
+    feedLearned(machine, [0, 40, 80, 120], "GUARD").at(-1).state,
+    "GUARD"
+  );
+  assert.equal(
+    feedLearned(machine, [300, 360], "EXTENSION").at(-1).state,
+    "EXTENSION"
+  );
+  assert.equal(
+    feedLearned(machine, [430, 470], "FULL_EXTENSION").at(-1).state,
+    "FULL_EXTENSION"
+  );
+  assert.equal(
+    feedLearned(machine, [540, 570, 600], "RETRACTION").at(-1).state,
+    "RETRACTION"
+  );
+  assert.equal(
+    feedLearned(machine, [680, 720, 760, 800], "RECOVERY").at(-1).state,
+    "RECOVERY"
+  );
+  const completed =
+    feedLearned(machine, [920, 960, 1000, 1040], "GUARD").at(-1);
+
+  assert.equal(completed.state, "GUARD");
+  assert.equal(completed.event.repetition_completed, true);
+  assert.equal(completed.event.evidence.origin, "learned_model");
 });
 
 test("one noisy Jab frame cannot change or advance the state", async () => {

@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "phases": [
+    "__PAD__",
+    "__UNKNOWN__",
+    "__TRACKING_LOST__",
+    "PREPARATION",
+    "ENTRY",
+    "EXECUTION",
+    "PEAK",
+    "RETRACTION",
+    "RECOVERY"
+  ],
+  "techniques": {
+    "jab": {
+      "native_to_phase": {
+        "GUARD": "PREPARATION",
+        "EXTENSION": "EXECUTION",
+        "FULL_EXTENSION": "PEAK",
+        "RETRACTION": "RETRACTION",
+        "RECOVERY": "RECOVERY"
+      },
+      "phase_to_native": {
+        "PREPARATION": "GUARD",
+        "ENTRY": "EXTENSION",
+        "EXECUTION": "EXTENSION",
+        "PEAK": "FULL_EXTENSION",
+        "RETRACTION": "RETRACTION",
+        "RECOVERY": "RECOVERY"
+      }
+    },
+    "front-kick": {
+      "native_to_phase": {
+        "STANCE": "PREPARATION",
+        "CHAMBER": "ENTRY",
+        "EXTENSION": "PEAK",
+        "RECOIL": "RETRACTION",
+        "RECOVERY": "RECOVERY"
+      },
+      "phase_to_native": {
+        "PREPARATION": "STANCE",
+        "ENTRY": "CHAMBER",
+        "EXECUTION": "EXTENSION",
+        "PEAK": "EXTENSION",
+        "RETRACTION": "RECOIL",
+        "RECOVERY": "RECOVERY"
+      }
+    }
+  }
+}

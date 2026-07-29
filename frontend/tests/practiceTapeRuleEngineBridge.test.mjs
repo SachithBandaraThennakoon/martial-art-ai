@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,6 +8,7 @@ import {
   reanalyzePracticeTapeWithRuleEngine
 } from "../src/tracking/practiceTapeRuleEngineBridge.js";
 import { createTechniquePackage } from "../src/tracking/techniquePackage.js";
+import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,13 +17,9 @@ async function loadJabPackage() {
     testDirectory,
     "../../backend/data/techniques/jab"
   );
-  const names = ["manifest", "states", "transitions", "errors", "modes", "cues"];
-  return createTechniquePackage(Object.fromEntries(await Promise.all(
-    names.map(async (name) => [
-      name,
-      JSON.parse(await readFile(path.join(directory, `${name}.json`), "utf8"))
-    ])
-  )));
+  return createTechniquePackage(
+    await loadTechniqueSource(path.dirname(directory), "jab")
+  );
 }
 
 test("Practice tape frames retain raw and corrected rule-engine labels", () => {

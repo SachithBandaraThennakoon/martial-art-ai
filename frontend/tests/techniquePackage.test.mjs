@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,6 +8,7 @@ import {
   TechniquePackageValidationError,
   validateTechniquePackage
 } from "../src/tracking/techniquePackage.js";
+import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const trackingRoot = path.resolve(
@@ -16,23 +16,9 @@ const trackingRoot = path.resolve(
   "../../backend/data/techniques"
 );
 
-async function readJson(filePath) {
-  return JSON.parse(await readFile(filePath, "utf8"));
-}
-
-async function loadTechniqueSource(techniqueId) {
-  const directory = path.join(trackingRoot, techniqueId);
-  const [manifest, states, transitions, errors, modes, cues] = await Promise.all(
-    ["manifest", "states", "transitions", "errors", "modes", "cues"].map((name) =>
-      readJson(path.join(directory, `${name}.json`))
-    )
-  );
-  return { manifest, states, transitions, errors, modes, cues };
-}
-
 for (const techniqueId of ["jab", "front-kick"]) {
   test(`${techniqueId} tracking package is internally valid`, async () => {
-    const source = await loadTechniqueSource(techniqueId);
+    const source = await loadTechniqueSource(trackingRoot, techniqueId);
     assert.equal(validateTechniquePackage(source), true);
 
     const techniquePackage = createTechniquePackage(source);
@@ -43,7 +29,9 @@ for (const techniqueId of ["jab", "front-kick"]) {
 }
 
 test("Jab only accepts its configured ordered transitions", async () => {
-  const techniquePackage = createTechniquePackage(await loadTechniqueSource("jab"));
+  const techniquePackage = createTechniquePackage(
+    await loadTechniqueSource(trackingRoot, "jab")
+  );
 
   assert.equal(techniquePackage.canTransition("GUARD", "EXTENSION"), true);
   assert.equal(techniquePackage.canTransition("EXTENSION", "FULL_EXTENSION"), true);
@@ -52,7 +40,7 @@ test("Jab only accepts its configured ordered transitions", async () => {
 });
 
 test("invalid technique packages return actionable validation issues", async () => {
-  const source = await loadTechniqueSource("jab");
+  const source = await loadTechniqueSource(trackingRoot, "jab");
   source.transitions.transitions.EXTENSION.allowed = ["NOT_A_STATE"];
 
   assert.throws(
@@ -66,7 +54,7 @@ test("invalid technique packages return actionable validation issues", async () 
 });
 
 test("offline decoder configuration rejects invalid duration values", async () => {
-  const source = await loadTechniqueSource("jab");
+  const source = await loadTechniqueSource(trackingRoot, "jab");
   source.modes.practice.offline_decoder.unknown_min_duration_ms = -1;
 
   assert.throws(

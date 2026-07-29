@@ -45,10 +45,10 @@ function buildDataPackage(indexEntry) {
     "states",
     "transitions",
     "errors",
-    "modes",
-    "cues"
+    "modes"
   ];
   const trackingFileCount = trackingFileNames.filter((name) => files[name]).length;
+  const embeddedTracking = files["training-steps"].temporal_runtime || null;
   if (trackingFileCount > 0 && trackingFileCount < trackingFileNames.length) {
     throw new Error(
       `Technique "${indexEntry.id}" has an incomplete temporal tracking package`
@@ -59,9 +59,13 @@ function buildDataPackage(indexEntry) {
     index: indexEntry,
     catalog: files.catalog,
     trainingSteps: files["training-steps"],
-    trackingSource: trackingFileCount === trackingFileNames.length
-      ? Object.fromEntries(trackingFileNames.map((name) => [name, files[name]]))
-      : null
+    trackingSource:
+      embeddedTracking ||
+      (
+        trackingFileCount === trackingFileNames.length
+          ? Object.fromEntries(trackingFileNames.map((name) => [name, files[name]]))
+          : null
+      )
   };
 }
 

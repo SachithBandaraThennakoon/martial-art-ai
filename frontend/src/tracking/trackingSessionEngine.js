@@ -190,7 +190,9 @@ export class TrackingSessionEngine {
     return this.updateFeatures({
       ...extracted,
       timestamp: level1State.timestamp,
-      evaluationContext: sideOverrides.evaluationContext || {}
+      evaluationContext: sideOverrides.evaluationContext || {},
+      learnedStatePrediction: sideOverrides.learnedStatePrediction || null,
+      learnedModelExpected: Boolean(sideOverrides.learnedModelExpected)
     });
   }
 
@@ -199,7 +201,9 @@ export class TrackingSessionEngine {
     timestamp = timestampMs / 1000,
     features = {},
     trackingConfidence = 1,
-    evaluationContext = {}
+    evaluationContext = {},
+    learnedStatePrediction = null,
+    learnedModelExpected = false
   }) {
     if (
       this.sessionState === SESSION_STATES.PAUSED ||
@@ -210,23 +214,33 @@ export class TrackingSessionEngine {
     if (this.sessionState === SESSION_STATES.OUTSIDE_SESSION) this.start();
     this.sessionStartedAtMs ??= timestampMs;
     this.lastTimestampMs = timestampMs;
-    const stateScores = Object.fromEntries(
-      this.techniquePackage.stateNames.map((stateName) => [
-        stateName,
-        evaluateRule(
-          this.techniquePackage.getState(stateName).enter_rules,
-          features,
-          { previousFeatures: this.previousOfflineFeatures }
-        ).score
-      ])
-    );
+    const useLearnedModel = learnedModelExpected || Boolean(learnedStatePrediction);
+    const stateScores = useLearnedModel
+      ? Object.fromEntries(
+          this.techniquePackage.stateNames.map((stateName) => [
+            stateName,
+            learnedStatePrediction?.probabilities?.[stateName] || 0
+          ])
+        )
+      : Object.fromEntries(
+          this.techniquePackage.stateNames.map((stateName) => [
+            stateName,
+            evaluateRule(
+              this.techniquePackage.getState(stateName).enter_rules,
+              features,
+              { previousFeatures: this.previousOfflineFeatures }
+            ).score
+          ])
+        );
     this.previousOfflineFeatures = { ...features };
 
-    const temporal = this.stateMachine.update({
-      timestampMs,
-      features,
-      trackingConfidence
-    });
+    const temporal = useLearnedModel
+      ? this.stateMachine.updateLearned({
+          timestampMs,
+          stateProbabilities: learnedStatePrediction?.probabilities || null,
+          trackingConfidence
+        })
+      : this.stateMachine.update({ timestampMs, features, trackingConfidence });
     if (temporal.tracking_lost) {
       if (this.sessionState !== SESSION_STATES.TRACKING_LOST) {
         this.stateBeforeTrackingLoss = this.sessionState;
@@ -349,6 +363,7 @@ export class TrackingSessionEngine {
       tracking_confidence: trackingConfidence,
       tracking_lost: temporal.tracking_lost,
       unknown_movement: temporal.unknown_movement,
+      features: repetitionFeatures,
       form_errors: errors.active_errors.map((error) => error.error_id),
       cue_timing_ms:
         this.currentRepetition?.response_time_ms ??
@@ -360,6 +375,11 @@ export class TrackingSessionEngine {
         ) ??
         null,
       state_scores: stateScores,
+      shadow_state_scores: null,
+      learned_state_prediction: learnedStatePrediction,
+      learned_model_mode: useLearnedModel
+        ? (learnedStatePrediction ? "primary" : "warming_up")
+        : "unavailable",
       rule_evidence: temporal.rule_evidence,
       temporal_event: temporal.event
     };

@@ -555,7 +555,7 @@ export function trimPracticeTapeFrames(
 
   const classifiedFrames = frames.filter((frame) =>
     frame.scorable === true ||
-    ["step_enter", "step_hold", "step_peak", "rep_peak", "rep_recovery"].includes(
+    ["step_enter", "step_hold", "step_peak", "rep_peak"].includes(
       frame.temporalPhase
     )
   );
@@ -571,6 +571,29 @@ export function trimPracticeTapeFrames(
   );
   const firstPeakMs = repetitionPeaks[0]?.elapsedMs;
   const lastPeakMs = repetitionPeaks[repetitionPeaks.length - 1]?.elapsedMs;
+  const endpointScore = (frame) => {
+    const scores = frame?.stepScores || [];
+    return Math.max(
+      Number(scores[0]) || 0,
+      Number(scores[Math.max(0, scores.length - 1)]) || 0
+    );
+  };
+  const impactScore = (frame) => Number(frame?.stepScores?.[1]) || 0;
+  let confirmedRecoveryMs = null;
+  let recoveryRunLength = 0;
+  if (Number.isFinite(lastPeakMs)) {
+    for (const frame of frames) {
+      if (frame.elapsedMs <= lastPeakMs) continue;
+      const returnedToEndpoint =
+        endpointScore(frame) >= 75 &&
+        endpointScore(frame) - impactScore(frame) >= 5;
+      recoveryRunLength = returnedToEndpoint ? recoveryRunLength + 1 : 0;
+      if (recoveryRunLength >= 3) {
+        confirmedRecoveryMs = frame.elapsedMs;
+        break;
+      }
+    }
+  }
   const firstProgressionFrame = repetitionPeaks.length
     ? frames.find(
         (frame) =>
@@ -605,7 +628,10 @@ export function trimPracticeTapeFrames(
         : firstActivityMs - paddingBeforeMs
     )
   );
-  const endMs = lastActivityMs + paddingAfterMs;
+  const endMs =
+    (Number.isFinite(confirmedRecoveryMs)
+      ? confirmedRecoveryMs
+      : lastActivityMs) + paddingAfterMs;
 
   return frames
     .filter((frame) => frame.elapsedMs >= startMs && frame.elapsedMs <= endMs)

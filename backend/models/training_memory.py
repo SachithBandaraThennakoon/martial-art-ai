@@ -137,3 +137,20 @@ class PracticeSessionAnalytics(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
+
+
+class TemporalLabelingDraft(Base):
+    __tablename__ = "temporal_labeling_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    technique_key = Column(String, nullable=False, index=True)
+    schema_version = Column(Integer, default=1)
+    status = Column(String, default="draft", index=True)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )

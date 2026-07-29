@@ -5,10 +5,20 @@ export default function MetricsPanel({
   angles,
   requiredParts,
   feedback,
-  coachEvent
+  coachEvent,
+  compositeForm,
+  difficulty = "medium",
+  onDifficultyChange
 }) {
   const currentStep = steps[currentStepIndex];
-  const focusPart = coachEvent?.focus_body_part || coachEvent?.body_part;
+  const topCompositeCorrection = compositeForm?.corrections?.[0];
+  const topCompositeStrength = compositeForm?.strengths?.[0];
+  const focusPart =
+    ["angle", "quality"].includes(topCompositeCorrection?.kind)
+      ? topCompositeCorrection.bodyPart
+      : topCompositeStrength?.bodyPart ||
+        coachEvent?.focus_body_part ||
+        coachEvent?.body_part;
   const isReadinessMetric = (bodyPart) =>
     bodyPart?.startsWith("fist_") ||
     bodyPart?.startsWith("hand_") ||
@@ -30,7 +40,8 @@ export default function MetricsPanel({
 
   const formatValue = (value) => `${value} deg`;
 
-  const formatTarget = (min, max) => `Target ${min}-${max} deg`;
+  const formatTarget = (target, min, max) =>
+    `Ideal ${target ?? Math.round((min + max) / 2)}° · Range ${min}-${max}°`;
 
   const getFeedback = (value, min, max) => {
     if (value < min) {
@@ -45,23 +56,126 @@ export default function MetricsPanel({
 
     return "Good";
   };
+  const compositeCorrectionText = topCompositeCorrection
+    ? topCompositeCorrection.kind === "angle"
+      ? `${topCompositeCorrection.label}: ${topCompositeCorrection.current}°, ideal ${topCompositeCorrection.ideal}°.`
+      : `${topCompositeCorrection.label}. Adjust the movement quality and repeat smoothly.`
+    : topCompositeStrength
+      ? `${topCompositeStrength.label} is correct at ${topCompositeStrength.current}${topCompositeStrength.kind === "angle" ? "°" : "%"}, close to the ${topCompositeStrength.ideal}${topCompositeStrength.kind === "angle" ? "°" : "%"} ideal.`
+      : null;
 
   return (
     <div className="metrics-panel">
       <div className={`accuracy-card ${accuracy >= 80 ? "is-good" : "is-low"}`}>
-        <span>Form Match</span>
-        <strong>{accuracy}%</strong>
+        <div className="accuracy-card__summary">
+          <span>Weighted Form Match</span>
+          <strong>{compositeForm?.scorable ? `${accuracy}%` : "--"}</strong>
+          <small>{compositeForm?.coverage ?? 0}% evidence coverage</small>
+        </div>
+        <div className="form-difficulty" aria-label="Correction difficulty">
+          {["easy", "medium", "hard"].map((option) => (
+            <button
+              aria-pressed={difficulty === option}
+              className={difficulty === option ? "is-active" : ""}
+              key={option}
+              onClick={() => onDifficultyChange?.(option)}
+              type="button"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="panel-block focus-board">
         <p className="eyebrow">Master Focus</p>
         <h2>{formatBodyPart(focusPart)}</h2>
-        <p>{coachEvent?.summary || feedback || currentStep?.step_name || "Move into frame."}</p>
+        <p>
+          {compositeCorrectionText ||
+            coachEvent?.summary ||
+            feedback ||
+            currentStep?.step_name ||
+            "Move into frame."}
+        </p>
       </div>
+
+      {compositeForm ? (
+        <div className="panel-block form-score-details">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Correction priority</p>
+              <small>Highest-impact changes first</small>
+            </div>
+          </div>
+          <div className="form-score-groups">
+            {[
+              ["Punch", compositeForm.groupScores.primary],
+              ["Balance", compositeForm.groupScores.balance],
+              ["Power", compositeForm.groupScores.power],
+              ["Alignment", compositeForm.groupScores.alignment],
+              ["Hands", compositeForm.groupScores.guard],
+              ["Focus", compositeForm.groupScores.focus],
+              ["Motion", compositeForm.groupScores.motion]
+            ].map(([label, score]) => (
+              <span key={label}>
+                <small>{label}</small>
+                <strong>{Number.isFinite(score) ? `${score}%` : "--"}</strong>
+              </span>
+            ))}
+          </div>
+          {compositeForm.corrections.length ? (
+            <ol className="form-correction-list">
+              {compositeForm.corrections.map((correction) => (
+                <li key={correction.bodyPart}>
+                  <strong>{correction.label}</strong>
+                  {correction.kind === "angle" ? (
+                    <small>
+                      Current {correction.current}° · Ideal {correction.ideal}° ·
+                      Range {correction.min}-{correction.max}°
+                    </small>
+                  ) : correction.kind === "quality" ? (
+                    <small>
+                      Current {correction.current}% · Ideal {correction.ideal}% ·
+                      Range {correction.min}-{correction.max}%
+                    </small>
+                  ) : (
+                    <small>Motion evidence needs adjustment</small>
+                  )}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="form-correction-clear">
+              {compositeForm.scorable
+                ? "No major correction in the visible evidence."
+                : "Show more of your body before form is scored."}
+            </p>
+          )}
+          {compositeForm.strengths?.length ? (
+            <div className="form-strengths">
+              <strong>What is working</strong>
+              <ul>
+                {compositeForm.strengths.map((strength) => (
+                  <li key={strength.bodyPart}>
+                    <span>{strength.label}</span>
+                    <small>
+                      {strength.current}{strength.kind === "angle" ? "°" : "%"} ·
+                      ideal {strength.ideal}{strength.kind === "angle" ? "°" : "%"}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="panel-block">
         <div className="panel-heading">
-          <p className="eyebrow">Live Values</p>
+          <div>
+            <p className="eyebrow">Live Values</p>
+            <small>Full-body angle targets</small>
+          </div>
           <span>{bodyParts.length} tracked</span>
         </div>
 
@@ -85,7 +199,7 @@ export default function MetricsPanel({
                 >
                   <span>{formatBodyPart(part.body_part)}</span>
                   <strong>{hasValue ? formatValue(value) : "--"}</strong>
-                  <small>{formatTarget(part.min, part.max)}</small>
+                  <small>{formatTarget(part.target_angle, part.min, part.max)}</small>
                   <em>
                     {hasValue
                       ? getFeedback(value, part.min, part.max)
