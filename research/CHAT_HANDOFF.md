@@ -4,6 +4,8 @@ Last updated: 2026-07-30
 Codex task title: **Combat Cognition Thesis & Evaluation**  
 Task ID: `019fb1a5-e869-7c63-883e-90149e744a7e`
 
+Portable discussion transcript: [`CHAT_TRANSCRIPT.md`](CHAT_TRANSCRIPT.md)
+
 ## How to continue
 
 1. Sign in to Codex on the personal laptop using the same account.
