@@ -1,0 +1,1 @@
+case_id,participant_id,session_id,system_variant,ground_truth_phase,predicted_phase,phase_correct,feedback_correct,feedback_relevant,feedback_safe,feedback_actionable,latency_ms,tracking_available,failure_category,reviewer_id,notes

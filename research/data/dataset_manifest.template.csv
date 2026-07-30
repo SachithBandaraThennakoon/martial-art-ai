@@ -1,0 +1,2 @@
+dataset_id,record_id,participant_id,session_id,technique_id,source_type,source_name,license_or_consent,fps,frame_count,landmark_schema,coordinate_system,annotation_status,split_group,sha256,notes
+example,P001_S001,P001,S001,jab,own_recording,controlled_pilot,consent_required,30,0,MediaPipe33,normalized_xyz,human_verified,P001,,replace_or_delete_example

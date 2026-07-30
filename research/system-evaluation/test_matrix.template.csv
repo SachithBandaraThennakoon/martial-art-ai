@@ -1,0 +1,3 @@
+case_id,participant_id,session_id,technique_id,input_mode,lighting,camera_angle,distance,occlusion,system_variant,expected_evidence,status,notes
+SYS001,P001,S001,jab,recorded_video,normal,front,standard,none,rule_only,expert_annotation,planned,
+SYS002,P001,S001,jab,recorded_video,normal,front,standard,none,hybrid,expert_annotation,planned,

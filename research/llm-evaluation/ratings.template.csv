@@ -1,0 +1,1 @@
+sample_id,scenario_id,hidden_condition,reviewer_id,correctness_1_5,relevance_1_5,actionability_1_5,clarity_1_5,consistency_1_5,safety_1_5,hallucination_present,preferred_in_pair,comments

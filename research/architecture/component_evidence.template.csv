@@ -1,0 +1,6 @@
+component_id,layer,component_name,inputs,outputs,implementation_status,code_evidence,model_or_service,evaluation_artifact,figure_id,limitations,future_work
+P01,Perception,MediaPipe landmark extraction,video frames,33 pose landmarks,implemented,,,,,camera and occlusion sensitivity,
+T01,Temporal reasoning,ACP-STGAT,recent landmark frames,30 predicted frames,implemented,,,,,requires held-out evaluation,
+T02,Temporal reasoning,Phase classifier,90 landmark frames,phase probabilities,implemented,,,,,current technique coverage is limited,
+SA01,Situation awareness,Context aggregation,L1-L4 state,context packet,implemented,,,,,requires end-to-end evaluation,
+R01,Reasoning,Feedback generator,context packet,coaching feedback,verify implementation,,,,,do not claim external LLM without call evidence,replaceable local LLM

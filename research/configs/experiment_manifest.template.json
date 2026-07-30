@@ -1,0 +1,42 @@
+{
+  "experiment_id": "YYYYMMDD_model_short_name_run01",
+  "research_question": "",
+  "model": {
+    "name": "",
+    "version": "",
+    "checkpoint_sha256": "",
+    "onnx_sha256": ""
+  },
+  "data": {
+    "manifest_path": "research/data/dataset_manifest.csv",
+    "dataset_sha256": "",
+    "split_strategy": "participant_grouped_before_windowing",
+    "train_groups": [],
+    "validation_groups": [],
+    "test_groups": []
+  },
+  "runtime": {
+    "python": "",
+    "pytorch": "",
+    "onnxruntime": "",
+    "hardware": "",
+    "colab_runtime": ""
+  },
+  "training": {
+    "seeds": [42, 43, 44],
+    "hyperparameters": {}
+  },
+  "evaluation": {
+    "primary_metric": "",
+    "secondary_metrics": [],
+    "baselines": [],
+    "robustness_conditions": []
+  },
+  "artifacts": {
+    "metrics_json": "",
+    "per_sample_csv": "",
+    "figures": [],
+    "executed_notebook": ""
+  },
+  "limitations": []
+}
