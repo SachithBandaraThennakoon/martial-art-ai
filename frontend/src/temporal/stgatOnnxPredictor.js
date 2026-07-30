@@ -1,4 +1,4 @@
-import * as ort from "onnxruntime-web/wasm";
+import * as ortWasm from "onnxruntime-web/wasm";
 
 const MODEL_PATH = "/models/acp_stgat_motion_predictor.onnx?v=acp-stgat-mediapipe33-opset18";
 const MODEL_NAME = "ACP-STGAT";
@@ -46,9 +46,9 @@ const MEDIAPIPE_JOINT_MAP = [
 const MODEL_TO_MEDIAPIPE = [null, 24, 26, 28, 23, 25, 27, null, null, 0, 11, 13, 15, 12, 14, 16, null];
 const MAX_VISUAL_JOINT_DELTA = 0.28;
 
-ort.env.wasm.numThreads = 1;
-ort.env.wasm.proxy = false;
-ort.env.wasm.wasmPaths = {
+ortWasm.env.wasm.numThreads = 1;
+ortWasm.env.wasm.proxy = false;
+ortWasm.env.wasm.wasmPaths = {
   wasm: "/ort-wasm/ort-wasm-simd-threaded.wasm"
 };
 
@@ -194,7 +194,7 @@ function buildSequenceFrames(frames, sequenceLength) {
   ];
 }
 
-function buildInputTensor(session, frames) {
+function buildInputTensor(runtime, session, frames) {
   const shape = getInputShape(session);
   const [, sequenceLength, jointOrFeature, channelCount] = shape.dimensions;
   const sequenceFrames = buildSequenceFrames(frames, sequenceLength);
@@ -240,7 +240,7 @@ function buildInputTensor(session, frames) {
 
   return {
     inputName: shape.inputName,
-    tensor: new ort.Tensor("float32", data, shape.dimensions),
+    tensor: new runtime.Tensor("float32", data, shape.dimensions),
     denormalize:
       modelFrames[modelFrames.length - 1] ||
       toModelFrame(frames[frames.length - 1] || { landmarks: [] }, jointOrFeature)
@@ -385,13 +385,64 @@ function stabilizePrediction(predictedLandmarks, currentLandmarks = []) {
 }
 
 export class StgatOnnxPredictor {
-  constructor({ modelPath = MODEL_PATH } = {}) {
+  constructor({
+    modelPath = MODEL_PATH,
+    backendOrder = ["webgpu", "wasm", "webgl"]
+  } = {}) {
     this.modelPath = modelPath;
+    this.backendOrder = backendOrder;
     this.sessionPromise = null;
     this.session = null;
+    this.runtime = ortWasm;
+    this.backend = null;
     this.latestPrediction = null;
     this.isRunning = false;
     this.status = "not_loaded";
+  }
+
+  async createSession() {
+    const failures = [];
+
+    for (const backend of this.backendOrder) {
+      try {
+        let runtime;
+        if (backend === "webgpu") {
+          if (!globalThis.navigator?.gpu) {
+            throw new Error("WebGPU is unavailable in this browser");
+          }
+          runtime = await import("onnxruntime-web/webgpu");
+          runtime.env.wasm.numThreads = 1;
+          runtime.env.wasm.proxy = false;
+          runtime.env.wasm.wasmPaths = {
+            wasm: "/ort-wasm/ort-wasm-simd-threaded.asyncify.wasm"
+          };
+        } else if (backend === "webgl") {
+          runtime = await import("onnxruntime-web/webgl");
+        } else {
+          runtime = ortWasm;
+        }
+
+        const session = await runtime.InferenceSession.create(this.modelPath, {
+          executionProviders: [backend]
+        });
+        this.runtime = runtime;
+        this.backend = backend;
+        return session;
+      } catch (error) {
+        failures.push({
+          backend,
+          message: error?.message || String(error)
+        });
+      }
+    }
+
+    const error = new Error(
+      failures
+        .map(({ backend, message }) => `${backend}: ${message}`)
+        .join(" | ")
+    );
+    error.failures = failures;
+    throw error;
   }
 
   load() {
@@ -399,9 +450,7 @@ export class StgatOnnxPredictor {
 
     if (!this.sessionPromise) {
       this.status = "loading";
-      this.sessionPromise = ort.InferenceSession.create(this.modelPath, {
-        executionProviders: ["wasm"]
-      })
+      this.sessionPromise = this.createSession()
         .then((session) => {
           this.session = session;
           this.status = "ready";
@@ -416,7 +465,9 @@ export class StgatOnnxPredictor {
             status: "load_failed",
             error: message,
             model_path: this.modelPath,
-            wasm_paths: ort.env.wasm.wasmPaths
+            attempted_backends: this.backendOrder,
+            backend_failures: error?.failures || [],
+            wasm_paths: ortWasm.env.wasm.wasmPaths
           };
           return null;
         });
@@ -432,7 +483,11 @@ export class StgatOnnxPredictor {
       this.isRunning = true;
       const sourceLandmarks = currentLandmarks.map((point) => ({ ...point }));
       const originTimestampMs = (frames[frames.length - 1]?.timestamp || 0) * 1000;
-      const { inputName, tensor, denormalize } = buildInputTensor(session, frames);
+      const { inputName, tensor, denormalize } = buildInputTensor(
+        this.runtime,
+        session,
+        frames
+      );
 
       session
         .run({ [inputName]: tensor })
@@ -466,6 +521,7 @@ export class StgatOnnxPredictor {
           this.latestPrediction = {
             source: "onnx",
             status: landmarks ? "ready_stabilized" : "output_shape_unsupported",
+            backend: this.backend,
             model_name: MODEL_NAME,
             display_name: MODEL_DISPLAY_NAME,
             origin_timestamp_ms: originTimestampMs,
@@ -486,6 +542,7 @@ export class StgatOnnxPredictor {
             source: "onnx",
             status: "run_failed",
             error: error?.message || "ONNX inference failed",
+            backend: this.backend,
             model_name: MODEL_NAME,
             display_name: MODEL_DISPLAY_NAME
           };

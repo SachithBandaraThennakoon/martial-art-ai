@@ -116,7 +116,8 @@ export default function TrainMode({
   inputSource = "live",
   inputVideoUrl,
   inputVideoName,
-  onInputStatus
+  onInputStatus,
+  onPredictionStatus
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -1090,6 +1091,7 @@ export default function TrainMode({
           inputVideoUrl={inputVideoUrl}
           inputVideoName={inputVideoName}
           onInputStatus={onInputStatus}
+          onPredictionStatus={onPredictionStatus}
           displayMirrored={displayMirrored}
           skeletonLayers={skeletonLayers}
           bodyCalibration={bodyCalibration?.profile}

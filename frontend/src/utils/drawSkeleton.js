@@ -19,7 +19,7 @@ const MIN_VISIBILITY = 0.35;
 const CORRECTION_RED = "#ff3b3b";
 const CORRECT_GREEN = "#60d394";
 const PREDICTION_YELLOW = "#ffd84a";
-const ATTENTION_GREEN = "#60d394";
+const ACP_PREDICTION_BLUE = "#45a3ff";
 
 function fitLivePoint(point, mirrored = false) {
   const x = 0.5 + (point.x - 0.5) * SKELETON_SCALE;
@@ -61,15 +61,25 @@ export function drawSkeleton(
   const onnxPredictedPoints = options.onnxPredictedLandmarks?.map((point) =>
     fitLivePoint(point, options.mirrored)
   );
+  const observedEnabled = options.observedEnabled !== false;
   const correctParts = options.correctParts || new Set();
-  const drawPredictionLayer = (layerPoints, color, shadowColor, lineWidth = 3) => {
+  const drawPredictionLayer = (
+    layerPoints,
+    color,
+    shadowColor,
+    lineWidth = 3,
+    dashed = false
+  ) => {
     if (!layerPoints) return;
 
-    ctx.shadowBlur = 10;
+    ctx.save();
+    ctx.shadowBlur = dashed ? 16 : 10;
     ctx.shadowColor = shadowColor;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
     ctx.lineWidth = lineWidth;
+    ctx.globalAlpha = dashed ? 0.94 : 1;
+    ctx.setLineDash(dashed ? [12, 7] : []);
 
     BODY_CONNECTIONS.forEach((connection) => {
       const [fromIndex, toIndex] = connection.points;
@@ -90,9 +100,16 @@ export function drawSkeleton(
       if (!isDrawablePrediction(point)) return;
 
       ctx.beginPath();
-      ctx.arc(point.x * width, point.y * height, 2.5, 0, Math.PI * 2);
+      ctx.arc(
+        point.x * width,
+        point.y * height,
+        dashed ? 4.5 : 2.5,
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     });
+    ctx.restore();
   };
 
   ctx.clearRect(0, 0, width, height);
@@ -102,7 +119,7 @@ export function drawSkeleton(
   ctx.shadowColor = "rgba(255, 255, 255, 0.22)";
   ctx.shadowBlur = 4;
 
-  BODY_CONNECTIONS.forEach((connection) => {
+  if (observedEnabled) BODY_CONNECTIONS.forEach((connection) => {
     const [fromIndex, toIndex] = connection.points;
     const from = points[fromIndex];
     const to = points[toIndex];
@@ -125,7 +142,7 @@ export function drawSkeleton(
   });
 
   ctx.shadowBlur = 2;
-  KEY_JOINTS.forEach((index) => {
+  if (observedEnabled) KEY_JOINTS.forEach((index) => {
     const point = points[index];
     const isCorrection = BODY_CONNECTIONS.some(
       (connection) =>
@@ -160,7 +177,7 @@ export function drawSkeleton(
       radius: 7
     }
   ];
-  qualityMarkers.forEach(({ index, parts, radius }) => {
+  if (observedEnabled) qualityMarkers.forEach(({ index, parts, radius }) => {
     const point = points[index];
     if (!isVisible(point)) return;
     const isCorrection = parts.some((part) => correctionParts.has(part));
@@ -182,5 +199,11 @@ export function drawSkeleton(
     drawPredictionLayer(predictedPoints, PREDICTION_YELLOW, "rgba(255, 216, 74, 0.58)", 3);
   }
 
-  drawPredictionLayer(onnxPredictedPoints, ATTENTION_GREEN, "rgba(96, 211, 148, 0.62)", 3.25);
+  drawPredictionLayer(
+    onnxPredictedPoints,
+    ACP_PREDICTION_BLUE,
+    "rgba(69, 163, 255, 0.92)",
+    5.5,
+    true
+  );
 }

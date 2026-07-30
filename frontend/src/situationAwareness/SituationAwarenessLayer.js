@@ -2,7 +2,8 @@ const DEFAULT_CONFIG = {
   updateIntervalMs: 450,
   lowTrackingThreshold: 0.45,
   mistakeRiskThreshold: 0.62,
-  fatigueRiskThreshold: 0.62
+  fatigueRiskThreshold: 0.62,
+  forecastRiskThreshold: 0.62
 };
 
 function clamp(value, min, max) {
@@ -28,6 +29,12 @@ function sameMistake(mistake, weakness) {
 }
 
 function getAttentionTarget({ trackingConfidence, action, session, user, weaknessMatch, config }) {
+  const forecast = action.forecast_awareness || {};
+  const forecastWarning =
+    forecast.trusted &&
+    forecast.likely_mistake &&
+    (forecast.risk || 0) >= config.forecastRiskThreshold;
+
   if (trackingConfidence < config.lowTrackingThreshold) {
     return {
       layer: "level1",
@@ -43,6 +50,29 @@ function getAttentionTarget({ trackingConfidence, action, session, user, weaknes
       body_part: user.top_weakness.body_part,
       issue: user.top_weakness.issue,
       priority: round((action.mistake_risk || 0) * 0.55 + 0.35)
+    };
+  }
+
+  if (
+    action.likely_mistake?.body_part &&
+    (action.mistake_risk || 0) >= config.mistakeRiskThreshold
+  ) {
+    return {
+      layer: "level2",
+      body_part: action.likely_mistake.body_part,
+      issue: action.likely_mistake.issue || "technique_error",
+      priority: round(action.mistake_risk || 0)
+    };
+  }
+
+  if (forecastWarning) {
+    return {
+      layer: "level2_forecast",
+      body_part: forecast.likely_mistake.body_part,
+      issue: forecast.likely_mistake.issue || "predicted_technique_error",
+      priority: round(forecast.risk || 0),
+      predicted: true,
+      first_risk_ms: forecast.likely_mistake.first_risk_ms ?? null
     };
   }
 
@@ -73,8 +103,16 @@ function getAttentionTarget({ trackingConfidence, action, session, user, weaknes
 }
 
 function getSituationState({ trackingConfidence, action, session, userProgression, config }) {
+  const forecast = action.forecast_awareness || {};
   if (trackingConfidence < config.lowTrackingThreshold) return "tracking_unclear";
   if ((action.mistake_risk || 0) >= config.mistakeRiskThreshold) return "correcting";
+  if (
+    forecast.trusted &&
+    forecast.likely_mistake &&
+    (forecast.risk || 0) >= config.forecastRiskThreshold
+  ) {
+    return "anticipating";
+  }
   if ((session.fatigue_risk || 0) >= config.fatigueRiskThreshold) return "warning";
   if (userProgression.ready_for_next_technique || session.recommendation === "advance_step") {
     return "advance_ready";
@@ -127,6 +165,24 @@ function getFeedbackDecision({ situationState, attentionTarget, session, user })
       should_speak: true,
       should_show_text: true,
       should_pause_progression: true
+    };
+  }
+
+  if (situationState === "anticipating") {
+    const part = label(attentionTarget.body_part);
+    const issue = label(attentionTarget.issue);
+    const leadTime = Number.isFinite(attentionTarget.first_risk_ms)
+      ? ` in about ${(attentionTarget.first_risk_ms / 1000).toFixed(1)} seconds`
+      : "";
+
+    return {
+      type: "predictive_guidance",
+      timing: "before_predicted_error",
+      intensity: "low",
+      message: `${part} may become ${issue}${leadTime}. Adjust before it happens.`,
+      should_speak: true,
+      should_show_text: true,
+      should_pause_progression: false
     };
   }
 
@@ -193,6 +249,15 @@ function getNextAction({ situationState, attentionTarget, userProgression }) {
     };
   }
 
+  if (situationState === "anticipating") {
+    return {
+      command: "prepare_correction",
+      step_focus: `${attentionTarget.body_part}_${attentionTarget.issue}`,
+      allow_next_step: false,
+      agent_intent: "prevent_predicted_form_error"
+    };
+  }
+
   if (situationState === "advance_ready") {
     return {
       command: userProgression.ready_for_next_technique ? "unlock_next_technique" : "advance_step",
@@ -231,6 +296,7 @@ export class SituationAwarenessLayer {
     this.lastUpdateMs = timestampMs;
 
     const trackingConfidence = level1State.tracking?.confidence || 0;
+    const forecast = action.forecast_awareness || {};
     const userProgression = user.progression || {};
     const weaknessMatch = sameMistake(action.likely_mistake, user.top_weakness);
     const attentionTarget = getAttentionTarget({
@@ -259,7 +325,8 @@ export class SituationAwarenessLayer {
       (action.mistake_risk || 0) * 0.35 +
         (session.fatigue_risk || 0) * 0.25 +
         (weaknessMatch ? 0.2 : 0) +
-        trackingRisk * 0.2,
+        trackingRisk * 0.15 +
+        (forecast.trusted ? (forecast.risk || 0) * 0.2 : 0),
       0,
       1
     );
@@ -280,6 +347,10 @@ export class SituationAwarenessLayer {
           motion_confidence: round(trackingConfidence),
           mistake_risk: round(action.mistake_risk || 0),
           fatigue_risk: round(session.fatigue_risk || 0),
+          forecast_trusted: Boolean(forecast.trusted),
+          forecast_risk: round(forecast.risk || 0),
+          forecast_horizon_ms: forecast.horizon_ms ?? null,
+          forecast_agreement_error: forecast.agreement_error ?? null,
           user_history_match: Boolean(weaknessMatch),
           decision_score: round(decisionScore)
         },

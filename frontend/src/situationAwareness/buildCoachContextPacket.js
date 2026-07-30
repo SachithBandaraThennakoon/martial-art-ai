@@ -27,6 +27,7 @@ function compactLevel1(level1State) {
 
 function compactLevel2(level2State) {
   const action = level2State?.action_context || {};
+  const forecast = action.forecast_awareness || {};
   return {
     time_horizon: TEMPORAL_LAYER_KNOWLEDGE.level2_action.prediction_horizon,
     step_state: action.step_state || null,
@@ -38,7 +39,17 @@ function compactLevel2(level2State) {
     boundary_probability: round(action.temporal_segmentation?.boundary?.probability),
     latest_event: action.temporal_segmentation?.event || null,
     likely_mistake: compactMistake(action.likely_mistake),
-    next_step_prediction: action.next_step_prediction || null
+    next_step_prediction: action.next_step_prediction || null,
+    forecast_awareness: {
+      status: forecast.status || "unavailable",
+      trusted: Boolean(forecast.trusted),
+      horizon_ms: forecast.horizon_ms ?? null,
+      prediction_confidence: round(forecast.prediction_confidence),
+      agreement_error: forecast.agreement_error ?? null,
+      risk: round(forecast.risk),
+      likely_mistake: compactMistake(forecast.likely_mistake),
+      first_risk_ms: forecast.likely_mistake?.first_risk_ms ?? null
+    }
   };
 }
 

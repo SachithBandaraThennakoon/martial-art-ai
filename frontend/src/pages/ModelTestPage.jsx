@@ -195,7 +195,7 @@ export default function ModelTestPage() {
               <h2>What to expect</h2>
               <ul>
                 <li>White skeleton = your live pose from MediaPipe.</li>
-                <li>Green skeleton = ACP-STGAT ONNX prediction.</li>
+                <li>Blue skeleton = ACP-STGAT ONNX prediction.</li>
                 <li>Allow camera access if the browser asks for permission.</li>
               </ul>
             </div>

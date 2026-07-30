@@ -282,6 +282,7 @@ export class Level2ActionLayer {
         attention_prediction: {
           model_name: modelPrediction?.model_name,
           display_name: modelPrediction?.display_name,
+          backend: modelPrediction?.backend || this.onnxPredictor?.backend || null,
           status: modelPrediction?.status,
           source: modelPrediction?.source || "none",
           error: modelPrediction?.error || null,

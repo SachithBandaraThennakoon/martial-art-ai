@@ -43,6 +43,12 @@ export default function TrainingStudio({ studioMode = "student" }) {
   const [adminInputSource, setAdminInputSource] = useState("live");
   const [adminVideo, setAdminVideo] = useState(null);
   const [adminInputStatus, setAdminInputStatus] = useState("Live camera selected");
+  const [acpPredictionStatus, setAcpPredictionStatus] = useState({
+    status: "idle",
+    ready: false,
+    landmarks: 0,
+    error: null
+  });
   const videoInputRef = useRef(null);
   const bodyCalibration = useBodyCalibration();
   const requestedMode = searchParams.get("mode");
@@ -328,9 +334,21 @@ export default function TrainingStudio({ studioMode = "student" }) {
               aria-pressed={activeSkeletonLayers.onnx}
               className={`coach-toggle-button ${activeSkeletonLayers.onnx ? "is-active" : ""}`}
               onClick={() => toggleSkeletonLayer("onnx")}
+              title={
+                acpPredictionStatus.error ||
+                `ACP runtime: ${acpPredictionStatus.status}`
+              }
               type="button"
             >
-              Green ACP {activeSkeletonLayers.onnx ? "On" : "Off"}
+              Blue ACP{" "}
+              {activeSkeletonLayers.onnx
+                ? acpPredictionStatus.ready
+                  ? "Ready"
+                  : acpPredictionStatus.status === "load_failed" ||
+                      acpPredictionStatus.status === "run_failed"
+                    ? "Error"
+                    : "Loading"
+                : "Off"}
             </button>
           </div>
         ) : null}
@@ -357,6 +375,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           inputVideoUrl={adminVideo?.url || null}
           inputVideoName={adminVideo?.name || null}
           onInputStatus={setAdminInputStatus}
+          onPredictionStatus={setAcpPredictionStatus}
         />
       ) : mode === "practice" ? (
         <PracticeMode
@@ -377,6 +396,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           inputVideoUrl={adminVideo?.url || null}
           inputVideoName={adminVideo?.name || null}
           onInputStatus={setAdminInputStatus}
+          onPredictionStatus={setAcpPredictionStatus}
         />
       ) : (
         <PracticeAnalysisMode

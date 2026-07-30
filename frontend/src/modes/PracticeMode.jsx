@@ -288,6 +288,17 @@ const encodePracticeTapeFrame = (frame) => ({
   pe: frame.predictionAgreementError,
   pf: frame.usedPredictionFallback,
   pcf: frame.predictionConfidence,
+  fa: frame.forecastAwareness
+    ? [
+        frame.forecastAwareness.status || null,
+        frame.forecastAwareness.trusted === true,
+        frame.forecastAwareness.risk ?? null,
+        frame.forecastAwareness.likely_mistake?.body_part || null,
+        frame.forecastAwareness.likely_mistake?.issue || null,
+        frame.forecastAwareness.likely_mistake?.first_risk_ms ?? null,
+        frame.forecastAwareness.horizon_ms ?? null
+      ]
+    : null,
   lr: frame.liveRep,
   ls: frame.liveStep,
   lph: frame.livePhase,
@@ -374,6 +385,21 @@ const decodePracticeTapeFrame = (frame, index) => ({
   predictionAgreementError: frame.pe ?? null,
   usedPredictionFallback: frame.pf === true,
   predictionConfidence: frame.pcf ?? null,
+  forecastAwareness: frame.fa
+    ? {
+        status: frame.fa[0] || "unavailable",
+        trusted: frame.fa[1] === true,
+        risk: frame.fa[2] ?? 0,
+        likely_mistake: frame.fa[3]
+          ? {
+              body_part: frame.fa[3],
+              issue: frame.fa[4] || null,
+              first_risk_ms: frame.fa[5] ?? null
+            }
+          : null,
+        horizon_ms: frame.fa[6] ?? null
+      }
+    : null,
   liveRep: frame.lr ?? null,
   liveStep: frame.ls ?? null,
   livePhase: frame.lph || null,
@@ -1166,7 +1192,8 @@ export default function PracticeMode({
   inputSource = "live",
   inputVideoUrl,
   inputVideoName,
-  onInputStatus
+  onInputStatus,
+  onPredictionStatus
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -2335,6 +2362,17 @@ export default function PracticeMode({
           holisticFrame.predictionAggregate?.usePredictionFallback === true,
         predictionConfidence:
           holisticFrame.predictionAggregate?.predictionConfidence ?? null,
+        forecastAwareness: holisticFrame.forecastAwareness
+          ? {
+              status: holisticFrame.forecastAwareness.status,
+              trusted: holisticFrame.forecastAwareness.trusted === true,
+              risk: holisticFrame.forecastAwareness.risk ?? 0,
+              likely_mistake: holisticFrame.forecastAwareness.likely_mistake
+                ? { ...holisticFrame.forecastAwareness.likely_mistake }
+                : null,
+              horizon_ms: holisticFrame.forecastAwareness.horizon_ms ?? null
+            }
+          : null,
         motionScore: Math.max(holisticFrame.motionEnergy || 0, poseMotion * 10)
       });
     };
@@ -2997,6 +3035,7 @@ export default function PracticeMode({
           inputVideoUrl={inputVideoUrl}
           inputVideoName={inputVideoName}
           onInputStatus={onInputStatus}
+          onPredictionStatus={onPredictionStatus}
           displayMirrored={displayMirrored}
           skeletonLayers={practiceSkeletonLayers}
           bodyCalibration={bodyCalibration?.profile}

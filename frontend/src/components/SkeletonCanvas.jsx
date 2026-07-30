@@ -154,6 +154,7 @@ import {
   SESSION_STATES,
   TrackingSessionEngine
 } from "../tracking/trackingSessionEngine";
+import { deriveForecastAwareness } from "../temporal/forecastAwareness";
 
 const BODY_PART_MAP = {
   elbow_right: [12, 14, 16],
@@ -754,7 +755,8 @@ export default function SkeletonCanvas({
   inputSource = "live",
   inputVideoUrl = null,
   inputVideoName = null,
-  onInputStatus
+  onInputStatus,
+  onPredictionStatus
 }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -833,6 +835,8 @@ export default function SkeletonCanvas({
   const onRuleEngineFrameUpdateRef = useRef(onRuleEngineFrameUpdate);
   const onRuleEngineSessionCompleteRef = useRef(onRuleEngineSessionComplete);
   const onLandmarkFrameRef = useRef(onLandmarkFrame);
+  const onPredictionStatusRef = useRef(onPredictionStatus);
+  const lastPredictionStatusRef = useRef("");
   const stanceTargetDegreesRef = useRef(stanceTargetDegrees);
   const lastCalibrationStatusTimeRef = useRef(0);
   const lastLevel1UpdateTimeRef = useRef(0);
@@ -1047,7 +1051,9 @@ export default function SkeletonCanvas({
     performanceModeRef.current = performanceMode;
     basePerformanceConfigRef.current = getStudioPerformanceConfig(performanceProfile, {
       onnxEnabled: Boolean(
-        skeletonLayers?.onnx || (onLandmarkFrame && !capturePoseOnly)
+        skeletonLayers?.onnx ||
+        enableAwareness ||
+        (onLandmarkFrame && !capturePoseOnly)
       )
     });
     performanceConfigRef.current = applyStudioPerformanceMode(
@@ -1105,6 +1111,10 @@ export default function SkeletonCanvas({
     onBodyCalibrationSampleRef.current = onBodyCalibrationSample;
     onCalibrationStatusRef.current = onCalibrationStatus;
   }, [onBodyCalibrationSample, onCalibrationStatus]);
+
+  useEffect(() => {
+    onPredictionStatusRef.current = onPredictionStatus;
+  }, [onPredictionStatus]);
 
   useEffect(() => {
     onAngleUpdateRef.current = onAngleUpdate;
@@ -1673,7 +1683,7 @@ export default function SkeletonCanvas({
             }) || null
           : trackingSessionEngineRef.current?.latestFrame || null;
         onRuleEngineFrameUpdateRef.current?.(ruleEngineShadowFrame);
-        const level2State = level2ActionRef.current.update({
+        let level2State = level2ActionRef.current.update({
           level1State,
           requiredParts: requiredPartsRef.current,
           currentStepId: currentStepIdRef.current,
@@ -1687,6 +1697,27 @@ export default function SkeletonCanvas({
           confidence: level1State?.motion_context?.prediction_confidence || 0
         });
         const level2Prediction = level2State?.debug?.onnxPrediction;
+        const onnxRuntimeStatus =
+          level2Prediction?.status ||
+          level2State?.action_context?.attention_prediction?.onnx_status ||
+          (performanceConfigRef.current.onnxEnabled ? "loading" : "disabled");
+        const predictionStatusPayload = {
+          status: onnxRuntimeStatus,
+          ready: Boolean(level2Prediction?.landmarks?.length),
+          landmarks: level2Prediction?.landmarks?.length || 0,
+          error:
+            level2Prediction?.error ||
+            level2State?.action_context?.attention_prediction?.onnx_error ||
+            null
+        };
+        const predictionStatusSignature = JSON.stringify(predictionStatusPayload);
+        if (
+          predictionStatusSignature !== lastPredictionStatusRef.current &&
+          onPredictionStatusRef.current
+        ) {
+          lastPredictionStatusRef.current = predictionStatusSignature;
+          onPredictionStatusRef.current(predictionStatusPayload);
+        }
         predictionLedgerRef.current.addSequence({
           model: "level2",
           originTimestampMs: level2Prediction?.origin_timestamp_ms,
@@ -1698,6 +1729,24 @@ export default function SkeletonCanvas({
           observedLandmarks: level1State?.debug?.currentLandmarks || frame.pose,
           observedConfidence: level1State?.tracking?.confidence || 0
         });
+        if (level2State?.action_context) {
+          const forecastAwareness = deriveForecastAwareness({
+            prediction: level2Prediction,
+            requiredParts: requiredPartsRef.current,
+            trackingConfidence: level1State?.tracking?.confidence || 0,
+            predictionConfidence:
+              level2State.action_context.prediction_confidence || 0,
+            agreementError: predictionAggregate.agreementError,
+            sourceCounts: predictionAggregate.sourceCounts
+          });
+          level2State = {
+            ...level2State,
+            action_context: {
+              ...level2State.action_context,
+              forecast_awareness: forecastAwareness
+            }
+          };
+        }
         lastMotionQualityRef.current = {
           trackingConfidence: level1State?.tracking?.confidence ?? 0.75,
           motionEnergy: level2State?.action_context?.motion_energy ?? lastMotionQualityRef.current.motionEnergy
@@ -1873,14 +1922,13 @@ export default function SkeletonCanvas({
           motionEnergy: level2State?.action_context?.motion_energy ?? 0,
           trackingConfidence: level1State?.tracking?.confidence ?? 0,
           predictionAggregate,
+          forecastAwareness:
+            level2State?.action_context?.forecast_awareness || null,
           displayPoseSource: displayPoseSelection.source,
           angles: anglesPayload
         });
 
-        if (
-          inputSource === "skeleton" ||
-          skeletonLayersRef.current.live === false
-        ) {
+        if (inputSource === "skeleton") {
           const context = canvasRef.current?.getContext("2d", { alpha: true });
           context?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         } else {
@@ -1892,6 +1940,7 @@ export default function SkeletonCanvas({
               : getCorrectionParts(feedbackPartsRef.current, anglesPayload),
             {
               mirrored: displayMirroredRef.current,
+              observedEnabled: skeletonLayersRef.current.live !== false,
               correctParts: skeletonLayersRef.current.corrections === false
                 ? new Set()
                 : getCorrectParts(feedbackPartsRef.current, anglesPayload),
