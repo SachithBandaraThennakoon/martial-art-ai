@@ -588,20 +588,6 @@ function getPoseFaceAwareness(poseLandmarks, mirrored = false) {
   };
 }
 
-function getPoseFaceScores(poseLandmarks) {
-  const awareness = getPoseFaceAwareness(poseLandmarks);
-
-  if (!awareness.visible) {
-    return {};
-  }
-
-  return {
-    face_forward: awareness.forwardScore,
-    eyes_forward: awareness.eyeScore,
-    face_calm: awareness.calmScore
-  };
-}
-
 function getPoseFaceDetailPoints(poseLandmarks) {
   return getPoseFaceLandmarks(poseLandmarks).map((point) => ({
     index: point.index,
@@ -696,10 +682,10 @@ function getHolisticScores(frame, includeHands, includeFace) {
     Object.assign(scores, getHandScores(frame.hands, frame.pose, frame.handedness));
   }
 
+  // Use the dense face model for coaching scores. Pose-face estimates remain
+  // useful for the awareness display, but are too approximate to gate form.
   if (includeFace && frame.face) {
     Object.assign(scores, getFaceScores(frame.face));
-  } else {
-    Object.assign(scores, getPoseFaceScores(frame.pose));
   }
 
   return scores;
@@ -1341,7 +1327,12 @@ export default function SkeletonCanvas({
         JSON.stringify({
           step_id: currentStepIdRef.current,
           step_name: currentStepNameRef.current,
-          required_parts: requiredPartsRef.current,
+          // Temporal recognition keeps using the primary parts, while the
+          // coach must evaluate every configured full-body/quality target.
+          required_parts:
+            feedbackPartsRef.current?.length
+              ? feedbackPartsRef.current
+              : requiredPartsRef.current,
           angle_targets: measurementPartsRef.current,
           feedback_targets: feedbackPartsRef.current,
           angles: anglesPayload

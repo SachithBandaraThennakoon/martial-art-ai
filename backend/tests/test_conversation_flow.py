@@ -26,6 +26,52 @@ class ConversationIntentAgentTests(unittest.TestCase):
 
 
 class CoachConversationFlowTests(unittest.TestCase):
+    def test_step_cannot_complete_with_any_incorrect_target(self):
+        coach = CoachSession()
+
+        self.assertFalse(coach._can_complete_step(99, []))
+        self.assertTrue(coach._can_complete_step(100, []))
+
+    def test_missing_auxiliary_evidence_is_advisory_but_measured_errors_block(self):
+        coach = CoachSession()
+        missing_fist = {"body_part": "fist_left", "issue": "missing"}
+        wrong_fist = {"body_part": "fist_left", "issue": "too_closed"}
+
+        self.assertTrue(coach._can_complete_step(100, [missing_fist]))
+        self.assertFalse(coach._can_complete_step(100, [wrong_fist]))
+
+    def test_correction_order_is_angles_then_hands_then_face(self):
+        coach = CoachSession()
+        body_issue = {
+            "body_part": "knee_left",
+            "issue": "too_open",
+            "severity": 20,
+        }
+        hand_issue = {
+            "body_part": "fist_left",
+            "issue": "too_closed",
+            "severity": 30,
+        }
+        face_issue = {
+            "body_part": "face_forward",
+            "issue": "too_closed",
+            "severity": 40,
+        }
+
+        self.assertEqual(
+            coach._ordered_focus_issues(
+                [face_issue, hand_issue],
+                [body_issue],
+            )[0]["body_part"],
+            "knee_left",
+        )
+        self.assertEqual(
+            coach._ordered_focus_issues([face_issue, hand_issue], [])[0][
+                "body_part"
+            ],
+            "fist_left",
+        )
+
     def test_session_starts_with_a_real_ready_check(self):
         coach = CoachSession(current_step_name="Guard stance", total_steps=2)
         message = coach.initial_greeting()

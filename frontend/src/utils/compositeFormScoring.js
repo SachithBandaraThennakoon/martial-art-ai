@@ -4,13 +4,6 @@ const DEFAULT_PROFILES = {
   hard: { tolerance_scale: 0.75, correction_limit: 3 }
 };
 
-const GROUP_WEIGHTS = {
-  primary: 3,
-  balance: 2.25,
-  power: 2,
-  alignment: 1.5
-};
-
 function angleGroup(target) {
   if (target.role === "primary") return "primary";
   if (/knee|ankle/.test(target.body_part)) return "balance";
@@ -80,7 +73,9 @@ export function scoreCompositeForm({
   angleTargets.forEach((target) => {
     const value = liveAngles[target.body_part];
     const group = angleGroup(target);
-    const weight = GROUP_WEIGHTS[group];
+    // Every configured body angle contributes equally by default. A technique
+    // may still provide an explicit weight when biomechanics require it.
+    const weight = Number(target.weight) || 1;
     if (!Number.isFinite(value)) {
       evidence.push({ ...target, group, kind: "angle", measured: false, weight });
       return;
@@ -184,7 +179,6 @@ export function scoreCompositeForm({
         : second.weight * (100 - second.score) -
             first.weight * (100 - first.score);
     })
-    .slice(0, profile.correction_limit)
     .map((item) => ({
       bodyPart: item.body_part || item.feature,
       label: item.label,
@@ -229,6 +223,7 @@ export function scoreCompositeForm({
     corrections,
     strengths,
     difficulty,
+    correctionLimit: profile.correction_limit,
     groupScores,
     scorable: coverage >= 35
   };

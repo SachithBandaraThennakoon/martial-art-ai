@@ -7,6 +7,7 @@ export default function MetricsPanel({
   feedback,
   coachEvent,
   compositeForm,
+  showFullBodyAssessment = false,
   difficulty = "medium",
   onDifficultyChange
 }) {
@@ -68,7 +69,7 @@ export default function MetricsPanel({
     <div className="metrics-panel">
       <div className={`accuracy-card ${accuracy >= 80 ? "is-good" : "is-low"}`}>
         <div className="accuracy-card__summary">
-          <span>Weighted Form Match</span>
+          <span>Full-body Form Match</span>
           <strong>{compositeForm?.scorable ? `${accuracy}%` : "--"}</strong>
           <small>{compositeForm?.coverage ?? 0}% evidence coverage</small>
         </div>
@@ -99,12 +100,12 @@ export default function MetricsPanel({
         </p>
       </div>
 
-      {compositeForm ? (
+      {compositeForm && showFullBodyAssessment ? (
         <div className="panel-block form-score-details">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">Correction priority</p>
-              <small>Highest-impact changes first</small>
+              <p className="eyebrow">Full-body assessment</p>
+              <small>Every visible target contributes</small>
             </div>
           </div>
           <div className="form-score-groups">

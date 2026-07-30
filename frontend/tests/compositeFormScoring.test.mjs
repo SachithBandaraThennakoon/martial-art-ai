@@ -55,7 +55,7 @@ test("missing supporting evidence reduces coverage instead of becoming zero", ()
   assert.ok(result.coverage < 100);
 });
 
-test("difficulty changes tolerance and correction density", () => {
+test("difficulty changes tolerance without excluding body corrections", () => {
   const easy = scoreCompositeForm({
     angleTargets,
     difficulty: "easy",
@@ -68,8 +68,34 @@ test("difficulty changes tolerance and correction density", () => {
   });
 
   assert.ok(easy.accuracy > hard.accuracy);
-  assert.equal(easy.corrections.length, 1);
+  assert.equal(easy.corrections.length, 2);
   assert.equal(hard.corrections.length, 2);
+});
+
+test("every configured angle contributes equally unless explicitly weighted", () => {
+  const correctPrimaryOnly = scoreCompositeForm({
+    angleTargets,
+    liveAngles: { elbow_left: 150, knee_left: 175 }
+  });
+  const correctSupportingOnly = scoreCompositeForm({
+    angleTargets,
+    liveAngles: { elbow_left: 95, knee_left: 125 }
+  });
+
+  assert.equal(correctPrimaryOnly.coverage, 100);
+  assert.equal(correctSupportingOnly.coverage, 100);
+  assert.equal(
+    correctPrimaryOnly.accuracy,
+    correctSupportingOnly.accuracy
+  );
+  assert.deepEqual(
+    correctPrimaryOnly.corrections.map((item) => item.bodyPart),
+    ["knee_left"]
+  );
+  assert.deepEqual(
+    correctSupportingOnly.corrections.map((item) => item.bodyPart),
+    ["elbow_left"]
+  );
 });
 
 test("hand and face quality affect accuracy and ranked feedback", () => {

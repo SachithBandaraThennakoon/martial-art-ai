@@ -6,7 +6,7 @@ from agents.conversation_intent_agent import ConversationIntentAgent
 from agents.movement_agent import analyze_movement
 
 
-ACCURACY_TO_ADVANCE = 90
+ACCURACY_TO_ADVANCE = 100
 ACCURACY_HOLD_SECONDS = 5
 VOICE_FEEDBACK_COOLDOWN_SECONDS = 6
 QUESTION_REMINDER_SECONDS = 15
@@ -244,8 +244,19 @@ class CoachSession:
 
         parts = [_part_to_namespace(part) for part in required_parts]
         analysis = analyze_movement(parts, live_angles or {})
-        correct = sum(1 for item in analysis if item["issue"] == "good")
-        accuracy = int((correct / len(parts)) * 100) if parts else 0
+        # Pose angles are the reliable completion gate. Hand and face models
+        # remain advisory because their evidence can disappear or fluctuate.
+        body_analysis = [
+            item for item in analysis
+            if not self._is_readiness_target(item["body_part"])
+        ]
+        correct = sum(
+            1 for item in body_analysis if item["issue"] == "good"
+        )
+        accuracy = (
+            int((correct / len(body_analysis)) * 100)
+            if body_analysis else 0
+        )
         issues = [
             item for item in sorted(
                 analysis,
@@ -395,7 +406,14 @@ class CoachSession:
                 body_part = None
                 issue_name = "good"
 
-        speak = self._should_speak(message)
+        auxiliary_focus = (
+            body_part is not None and self._is_readiness_target(body_part)
+        )
+        speak = (
+            self._should_speak(message)
+            if not auxiliary_focus or self.correction_frames >= 4
+            else False
+        )
         self.state = "give_feedback"
         self.last_feedback = message
         self.recent_feedback = (self.recent_feedback + [message])[-8:]
@@ -869,7 +887,7 @@ class CoachSession:
     def _blocking_readiness_issues(self, readiness_issues):
         return [
             item for item in readiness_issues
-            if not self._is_face_readiness_target(item["body_part"])
+            if item["issue"] != "missing"
         ]
 
     def _clear_high_accuracy_hold(self):
@@ -1020,7 +1038,16 @@ class CoachSession:
             key=lambda entry: self._readiness_priority(entry["body_part"])
         )
 
-        return sorted_face_issues or sorted_hand_issues or body_issues
+        # Correct structural pose first. Auxiliary detectors are considered
+        # only when they provide an actual measurement; missing evidence is
+        # never guessed and never blocks progress.
+        measured_hand_issues = [
+            item for item in sorted_hand_issues if item["issue"] != "missing"
+        ]
+        measured_face_issues = [
+            item for item in sorted_face_issues if item["issue"] != "missing"
+        ]
+        return body_issues or measured_hand_issues or measured_face_issues
 
     def _should_speak(self, message):
         focus = self.pending_speech_focus

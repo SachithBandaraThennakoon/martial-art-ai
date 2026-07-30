@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -65,4 +66,24 @@ test("offline decoder configuration rejects invalid duration values", async () =
       return true;
     }
   );
+});
+
+test("every Jab angle target has a valid ideal inside its range", async () => {
+  const document = JSON.parse(
+    await readFile(
+      path.join(trackingRoot, "jab", "training-steps.json"),
+      "utf8"
+    )
+  );
+
+  for (const step of document.steps) {
+    assert.equal(step.angle_targets.length, 12);
+    for (const target of step.angle_targets) {
+      assert.ok(
+        target.target_angle >= target.min &&
+          target.target_angle <= target.max,
+        `${step.step_name}: ${target.body_part} target must be inside its range`
+      );
+    }
+  }
 });

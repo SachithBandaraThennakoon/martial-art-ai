@@ -344,7 +344,12 @@ export default function TrainMode({
 
     const now = Date.now();
     const feedbackState = compositeFeedbackRef.current;
-    const correction = awarenessPriority ? null : compositeForm.corrections[0];
+    const correction = awarenessPriority
+      ? null
+      : compositeForm.corrections.find(
+          (item) =>
+            now - (feedbackState.recentParts.get(item.bodyPart) || 0) >= 10000
+        ) || compositeForm.corrections[0];
     const signature = awarenessPriority
       ? `awareness:${situation.situation_state}`
       : [
@@ -1357,6 +1362,7 @@ export default function TrainMode({
           feedback={textEnabled ? feedback : ""}
           coachEvent={textEnabled ? coachEvent : null}
           compositeForm={compositeForm}
+          showFullBodyAssessment={isAdminStudio}
           difficulty={formDifficulty}
           onDifficultyChange={selectFormDifficulty}
         />
