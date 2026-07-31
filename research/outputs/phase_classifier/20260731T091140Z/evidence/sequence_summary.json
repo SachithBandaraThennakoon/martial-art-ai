@@ -1,0 +1,11 @@
+{
+  "boundary_precision_mean": 1.0,
+  "boundary_recall_mean": 0.9523809523809523,
+  "boundary_f1_mean": 0.9743913493913494,
+  "boundary_mae_frames_mean": 0.9541590354090355,
+  "repetition_count_mae": 0.375,
+  "coarse_repetition_precision": 1.0,
+  "coarse_repetition_recall": 0.8125,
+  "false_repetitions_per_minute_on_unrelated_motion": null,
+  "false_repetition_note": "Not measurable: this bootstrap contains no dedicated unrelated-motion negative sessions."
+}

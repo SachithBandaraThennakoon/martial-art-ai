@@ -22,3 +22,13 @@ If LLM feedback is operational, compare `hybrid_template` and `hybrid_llm`.
 
 The three-participant study is a pilot and must not be generalized to all martial
 artists. Report individual results as well as descriptive aggregate statistics.
+
+## Completed deterministic verification
+
+The awareness and temporal algorithms have a separate automated verification
+record:
+
+- [`ALGORITHMIC_AWARENESS_VERIFICATION.md`](./ALGORITHMIC_AWARENESS_VERIFICATION.md)
+
+This verifies designed software behavior. Live human/system evaluation remains
+the final evidence stage.

@@ -41,3 +41,12 @@ __TRACKING_LOST__: landmarks are missing or unreliable.
 __UNKNOWN__: the correct state cannot be confidently determined.
 GUARD_TO_EXTENSION: movement leaving Guard and entering Extension.
 Other transition labels receive equivalent automatic explanations.
+
+
+
+Saved and updated inside the project:
+[Current handoff](/C:/Users/DELL/OneDrive - Vantage Ltd/Documents/New project/martial-art-ai/research/CHAT_HANDOFF.md)
+[Portable transcript](/C:/Users/DELL/OneDrive - Vantage Ltd/Documents/New project/martial-art-ai/research/CHAT_TRANSCRIPT.md)
+[Extended chat record](/C:/Users/DELL/OneDrive - Vantage Ltd/Documents/New project/martial-art-ai/research/chat.md)
+On your personal laptop, let OneDrive finish syncing, then tell Codex:
+Read research/CHAT_HANDOFF.md and research/CHAT_TRANSCRIPT.md. Use “Current transfer update — 2026-07-31” as the authoritative status. Continue with the end-to-end pilot and framework-evaluation protocol. Do not generate the thesis yet.

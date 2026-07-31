@@ -6034,3 +6034,21 @@ Saved here:
 It contains 1,033 lines covering the complete discussion sequence, all research decisions, questions, model evaluation plans, architecture and completed work. Long assistant answers are condensed—not falsely presented as word-for-word—but preserve their substance. The handoff file now links to it.
 
 No GitHub push was performed. Both Markdown files can sync through OneDrive or be copied to your personal laptop.
+
+---
+
+## Continuation saved on 2026-07-31
+
+The discussion continued through ACP-STGAT and temporal phase result reviews,
+algorithmic awareness verification, the reasoning/LLM implementation audit and
+evaluation package, the full Combat Cognition architecture map, and the expert-
+knowledge/reflexive-practitioner methodology.
+
+Authoritative portable status:
+
+- `research/CHAT_HANDOFF.md` — **Current transfer update — 2026-07-31**
+- `research/CHAT_TRANSCRIPT.md` — sections 35–42
+
+Next task: create the three-participant end-to-end pilot/framework-evaluation
+protocol. Do not generate the thesis yet. Real annotated phase-data retraining is a
+later pending item.

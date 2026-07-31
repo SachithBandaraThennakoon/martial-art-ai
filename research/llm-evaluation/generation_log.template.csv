@@ -1,0 +1,1 @@
+sample_id,scenario_id,condition,repeat_index,provider,model_id,api_family,model_or_api_version,prompt_version,temperature,top_p,max_output_tokens,run_timestamp_utc,latency_ms,input_tokens,output_tokens,estimated_cost,action,target,confidence,evidence_refs,schema_valid,error,raw_message

@@ -1,0 +1,9 @@
+matches,true_boundaries,predicted_boundaries,boundary_precision,boundary_recall,boundary_f1,boundary_mae_frames,session_id,technique
+12,14,12,1.0,0.8571428571428571,0.9230769230769231,1.0833333333333333,synthetic-jab-0024-d93455cc,jab
+13,14,13,1.0,0.9285714285714286,0.9629629629629629,1.0769230769230769,synthetic-jab-0011-6222972d,jab
+9,9,9,1.0,1.0,1.0,1.0,synthetic-jab-0023-0b62be57,jab
+4,4,4,1.0,1.0,1.0,0.5,synthetic-jab-0022-c1ec9318,jab
+14,14,14,1.0,1.0,1.0,1.4285714285714286,synthetic-front-kick-0013-ee94345b,front-kick
+9,9,9,1.0,1.0,1.0,0.4444444444444444,synthetic-front-kick-0003-a7cce409,front-kick
+5,6,5,1.0,0.8333333333333334,0.9090909090909091,1.6,synthetic-front-kick-0016-d22140a8,front-kick
+4,4,4,1.0,1.0,1.0,0.5,synthetic-front-kick-0014-2b2b85c0,front-kick

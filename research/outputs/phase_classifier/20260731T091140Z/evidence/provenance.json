@@ -1,0 +1,112 @@
+{
+  "run_id": "20260731T091140Z",
+  "data_source": "github_sample",
+  "source_url": "https://raw.githubusercontent.com/SachithBandaraThennakoon/martial-art-ai/c1ae68b540b2bb4c9b70da7ce0c8783a5a9e0aae/training/temporal_phase/samples/universal-jab-front-kick-bootstrap.json",
+  "pinned_commit": "c1ae68b540b2bb4c9b70da7ce0c8783a5a9e0aae",
+  "dataset_sha256": "ba308128027100f9afcbc7787e71bd002108b0542412db90aab686c637b03b87",
+  "dataset_origin": "synthetic_bootstrap_pipeline_check",
+  "configuration": {
+    "data_source": "github_sample",
+    "window": 90,
+    "stride": 15,
+    "batch_size": 32,
+    "epochs": 60,
+    "patience": 10,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "hidden_size": 96,
+    "dropout": 0.2,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "split_seed": 5299,
+    "validation_fraction": 0.15,
+    "test_fraction": 0.15,
+    "boundary_tolerance_frames": 5,
+    "boundary_smoothing_frames": 5
+  },
+  "split_unit": "session",
+  "split_groups": {
+    "train": [
+      "jab:synthetic-jab-0021-83c2bf6d",
+      "jab:synthetic-jab-0006-a6a8d97f",
+      "jab:synthetic-jab-0014-e6d43ea1",
+      "jab:synthetic-jab-0004-d389f33b",
+      "jab:synthetic-jab-0020-64ca979b",
+      "jab:synthetic-jab-0013-5a3a3609",
+      "jab:synthetic-jab-0016-689b4d6f",
+      "jab:synthetic-jab-0010-055a96cf",
+      "jab:synthetic-jab-0009-27013483",
+      "jab:synthetic-jab-0018-90e313e1",
+      "jab:synthetic-jab-0002-9a89770c",
+      "jab:synthetic-jab-0019-09fe9601",
+      "jab:synthetic-jab-0008-06630a55",
+      "jab:synthetic-jab-0001-6893a547",
+      "jab:synthetic-jab-0012-47191fa9",
+      "jab:synthetic-jab-0007-3029ffb2",
+      "front-kick:synthetic-front-kick-0021-73fa2206",
+      "front-kick:synthetic-front-kick-0008-8af261d5",
+      "front-kick:synthetic-front-kick-0001-4f373df9",
+      "front-kick:synthetic-front-kick-0010-9f7b7ad4",
+      "front-kick:synthetic-front-kick-0023-13cd5ea7",
+      "front-kick:synthetic-front-kick-0019-0c0112c5",
+      "front-kick:synthetic-front-kick-0018-0272d8f1",
+      "front-kick:synthetic-front-kick-0004-435e8cf0",
+      "front-kick:synthetic-front-kick-0024-5da2b4c1",
+      "front-kick:synthetic-front-kick-0002-0cf18245",
+      "front-kick:synthetic-front-kick-0017-31eda91a",
+      "front-kick:synthetic-front-kick-0006-35f83bff",
+      "front-kick:synthetic-front-kick-0009-dd699d46",
+      "front-kick:synthetic-front-kick-0020-08ee80fa",
+      "front-kick:synthetic-front-kick-0022-ff658503",
+      "front-kick:synthetic-front-kick-0007-0a720cff"
+    ],
+    "validation": [
+      "jab:synthetic-jab-0015-c243cd3f",
+      "jab:synthetic-jab-0017-62d68fe7",
+      "jab:synthetic-jab-0003-2ba9acb1",
+      "jab:synthetic-jab-0005-a930fe8e",
+      "front-kick:synthetic-front-kick-0011-60ba2ecd",
+      "front-kick:synthetic-front-kick-0012-8920e2d8",
+      "front-kick:synthetic-front-kick-0015-e4094a9b",
+      "front-kick:synthetic-front-kick-0005-4b4e1cbc"
+    ],
+    "test": [
+      "jab:synthetic-jab-0024-d93455cc",
+      "jab:synthetic-jab-0011-6222972d",
+      "jab:synthetic-jab-0023-0b62be57",
+      "jab:synthetic-jab-0022-c1ec9318",
+      "front-kick:synthetic-front-kick-0013-ee94345b",
+      "front-kick:synthetic-front-kick-0003-a7cce409",
+      "front-kick:synthetic-front-kick-0016-d22140a8",
+      "front-kick:synthetic-front-kick-0014-2b2b85c0"
+    ]
+  },
+  "active_evaluation_classes": [
+    "__TRACKING_LOST__",
+    "PREPARATION",
+    "ENTRY",
+    "EXECUTION",
+    "PEAK",
+    "RETRACTION",
+    "RECOVERY"
+  ],
+  "versions": {
+    "python": "3.12.13",
+    "torch": "2.11.0+cu128",
+    "numpy": "2.0.2",
+    "pandas": "2.2.2",
+    "sklearn": "1.6.1",
+    "onnxruntime": "1.28.0"
+  },
+  "device": "cuda",
+  "limitations": [
+    "Synthetic bootstrap scores are pipeline checks, not human accuracy.",
+    "The synthetic split is session-level because it has no real participants.",
+    "No unrelated-motion negative sessions are available for false-repetition rate.",
+    "The offline repetition count is not the authoritative runtime ordered decoder.",
+    "Browser and end-to-end system latency require separate measurement."
+  ]
+}

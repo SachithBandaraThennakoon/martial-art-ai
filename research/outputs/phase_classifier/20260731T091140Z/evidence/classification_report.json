@@ -1,0 +1,57 @@
+{
+  "__TRACKING_LOST__": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1-score": 1.0,
+    "support": 2.0
+  },
+  "PREPARATION": {
+    "precision": 0.9388888888888889,
+    "recall": 0.7934272300469484,
+    "f1-score": 0.8600508905852418,
+    "support": 213.0
+  },
+  "ENTRY": {
+    "precision": 0.7868852459016393,
+    "recall": 0.9230769230769231,
+    "f1-score": 0.8495575221238938,
+    "support": 52.0
+  },
+  "EXECUTION": {
+    "precision": 0.75,
+    "recall": 0.96,
+    "f1-score": 0.8421052631578947,
+    "support": 50.0
+  },
+  "PEAK": {
+    "precision": 0.90625,
+    "recall": 0.8787878787878788,
+    "f1-score": 0.8923076923076924,
+    "support": 66.0
+  },
+  "RETRACTION": {
+    "precision": 0.8673469387755102,
+    "recall": 0.9340659340659341,
+    "f1-score": 0.8994708994708994,
+    "support": 91.0
+  },
+  "RECOVERY": {
+    "precision": 0.8502994011976048,
+    "recall": 0.8765432098765432,
+    "f1-score": 0.8632218844984803,
+    "support": 162.0
+  },
+  "accuracy": 0.8679245283018868,
+  "macro avg": {
+    "precision": 0.8713814963948062,
+    "recall": 0.9094144536934612,
+    "f1-score": 0.8866734503063004,
+    "support": 636.0
+  },
+  "weighted avg": {
+    "precision": 0.8756146863880533,
+    "recall": 0.8679245283018868,
+    "f1-score": 0.8680176082325582,
+    "support": 636.0
+  }
+}

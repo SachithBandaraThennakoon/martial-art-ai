@@ -1031,3 +1031,129 @@ On the personal laptop, open the synced project and tell Codex:
 - No thesis/report has been generated.
 - New transcript is currently an uncommitted addition after local commit
   `ee5ce25`; commit or copy it before transferring the project.
+
+---
+
+## 35. ACP-STGAT standalone notebook and result evidence
+
+The user supplied an earlier ACP-STGAT notebook and requested one shareable,
+standalone, end-to-end Colab notebook covering dataset initialization, training,
+evaluation and export. The notebook was rebuilt under `research/notebooks/` with a
+detailed guide. It does not depend on a previous Colab run. Synthetic fallback is
+explicitly a smoke test and cannot be reported as research accuracy.
+
+The discussion clarified that `Andyen512/DDHpose` is a Hugging Face model/code
+repository rather than the evaluation dataset itself; its documentation references
+Human3.6M and MPI-INF-3DHP. Appropriate evidence includes normalized MPJPE, ADE,
+FDE, horizon/joint error, bone error, robustness, ONNX parity and latency.
+
+The user supplied `20260731T061529Z.zip`. It was preserved and extracted to
+`research/outputs/acp_stgat/20260731T061529Z/` with an interpretation document.
+The result supports a promising architecture benchmark/prototype, not complete
+Combat Cognition accuracy or martial-arts domain validity. Normalized coordinate
+error must not be described as millimetres without physical calibration.
+
+The Level-2 rationale was recorded: current-frame perception cannot anticipate
+approximately one second ahead, so ACP-STGAT supplies a confidence-gated future-pose
+forecast. Prediction is evidence rather than certain future truth.
+
+## 36. ACP-STGAT model rationale
+
+The user proposed that physics-only extrapolation drifts over a 30-frame horizon,
+temporal-only learning may lose anatomical structure, and graph/bone relationships
+help control those errors. `research/architecture/ACP_STGAT_MODEL_RATIONALE.md` now
+documents the kinematic prior, temporal Transformer, anatomical graph attention,
+action conditioning and structural/temporal losses. The careful claim is that the
+combination is intended to reduce drift and anatomical inconsistency; ablation and
+held-out tests are required to establish each component's contribution.
+
+## 37. Temporal phase notebook and result evidence
+
+The user supplied the existing phase notebook and generated jab/front-kick bootstrap
+JSON. A complete shareable notebook and guide were created under
+`research/notebooks/`. The user then supplied `20260731T091140Z.zip`, which was
+preserved under `research/outputs/phase_classifier/20260731T091140Z/` with its model,
+checkpoints, classification/confusion/boundary metrics, grouped splits, robustness,
+ONNX parity, latency, provenance and result interpretation.
+
+`research/data/SYNTHETIC_TEMPORAL_PHASE_DATA_METHODOLOGY.md` records why generated
+data were used. The current results show successful learning of generator-defined
+phase structure and a working pipeline; they are not real-world martial-arts
+accuracy. Future work must collect consented real sessions, manually annotate
+phases, split by participant/session before windowing, and retrain/evaluate. The
+user asked to leave that real-data work as the final item they can later provide.
+
+## 38. Awareness and system-algorithm verification
+
+`research/system-evaluation/ALGORITHMIC_AWARENESS_VERIFICATION.md` was created. All
+23 frontend test files were run sequentially because sandboxed parallel worker
+spawning returned `EPERM`; all 129 assertions passed. Coverage includes temporal
+decoding, forecast trust, ordered phases, repetition/session/user awareness,
+attention priority, feedback gating and tracking failure handling. This is software
+verification, not end-to-end accuracy or human-equivalent cognition.
+
+## 39. Reasoning/LLM audit and evaluation package
+
+The checked repository contains no operational OpenAI client/API call, OpenAI model
+identifier, API-key path or OpenAI SDK dependency. Current coaching wording is
+deterministic rule/template logic. The implemented `coach_intelligence_context`
+packet remains a suitable replaceable reasoning boundary.
+
+Created under `research/llm-evaluation/`: an implementation audit, evaluation
+protocol, 12 controlled scenarios, generation/blinding/rating templates and an
+analysis script. The future comparison keeps cognition packets identical and scores
+correctness, relevance, actionability, clarity, consistency, safety, unsupported
+claims, schema failures, latency and reliability. Current backend coaching and
+conversation tests passed 12 of 12.
+
+## 40. Full architecture and practitioner methodology
+
+**User**
+
+> yes next . also that acrchircture effect my practice, knowledge, research
+> ,experience ,study difference martial arts, biomechanics, psychology
+> ,philosophy ,...and research inside myself how work human internal as well
+
+Created:
+
+- `research/architecture/COMBAT_COGNITION_ARCHITECTURE_AND_EVIDENCE.md`
+- `research/architecture/PRACTITIONER_KNOWLEDGE_METHODOLOGY.md`
+- `research/architecture/component_evidence.csv`
+- `research/architecture/design_knowledge_register.csv` and template
+
+The files map martial-arts expertise, cross-style study, biomechanics, psychology,
+philosophy, first-person internal observation and software experimentation to the
+architecture. The agreed methodology is **expert-informed design-science with
+reflexive practitioner inquiry**. More than 25 years of experience is legitimate
+expert design knowledge. First-person observations generate computational
+hypotheses; they do not alone prove universal brain function, neurological validity
+or system accuracy. Those require literature, tests, model evidence, participants
+and future sensor measurement.
+
+## 41. Is the next step final?
+
+The user asked whether the pilot was the final step. It is the last major data-
+collection/evaluation stage, but evidence consolidation, verified literature review,
+chapter-content agreement and report writing remain. The report must not be
+generated until the user explicitly requests it.
+
+## 42. Personal-laptop transfer update
+
+**User**
+
+> before next step can u save/update this chat in inside project coz now i change
+> to my personal lap
+
+`CHAT_HANDOFF.md`, this transcript and `chat.md` were updated. The authoritative
+status is the **Current transfer update — 2026-07-31** in `CHAT_HANDOFF.md`.
+
+Continuation prompt:
+
+> Read `research/CHAT_HANDOFF.md` and `research/CHAT_TRANSCRIPT.md`, using the
+> “Current transfer update — 2026-07-31” as authoritative. Continue with the
+> end-to-end pilot and framework-evaluation protocol. Do not generate the thesis.
+
+Current next task: prepare the three-participant end-to-end pilot protocol with
+consented jab recordings, expert annotations, rule-only versus hybrid comparison,
+logs, screenshots, latency, failure cases, usability ratings and bias controls.
+Real-data phase-model retraining remains a later pending item.

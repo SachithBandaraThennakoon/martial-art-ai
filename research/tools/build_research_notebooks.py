@@ -52,20 +52,342 @@ def notebook(cells: list[dict]) -> dict:
     }
 
 
+PREP_CELLS = [
+    md(
+        """
+        # Prepare a real MediaPipe-33 motion dataset from videos
+
+        This notebook converts consented recorded videos into the exact landmark
+        format required by the deployed ACP-STGAT model:
+
+        - sequence: `[T,33,3]`
+        - history: 60 frames
+        - forecast target: 30 frames
+        - coordinates: MediaPipe normalized `x`, `y`, and relative-depth `z`
+
+        It does **not** manufacture missing anatomical joints and does not use
+        synthetic motion as final evaluation evidence.
+
+        The Hugging Face repository `Andyen512/DDHpose` contains DDHPose code and
+        model assets. Its Human3.6M/MPI-INF-3DHP datasets are separate 17-joint
+        resources and are not a direct MediaPipe-33 dataset.
+        """
+    ),
+    md(
+        """
+        ## 0. Video naming and privacy
+
+        Rename each video before upload:
+
+        `participant_id__session_id__technique.ext`
+
+        Example: `P001__S001__jab.mp4`
+
+        Use anonymous participant IDs. Keep consent forms and identifiable raw
+        video outside a public repository.
+        """
+    ),
+    code(
+        """
+        !pip -q install mediapipe opencv-python-headless pandas matplotlib
+        """
+    ),
+    code(
+        """
+        import hashlib, json, os, re, shutil
+        from pathlib import Path
+
+        import cv2
+        import matplotlib.pyplot as plt
+        import mediapipe as mp
+        import numpy as np
+        import pandas as pd
+
+        VIDEO_DIR = Path("/content/videos")
+        OUTPUT_DIR = Path("/content/prepared_motion_data")
+        MODEL_PATH = Path("/content/pose_landmarker_full.task")
+        OUTPUT_NPZ = OUTPUT_DIR / "motion_sequences_mediapipe33.npz"
+        TARGET_FPS = 30.0
+        MIN_FRAMES = 90  # 60 observed + 30 future
+        VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        """
+    ),
+    md(
+        """
+        ## 1. Upload videos
+
+        You may upload several videos at once. For a larger dataset, mount Google
+        Drive and set `VIDEO_DIR` to the relevant folder instead.
+        """
+    ),
+    code(
+        """
+        from google.colab import files
+        uploaded = files.upload()
+        for name, content in uploaded.items():
+            (VIDEO_DIR / Path(name).name).write_bytes(content)
+        print("Uploaded videos:", len(uploaded))
+        """
+    ),
+    md(
+        """
+        ## 2. Download the official MediaPipe Pose Landmarker model
+
+        This model performs landmark extraction only. It is not the ACP-STGAT
+        forecasting model.
+        """
+    ),
+    code(
+        """
+        if not MODEL_PATH.exists():
+            import urllib.request
+            urllib.request.urlretrieve(
+                "https://storage.googleapis.com/mediapipe-models/"
+                "pose_landmarker/pose_landmarker_full/float16/latest/"
+                "pose_landmarker_full.task",
+                MODEL_PATH,
+            )
+        print("Pose model bytes:", MODEL_PATH.stat().st_size)
+        """
+    ),
+    md(
+        """
+        ## 3. Extract MediaPipe-33 sequences
+
+        Frames without a detected pose are represented by `NaN`. The evaluation
+        notebook performs within-sequence temporal interpolation and rejects a
+        landmark coordinate with fewer than two valid observations.
+        """
+    ),
+    code(
+        """
+        BaseOptions = mp.tasks.BaseOptions
+        PoseLandmarker = mp.tasks.vision.PoseLandmarker
+        PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+        RunningMode = mp.tasks.vision.RunningMode
+
+        VIDEO_PATTERN = re.compile(
+            r"^(?P<participant>[^_]+)__(?P<session>[^_]+)__(?P<technique>[^.]+)"
+        )
+
+        def parse_video_name(path):
+            match = VIDEO_PATTERN.match(path.name)
+            if not match:
+                raise ValueError(
+                    f"{path.name!r} must follow participant__session__technique.ext"
+                )
+            return match.groupdict()
+
+        def sha256_file(path, block_size=1 << 20):
+            digest = hashlib.sha256()
+            with open(path, "rb") as handle:
+                for block in iter(lambda: handle.read(block_size), b""):
+                    digest.update(block)
+            return digest.hexdigest()
+
+        def extract_video(path, landmarker, target_fps):
+            capture = cv2.VideoCapture(str(path))
+            source_fps = float(capture.get(cv2.CAP_PROP_FPS) or target_fps)
+            step = max(1, round(source_fps / target_fps))
+            output_fps = source_fps / step
+            sequence, source_index, detected = [], 0, 0
+            while True:
+                ok, bgr = capture.read()
+                if not ok:
+                    break
+                if source_index % step:
+                    source_index += 1
+                    continue
+                rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                timestamp_ms = int(round(source_index * 1000 / source_fps))
+                result = landmarker.detect_for_video(image, timestamp_ms)
+                if result.pose_landmarks:
+                    pose = result.pose_landmarks[0]
+                    landmarks = np.asarray(
+                        [[point.x, point.y, point.z] for point in pose],
+                        dtype=np.float32,
+                    )
+                    if landmarks.shape != (33, 3):
+                        raise ValueError(f"Unexpected landmark shape: {landmarks.shape}")
+                    detected += 1
+                else:
+                    landmarks = np.full((33, 3), np.nan, dtype=np.float32)
+                sequence.append(landmarks)
+                source_index += 1
+            capture.release()
+            return np.asarray(sequence, dtype=np.float32), source_fps, output_fps, detected
+
+        options = PoseLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=str(MODEL_PATH)),
+            running_mode=RunningMode.VIDEO,
+            num_poses=1,
+            min_pose_detection_confidence=0.5,
+            min_pose_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+
+        video_paths = sorted(
+            path for path in VIDEO_DIR.iterdir()
+            if path.suffix.lower() in {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+        )
+        if not video_paths:
+            raise ValueError("No supported videos were uploaded.")
+
+        sequences, participants, sessions, techniques, fps_values, quality_rows = (
+            [], [], [], [], [], []
+        )
+        with PoseLandmarker.create_from_options(options) as landmarker:
+            for path in video_paths:
+                identity = parse_video_name(path)
+                sequence, source_fps, output_fps, detected = extract_video(
+                    path, landmarker, TARGET_FPS
+                )
+                coverage = detected / max(len(sequence), 1)
+                accepted = len(sequence) >= MIN_FRAMES and coverage >= 0.80
+                quality_rows.append({
+                    "file_name": path.name,
+                    **identity,
+                    "source_fps": source_fps,
+                    "output_fps": output_fps,
+                    "output_frames": len(sequence),
+                    "tracking_coverage": coverage,
+                    "accepted": accepted,
+                    "video_sha256": sha256_file(path),
+                })
+                print(path.name, sequence.shape, f"coverage={coverage:.1%}", "accepted=", accepted)
+                if accepted:
+                    sequences.append(sequence)
+                    participants.append(identity["participant"])
+                    sessions.append(identity["session"])
+                    techniques.append(identity["technique"])
+                    fps_values.append(output_fps)
+
+        quality = pd.DataFrame(quality_rows)
+        display(quality)
+        if not sequences:
+            raise ValueError(
+                "No video passed the minimum 90-frame and 80% tracking requirements."
+            )
+        """
+    ),
+    md(
+        """
+        ## 4. Quality checks and dataset export
+
+        A final three-participant experiment needs at least three distinct
+        participant IDs, with participant grouping used for train/validation/test.
+        More participants and multiple sessions per participant are preferable.
+        """
+    ),
+    code(
+        """
+        quality.to_csv(OUTPUT_DIR / "video_extraction_quality.csv", index=False)
+        sequence_array = np.empty(len(sequences), dtype=object)
+        sequence_array[:] = sequences
+        np.savez_compressed(
+            OUTPUT_NPZ,
+            sequences=sequence_array,
+            participant_ids=np.asarray(participants),
+            session_ids=np.asarray(sessions),
+            technique_ids=np.asarray(techniques),
+            fps=np.asarray(fps_values, dtype=np.float32),
+        )
+        summary = {
+            "accepted_sequences": len(sequences),
+            "participants": len(set(participants)),
+            "sessions": len(set(sessions)),
+            "techniques": sorted(set(techniques)),
+            "total_frames": int(sum(len(sequence) for sequence in sequences)),
+            "landmark_schema": "MediaPipe33",
+            "coordinate_system": "normalized_image_xyz",
+            "minimum_frames": MIN_FRAMES,
+            "minimum_tracking_coverage": 0.80,
+            "dataset_sha256": sha256_file(OUTPUT_NPZ),
+        }
+        print(json.dumps(summary, indent=2))
+        with open(OUTPUT_DIR / "dataset_summary.json", "w") as handle:
+            json.dump(summary, handle, indent=2)
+        if summary["participants"] < 3:
+            print("WARNING: fewer than three participants; participant-independent "
+                  "train/validation/test evaluation is not possible.")
+        """
+    ),
+    code(
+        """
+        # Visual sanity check: trajectories for selected landmarks.
+        sample = sequences[0]
+        for joint in (0, 11, 12, 15, 16, 23, 24, 27, 28):
+            plt.plot(sample[:, joint, 0], label=str(joint), alpha=0.8)
+        plt.xlabel("Frame"); plt.ylabel("Normalized x")
+        plt.title("Selected landmark trajectories"); plt.legend(ncol=3)
+        plt.tight_layout(); plt.show()
+        """
+    ),
+    md(
+        """
+        ## 5. Expected outputs
+
+        A successful run produces:
+
+        - `motion_sequences_mediapipe33.npz`
+        - `video_extraction_quality.csv`
+        - `dataset_summary.json`
+        - printed participant/session/frame counts and dataset SHA-256
+
+        Upload the NPZ to `01_acp_stgat_research_evaluation.ipynb`. The numerical
+        model metrics are intentionally not predicted in advance; they must come
+        from the held-out data.
+        """
+    ),
+    code(
+        """
+        archive = shutil.make_archive(
+            "/content/prepared_motion_data", "zip", OUTPUT_DIR
+        )
+        print("Archive:", archive)
+        from google.colab import files
+        files.download(archive)
+        """
+    ),
+]
+
+
 MOTION_CELLS = [
     md(
         """
-        # ACP-STGAT motion prediction — research evaluation
+        # ACP-STGAT — end-to-end training and research evaluation
 
-        This notebook evaluates the 60-frame → 30-frame, MediaPipe-33 motion
-        predictor. It separates sessions/participants **before** creating
-        overlapping windows, compares simple forecasting baselines, evaluates a
-        held-out test set, checks noise/missing-landmark robustness, and verifies
-        PyTorch-to-ONNX parity.
+        This single notebook downloads/prepares data, trains ACP-STGAT, evaluates
+        a held-out test set, compares forecasting baselines, checks robustness,
+        and exports/verifies ONNX.
+
+        Default mode uses the processed **Human3.6M data linked by DDHPose** and
+        trains a 17-joint public-benchmark variant without requiring videos.
+        Optional `mediapipe33_npz` mode trains the application-compatible
+        33-landmark variant from system tapes or prepared landmark sequences.
 
         **Reporting rule:** normalized-coordinate errors are not millimetres.
         Smoke tests, synthetic samples, and validation scores must not be reported
         as real-world test accuracy.
+        """
+    ),
+    md(
+        """
+        ## Standalone design
+
+        This notebook is self-contained and can be shared with another researcher.
+        It initializes the DDHPose repository, downloads the processed Human3.6M
+        data linked by that repository, prepares the sequences, trains ACP-STGAT
+        from scratch, evaluates it, and packages all outputs.
+
+        The model uses a 60→30 forecasting contract, pose/velocity/acceleration
+        features, eight-value action context, joint gating, graph-aware attention,
+        a temporal Transformer, future decoder, kinematic prior and ONNX export.
+
+        Synthetic fallback is disabled because final evaluation must stop rather
+        than silently replace missing real data.
         """
     ),
     md(
@@ -78,12 +400,12 @@ MOTION_CELLS = [
     ),
     code(
         """
-        !pip -q install onnx onnxruntime scikit-learn pandas seaborn
+        !pip -q install onnx onnxruntime scikit-learn pandas seaborn gdown huggingface_hub
         """
     ),
     code(
         """
-        import hashlib, json, math, os, platform, random, time
+        import glob, hashlib, json, math, os, platform, random, re, shutil, subprocess, time
         from dataclasses import asdict, dataclass
         from datetime import datetime, timezone
         from pathlib import Path
@@ -107,7 +429,46 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 1. Predeclared configuration
+        ## 1. Initialize the DDHPose repository
+
+        This downloads the public DDHPose code/model repository into the Colab
+        workspace. The repository and its processed research dataset are separate:
+        the following data-acquisition section downloads the Human3.6M archive
+        linked by the DDHPose authors.
+        """
+    ),
+    code(
+        """
+        from huggingface_hub import snapshot_download
+
+        DATA_DIR = Path("/content/motion_data")
+        DDHPOSE_DIR = DATA_DIR / "DDHpose"
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        USE_SYNTHETIC_FALLBACK = False
+
+        try:
+            print("Initializing Hugging Face repository: Andyen512/DDHpose")
+            snapshot_download(
+                repo_id="Andyen512/DDHpose",
+                repo_type="model",
+                local_dir=str(DDHPOSE_DIR),
+                ignore_patterns=["*.pth", "*.pt", "*.ckpt"],
+            )
+        except Exception as error:
+            print("Repository initialization warning:", repr(error))
+
+        repository_npz_files = sorted(
+            glob.glob(str(DDHPOSE_DIR / "**" / "*.npz"), recursive=True)
+        )
+        print("Repository .npz files:", len(repository_npz_files))
+        for path in repository_npz_files[:10]:
+            print(path)
+        print("Synthetic fallback enabled:", USE_SYNTHETIC_FALLBACK)
+        """
+    ),
+    md(
+        """
+        ## 2. Predeclared configuration
 
         Use at least three seeds for the final experiment. A single seed is useful
         only while checking the pipeline. Do not tune after observing the test set.
@@ -115,13 +476,18 @@ MOTION_CELLS = [
     ),
     code(
         """
+        # Choose one:
+        # - "h36m17_public_benchmark": automatic public benchmark; no videos needed.
+        # - "mediapipe33_npz": exact application skeleton; supply a documented NPZ.
+        DATA_MODE = "h36m17_public_benchmark"
+
         @dataclass
         class Config:
-            data_path: str = "/content/motion_sequences.npz"
+            data_path: str = "/content/prepared_h36m17.npz"
             output_root: str = "/content/research_outputs/acp_stgat"
             history: int = 60
             horizon: int = 30
-            joints: int = 33
+            joints: int = 17
             coords: int = 3
             stride: int = 10
             batch_size: int = 32
@@ -137,8 +503,15 @@ MOTION_CELLS = [
             validation_fraction_of_remaining: float = 0.25
             seeds: tuple = (42, 43, 44)
             default_fps: float = 30.0
+            max_train_windows: int = 50000
+            max_evaluation_windows: int = 10000
 
         CFG = Config()
+        if DATA_MODE == "mediapipe33_npz":
+            CFG.data_path = "/content/motion_sequences_mediapipe33.npz"
+            CFG.joints = 33
+        elif DATA_MODE != "h36m17_public_benchmark":
+            raise ValueError(f"Unsupported DATA_MODE: {DATA_MODE}")
         RUN_ID = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         RUN_DIR = Path(CFG.output_root) / RUN_ID
         RUN_DIR.mkdir(parents=True, exist_ok=True)
@@ -148,13 +521,106 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 2. Strict data loading and provenance
+        ## 3. End-to-end public-data acquisition
+
+        In default mode this cell downloads `data.rar`, the processed Human3.6M
+        archive linked from the official DDHPose model card, extracts
+        `data_3d_h36m.npz`, applies the standard VideoPose3D 17-joint subset,
+        normalizes each sequence, and writes the grouped NPZ consumed below.
+
+        Review the Human3.6M terms before use and record the download date/source
+        in the thesis dataset manifest.
+        """
+    ),
+    code(
+        """
+        H36M_DRIVE_ID = "1FMgAf_I04GlweHMfgUKzB0CMwglxuwPe"
+        H36M_KEEP_17 = [0,1,2,3,6,7,8,12,13,14,15,17,18,19,25,26,27]
+
+        def normalize_h36m_sequence(sequence):
+            sequence = np.asarray(sequence, dtype=np.float32)
+            sequence = sequence - sequence[:, :1, :]  # pelvis origin
+            torso = np.linalg.norm(sequence[:, 8] - sequence[:, 0], axis=-1)
+            valid = torso[np.isfinite(torso) & (torso > 1e-6)]
+            if not len(valid):
+                raise ValueError("Cannot determine a valid H36M torso scale.")
+            return sequence / float(np.median(valid))
+
+        def flatten_h36m_positions(positions):
+            sequences, participants, sessions = [], [], []
+            for subject, actions in sorted(positions.items()):
+                for action, value in sorted(actions.items()):
+                    arrays = list(value) if isinstance(value, (list, tuple)) else [value]
+                    for camera_index, raw in enumerate(arrays):
+                        array = np.asarray(raw, dtype=np.float32)
+                        if array.ndim != 3 or array.shape[-1] != 3:
+                            continue
+                        if array.shape[1] >= 28:
+                            array = array[:, H36M_KEEP_17, :]
+                        if array.shape[1:] != (17, 3) or len(array) < 90:
+                            continue
+                        sequences.append(normalize_h36m_sequence(array))
+                        participants.append(str(subject))
+                        safe_action = re.sub(r"[^A-Za-z0-9-]+", "-", str(action)).strip("-")
+                        sessions.append(f"{subject}__{safe_action}__cam{camera_index}")
+            if not sequences:
+                raise ValueError("No compatible Human3.6M sequences were extracted.")
+            return sequences, participants, sessions
+
+        if DATA_MODE == "h36m17_public_benchmark":
+            import gdown
+            archive_path = Path("/content/ddhpose_h36m_data.rar")
+            extract_dir = Path("/content/ddhpose_h36m_data")
+            if not archive_path.exists():
+                gdown.download(id=H36M_DRIVE_ID, output=str(archive_path), quiet=False)
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            if not list(extract_dir.rglob("data_3d_h36m.npz")):
+                subprocess.run(["apt-get", "-qq", "update"], check=True)
+                subprocess.run(
+                    ["apt-get", "-qq", "install", "-y", "unar"], check=True
+                )
+                subprocess.run(
+                    ["unar", "-f", "-o", str(extract_dir), str(archive_path)],
+                    check=True,
+                )
+            candidates = list(extract_dir.rglob("data_3d_h36m.npz"))
+            if len(candidates) != 1:
+                raise ValueError(f"Expected one data_3d_h36m.npz, found {candidates}")
+            source_npz = candidates[0]
+            source_payload = np.load(source_npz, allow_pickle=True)
+            if "positions_3d" not in source_payload.files:
+                raise KeyError(f"positions_3d missing; keys={source_payload.files}")
+            h36m_sequences, h36m_participants, h36m_sessions = flatten_h36m_positions(
+                source_payload["positions_3d"].item()
+            )
+            object_sequences = np.empty(len(h36m_sequences), dtype=object)
+            object_sequences[:] = h36m_sequences
+            np.savez_compressed(
+                CFG.data_path,
+                sequences=object_sequences,
+                participant_ids=np.asarray(h36m_participants),
+                session_ids=np.asarray(h36m_sessions),
+                fps=np.full(len(h36m_sequences), 50.0, dtype=np.float32),
+            )
+            print(
+                "Prepared H36M17:", len(h36m_sequences), "sequences,",
+                len(set(h36m_participants)), "subjects"
+            )
+            print("Source archive:", archive_path)
+            print("Prepared dataset:", CFG.data_path)
+        else:
+            print("Upload/copy the MediaPipe-33 NPZ to:", CFG.data_path)
+        """
+    ),
+    md(
+        """
+        ## 4. Strict data loading and provenance
 
         Expected NPZ keys are `sequences`, `session_ids`, `participant_ids`, and
-        optionally `fps`. Every sequence must be `[T,33,3]`. A different skeleton
-        is rejected; evenly selecting or repeating joints would be anatomically
-        invalid. Missing values are interpolated only along time within the same
-        landmark and coordinate.
+        optionally `fps`. Every sequence must match `[T,CFG.joints,3]`. A different
+        skeleton is rejected; evenly selecting or repeating joints would be
+        anatomically invalid. Missing values are interpolated only along time
+        within the same landmark and coordinate.
         """
     ),
     code(
@@ -216,7 +682,7 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 3. Leakage-safe grouped split and window creation
+        ## 5. Leakage-safe grouped split and window creation
 
         Participant grouping is preferred. If fewer than three participants exist,
         session grouping is used and the limitation must be stated. The test split
@@ -245,22 +711,31 @@ MOTION_CELLS = [
                 assert set(preferred[left]).isdisjoint(set(preferred[right]))
             return {"train": train, "validation": val, "test": test}, group_name
 
-        def make_windows(sequence_indices, sequences, sessions, participants, fps, cfg):
-            past, future, rows = [], [], []
+        def make_windows(sequence_indices, sequences, sessions, participants, fps, cfg, limit):
+            references = []
             for seq_index in sequence_indices:
                 sequence = sequences[seq_index]
                 stop = len(sequence) - cfg.history - cfg.horizon + 1
                 for start in range(0, stop, cfg.stride):
-                    boundary = start + cfg.history
-                    past.append(sequence[start:boundary])
-                    future.append(sequence[boundary:boundary + cfg.horizon])
-                    rows.append({
+                    references.append((int(seq_index), int(start)))
+            if len(references) > limit:
+                rng = np.random.default_rng(CFG.seeds[0])
+                chosen = np.sort(rng.choice(len(references), size=limit, replace=False))
+                references = [references[index] for index in chosen]
+            past, future, rows = [], [], []
+            for seq_index, start in references:
+                boundary = start + cfg.history
+                past.append(sequences[seq_index][start:boundary])
+                future.append(
+                    sequences[seq_index][boundary:boundary + cfg.horizon]
+                )
+                rows.append({
                         "sequence_index": int(seq_index),
                         "session_id": sessions[seq_index],
                         "participant_id": participants[seq_index],
                         "start_frame": int(start),
                         "fps": float(fps[seq_index]),
-                    })
+                })
             if not past:
                 raise ValueError("A split produced no windows.")
             return np.stack(past), np.stack(future), pd.DataFrame(rows)
@@ -269,7 +744,10 @@ MOTION_CELLS = [
             participant_ids, session_ids, CFG, CFG.seeds[0]
         )
         split_data = {
-            name: make_windows(ids, sequences, session_ids, participant_ids, sequence_fps, CFG)
+            name: make_windows(
+                ids, sequences, session_ids, participant_ids, sequence_fps, CFG,
+                CFG.max_train_windows if name == "train" else CFG.max_evaluation_windows
+            )
             for name, ids in split_indices.items()
         }
         for name, (x, y, table) in split_data.items():
@@ -278,7 +756,7 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 4. Dataset and graph-aware ACP-STGAT
+        ## 6. Dataset and graph-aware ACP-STGAT
 
         Spatial attention is masked by the MediaPipe body graph. The network uses
         position, velocity, and acceleration features, temporal attention, learned
@@ -295,10 +773,18 @@ MOTION_CELLS = [
             (11,23),(12,24),(23,24),(23,25),(25,27),(27,29),(29,31),
             (27,31),(24,26),(26,28),(28,30),(30,32),(28,32)
         ]
+        H36M17_EDGES = [
+            (0,1),(1,2),(2,3),(0,4),(4,5),(5,6),
+            (0,7),(7,8),(8,9),(9,10),
+            (8,11),(11,12),(12,13),(8,14),(14,15),(15,16)
+        ]
+        SKELETON_EDGES = (
+            MEDIAPIPE_EDGES if CFG.joints == 33 else H36M17_EDGES
+        )
 
         def adjacency_matrix(joints=33):
             matrix = torch.eye(joints, dtype=torch.bool)
-            for a, b in MEDIAPIPE_EDGES:
+            for a, b in SKELETON_EDGES:
                 matrix[a, b] = matrix[b, a] = True
             # Two-hop neighbors improve information flow while preserving locality.
             numeric = matrix.float()
@@ -360,7 +846,12 @@ MOTION_CELLS = [
                     temporal_layer, num_layers=cfg.temporal_layers
                 )
                 self.action_context = nn.Sequential(
-                    nn.Linear(6, cfg.hidden_dim), nn.GELU(), nn.LayerNorm(cfg.hidden_dim)
+                    nn.Linear(8, cfg.hidden_dim), nn.GELU(),
+                    nn.Linear(cfg.hidden_dim, cfg.hidden_dim)
+                )
+                self.joint_gate = nn.Sequential(
+                    nn.Linear(cfg.hidden_dim, cfg.hidden_dim), nn.GELU(),
+                    nn.Linear(cfg.hidden_dim, cfg.joints), nn.Sigmoid()
                 )
                 self.future_queries = nn.Parameter(
                     torch.randn(cfg.horizon, cfg.hidden_dim) * 0.02
@@ -374,35 +865,68 @@ MOTION_CELLS = [
                     num_layers=2,
                 )
                 self.output = nn.Linear(cfg.hidden_dim, cfg.joints * cfg.coords)
-                self.blend_logit = nn.Parameter(torch.tensor(0.0))
+                self.physics_blend = nn.Sequential(
+                    nn.Linear(cfg.hidden_dim, cfg.hidden_dim), nn.GELU(),
+                    nn.Linear(cfg.hidden_dim, 1), nn.Sigmoid()
+                )
 
             def forward(self, past):
                 velocity = torch.diff(past, dim=1, prepend=past[:, :1])
                 acceleration = torch.diff(velocity, dim=1, prepend=velocity[:, :1])
                 features = torch.cat((past, velocity, acceleration), dim=-1)
                 spatial = self.spatial(self.input(features))
-                tokens = spatial.mean(dim=2)
-                energy = torch.cat((
-                    velocity.abs().mean(dim=(1,2)),
-                    acceleration.abs().mean(dim=(1,2)),
+                speed = torch.linalg.vector_norm(velocity, dim=-1)
+                accel = torch.linalg.vector_norm(acceleration, dim=-1)
+                if self.cfg.joints == 33:
+                    shoulder, elbow, wrist, knee = [11,12], [13,14], [15,16], [25,26]
+                    left_wrist, right_wrist = 15, 16
+                else:
+                    shoulder, elbow, wrist, knee = [11,14], [12,15], [13,16], [2,5]
+                    left_wrist, right_wrist = 13, 16
+                motion_energy = speed.mean(dim=(1,2))
+                accel_energy = accel.mean(dim=(1,2))
+                symmetry = torch.linalg.vector_norm(
+                    past[:, -1, left_wrist] - past[:, -1, right_wrist], dim=-1
+                )
+                action = torch.stack((
+                    motion_energy,
+                    speed[:, :, shoulder].mean(dim=(1,2)),
+                    speed[:, :, elbow].mean(dim=(1,2)),
+                    speed[:, :, wrist].mean(dim=(1,2)),
+                    speed[:, :, knee].mean(dim=(1,2)),
+                    accel_energy,
+                    torch.sigmoid((motion_energy - motion_energy.mean()) * 8.0),
+                    torch.sigmoid((accel_energy + symmetry) * 2.0),
                 ), dim=-1)
-                memory = self.temporal(tokens) + self.action_context(energy)[:, None]
-                queries = self.future_queries[None].expand(len(past), -1, -1)
+                action_embed = self.action_context(action)
+                joint_weights = self.joint_gate(action_embed)[:, None, :, None]
+                tokens = (spatial * (0.5 + joint_weights)).mean(dim=2)
+                memory = self.temporal(tokens) + action_embed[:, None]
+                queries = (
+                    self.future_queries[None].expand(len(past), -1, -1)
+                    + action_embed[:, None]
+                )
                 learned = self.output(self.decoder(queries, memory)).reshape(
                     len(past), self.cfg.horizon, self.cfg.joints, self.cfg.coords
                 )
                 last_velocity = past[:, -1] - past[:, -2]
+                previous_velocity = past[:, -2] - past[:, -3]
+                last_acceleration = last_velocity - previous_velocity
                 steps = torch.arange(
                     1, self.cfg.horizon + 1, device=past.device, dtype=past.dtype
-                )[None, :, None, None]
-                prior = past[:, -1:, :, :] + steps * last_velocity[:, None]
-                alpha = torch.sigmoid(self.blend_logit)
-                return alpha * learned + (1.0 - alpha) * prior
+                )[None, :, None, None] / self.cfg.horizon
+                prior = (
+                    past[:, -1:, :, :]
+                    + steps * last_velocity[:, None]
+                    + 0.5 * steps.square() * last_acceleration[:, None]
+                )
+                blend = self.physics_blend(action_embed)[:, None, None, :]
+                return prior + (1.0 - blend) * learned
         """
     ),
     md(
         """
-        ## 5. Loss, training, and early stopping
+        ## 7. Loss, training, and early stopping
 
         Model selection uses validation normalized MPJPE only. The held-out test
         set is evaluated once after restoring the best validation checkpoint.
@@ -410,7 +934,7 @@ MOTION_CELLS = [
     ),
     code(
         """
-        BONES = torch.tensor(MEDIAPIPE_EDGES, dtype=torch.long)
+        BONES = torch.tensor(SKELETON_EDGES, dtype=torch.long)
 
         def bone_lengths(x):
             bones = BONES.to(x.device)
@@ -481,7 +1005,7 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 6. Metrics, baselines, and robustness
+        ## 8. Metrics, baselines, and robustness
 
         Primary metric: normalized MPJPE (mean Euclidean landmark error).
         Secondary metrics: ADE, FDE, per-horizon error, per-joint error, bone-length
@@ -540,7 +1064,7 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 7. Repeated experiment
+        ## 9. Repeated experiment
 
         This is the long-running cell. It trains all declared seeds, saves every
         run, then reports mean ± standard deviation. Test results are not used to
@@ -623,7 +1147,7 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 8. ONNX parity and latency
+        ## 10. ONNX parity and latency
 
         Parity is checked on a real held-out batch. Latency here is Python
         ONNX Runtime CPU latency; browser latency must also be measured inside the
@@ -635,7 +1159,7 @@ MOTION_CELLS = [
         import onnx
         import onnxruntime as ort
 
-        onnx_path = RUN_DIR / "acp_stgat_motion_predictor.onnx"
+        onnx_path = RUN_DIR / f"acp_stgat_{CFG.joints}joint_motion_predictor.onnx"
         final_model = final_model.cpu().eval()
         example = torch.as_tensor(test_x[:1], dtype=torch.float32)
         torch.onnx.export(
@@ -670,17 +1194,39 @@ MOTION_CELLS = [
     ),
     md(
         """
-        ## 9. Freeze provenance and download
+        ## 11. Freeze provenance and download
 
         Before thesis reporting, inspect failures visually, add public-dataset
         licenses/own-recording consent references to the manifest, and run browser
         parity on the exact exported ONNX file.
         """
     ),
+    md(
+        """
+        ## Expected evidence after execution
+
+        A defensible completed run contains:
+
+        - exact participant/session split and dataset SHA-256
+        - three ACP-STGAT seed results with mean and standard deviation
+        - last-pose and constant-velocity baseline results
+        - normalized MPJPE, ADE, FDE and bone-length error
+        - error-by-horizon plot and robustness table
+        - checkpoints and the exported ONNX model
+        - real-batch ONNX parity plus median/p95 CPU latency
+        - provenance JSON and the executed notebook
+
+        There is intentionally no “expected accuracy percentage.” Motion
+        forecasting is coordinate regression, and its values must be measured
+        from the held-out dataset rather than estimated in advance.
+        """
+    ),
     code(
         """
         provenance = {
             "run_id": RUN_ID,
+            "data_mode": DATA_MODE,
+            "skeleton_variant": f"{CFG.joints}-joint",
             "configuration": asdict(CFG),
             "dataset_sha256": sha256_file(CFG.data_path),
             "group_level": GROUP_LEVEL,
@@ -696,7 +1242,13 @@ MOTION_CELLS = [
             "limitations": [
                 "Normalized coordinates are not physical millimetres.",
                 "Best-seed visualization is descriptive; aggregate metrics use every seed.",
-                "Browser runtime latency requires separate in-system measurement."
+                "Browser runtime latency requires separate in-system measurement.",
+                (
+                    "Human3.6M 17-joint benchmark results are not direct accuracy "
+                    "evidence for the deployed MediaPipe-33 model."
+                    if DATA_MODE == "h36m17_public_benchmark"
+                    else "MediaPipe observations are not motion-capture ground truth."
+                )
             ],
         }
         with open(RUN_DIR / "provenance.json", "w") as handle:
@@ -1328,5 +1880,4 @@ def write_notebook(name: str, cells: list[dict]) -> None:
 
 
 if __name__ == "__main__":
-    write_notebook("01_acp_stgat_research_evaluation.ipynb", MOTION_CELLS)
-    write_notebook("02_temporal_phase_research_evaluation.ipynb", PHASE_CELLS)
+    write_notebook("ACP_STGAT_COMPLETE_TRAIN_EVALUATE_COLAB.ipynb", MOTION_CELLS)

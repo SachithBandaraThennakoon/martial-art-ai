@@ -148,17 +148,9 @@ have been fabricated and no thesis/report has been generated.
 
 ## Next work session
 
-Start with data preparation:
-
-1. Inventory available own recordings, landmark exports, Colab files, checkpoints,
-   and screenshots.
-2. Prepare the motion NPZ contract described in `research/data/README.md`.
-3. Prepare human-verified temporal phase annotations.
-4. Execute the ACP-STGAT notebook, inspect outputs and failure cases.
-5. Execute the phase-classification notebook.
-6. Test the exact exported ONNX models inside the application.
-7. Only after evidence is frozen, discuss the report structure and write it
-   according to the supplied university guidelines.
+This section is superseded by the **Current transfer update — 2026-07-31** below.
+Both research notebooks have now been rebuilt and executed, and their supplied
+result bundles have been archived and interpreted.
 
 University format files previously supplied:
 
@@ -166,3 +158,85 @@ University format files previously supplied:
 - `Report fromat guidelines (1).pdf`
 
 Do not generate the report until the user explicitly asks.
+
+---
+
+## Current transfer update — 2026-07-31
+
+This section supersedes earlier notebook/status statements above.
+
+### Completed model-evidence work
+
+- Rebuilt the standalone end-to-end ACP-STGAT notebook and guide in
+  `research/notebooks/`.
+- Archived and interpreted the supplied ACP-STGAT bundle under
+  `research/outputs/acp_stgat/20260731T061529Z/`.
+- Added `research/architecture/ACP_STGAT_MODEL_RATIONALE.md`.
+- Rebuilt the standalone temporal phase-classification notebook and guide in
+  `research/notebooks/`.
+- Archived and interpreted the supplied phase-classifier bundle under
+  `research/outputs/phase_classifier/20260731T091140Z/`.
+- Documented that the current phase results use generated bootstrap data. They
+  validate generator-defined structure and the pipeline, not real-world martial-
+  arts accuracy. Real participant data and human annotations remain required.
+
+### Completed software verification
+
+- `research/system-evaluation/ALGORITHMIC_AWARENESS_VERIFICATION.md` records the
+  sequential execution of 23 frontend test files: all 129 assertions passed.
+- The backend coaching/conversation baseline passed 12 of 12 tests.
+- These results verify specified software behavior; they are not end-to-end
+  accuracy or evidence of human-equivalent awareness.
+
+### Reasoning-layer status
+
+- The checked repository has no operational OpenAI SDK/API call or OpenAI
+  dependency. Current coaching wording is deterministic rule/template output.
+- Do not describe the current operational reasoning layer as an OpenAI LLM.
+- The implemented `coach_intelligence_context` boundary can support a replaceable
+  OpenAI or future local model.
+- `research/llm-evaluation/` now contains an implementation audit, protocol,
+  12-scenario bank, blinded rating/log templates and an analysis script.
+
+### Architecture and researcher-knowledge documentation
+
+New authoritative files:
+
+- `research/architecture/COMBAT_COGNITION_ARCHITECTURE_AND_EVIDENCE.md`
+- `research/architecture/PRACTITIONER_KNOWLEDGE_METHODOLOGY.md`
+- `research/architecture/component_evidence.csv`
+- `research/architecture/design_knowledge_register.csv`
+
+The design is explicitly informed by the researcher's 25+ years of martial-arts
+practice/training/research, cross-style study, biomechanics, psychology, philosophy,
+first-person observation of internal practice experience, and software experiments.
+Use the label **expert-informed design-science with reflexive practitioner inquiry**.
+First-person observations generate design hypotheses; they do not independently
+prove universal brain mechanisms or system accuracy.
+
+### Current agreed claim
+
+Combat Cognition implements selected computational functions of martial-arts
+perception, temporal reasoning, anticipation, situation awareness and coaching. It
+is not a complete simulation of a human martial artist.
+
+### Exact next task on the personal laptop
+
+Prepare the end-to-end pilot/framework evaluation:
+
+1. three participants, including the researcher as expert participant;
+2. consented recorded jab trials as the evaluation case;
+3. expert phase/form annotations and retention of original video;
+4. rule-only versus hybrid system comparison;
+5. logs, screenshots, latency, failure cases and usability ratings;
+6. self-review bias disclosure and preferably a second expert; and
+7. later replacement of generated phase data with grouped real annotated sessions.
+
+After pilot evidence: consolidate figures/tables, complete verified literature,
+agree chapter content against the university PDFs, and only then write the report.
+
+Personal-laptop continuation prompt:
+
+> Read `research/CHAT_HANDOFF.md` and `research/CHAT_TRANSCRIPT.md`, using the
+> “Current transfer update — 2026-07-31” as authoritative. Continue with the
+> end-to-end pilot and framework-evaluation protocol. Do not generate the thesis.

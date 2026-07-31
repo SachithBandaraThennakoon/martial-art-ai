@@ -1,0 +1,9 @@
+session_id,technique,true_repetitions,predicted_repetitions
+synthetic-jab-0024-d93455cc,jab,3,1
+synthetic-jab-0011-6222972d,jab,3,2
+synthetic-jab-0023-0b62be57,jab,2,2
+synthetic-jab-0022-c1ec9318,jab,1,1
+synthetic-front-kick-0013-ee94345b,front-kick,3,3
+synthetic-front-kick-0003-a7cce409,front-kick,2,2
+synthetic-front-kick-0016-d22140a8,front-kick,1,1
+synthetic-front-kick-0014-2b2b85c0,front-kick,1,1

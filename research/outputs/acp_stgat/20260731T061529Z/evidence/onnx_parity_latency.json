@@ -1,0 +1,8 @@
+{
+  "max_abs_error": 1.1920928955078125e-07,
+  "mean_abs_error": 1.8374206600668685e-09,
+  "passed_at_1e-4": true,
+  "cpu_latency_median_ms": 9.878444500373007,
+  "cpu_latency_p95_ms": 12.812623350100694,
+  "onnx_sha256": "085f0d5daa1fe03a6a3bf7aa074b119d5ad78fc4f534931971ae2d113033aa2c"
+}

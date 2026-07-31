@@ -9,7 +9,13 @@ from pathlib import Path
 
 NOTEBOOK_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 REQUIRED_PHRASES = {
-    "01_acp_stgat_research_evaluation.ipynb": [
+    "ACP_STGAT_COMPLETE_TRAIN_EVALUATE_COLAB.ipynb": [
+        "snapshot_download",
+        "Andyen512/DDHpose",
+        "USE_SYNTHETIC_FALLBACK = False",
+        "h36m17_public_benchmark",
+        "H36M_DRIVE_ID",
+        "flatten_h36m_positions",
         "GroupShuffleSplit",
         "last_pose_baseline",
         "constant_velocity_baseline",
@@ -17,13 +23,22 @@ REQUIRED_PHRASES = {
         "torch.onnx.export",
         "onnx_parity_latency",
     ],
-    "02_temporal_phase_research_evaluation.ipynb": [
-        "human_verified",
-        "GroupShuffleSplit",
+    "TEMPORAL_PHASE_COMPLETE_TRAIN_EVALUATE_COLAB.ipynb": [
+        "technique-conditioned ST-GCN/TCN",
+        "universal-jab-front-kick-bootstrap.json",
+        "synthetic_bootstrap_pipeline_check",
+        "fixed_stratified_group_split",
+        "UniversalTemporalSTGCN",
+        "classification_metrics",
         "balanced_accuracy",
-        "boundary_metrics",
+        "macro_f1",
         "confusion_matrix",
+        "boundary_result",
+        "completed_sequences",
+        "robustness",
         "torch.onnx.export",
+        "onnx_parity_latency",
+        "provenance.json",
     ],
 }
 

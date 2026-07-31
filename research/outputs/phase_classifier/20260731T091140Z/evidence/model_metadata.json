@@ -1,0 +1,80 @@
+{
+  "schema_version": "3.0",
+  "model_type": "temporal-phase-classifier",
+  "architecture": "technique-conditioned-stgcn-tcn",
+  "model_version": "research-evaluation-v1",
+  "run_id": "20260731T091140Z",
+  "inputs": {
+    "landmarks": {
+      "layout": "BTVC",
+      "frames": 90,
+      "joints": 33,
+      "channels": [
+        "x",
+        "y",
+        "z",
+        "visibility"
+      ],
+      "normalization": "hip-centered-torso-scale"
+    },
+    "technique_id": {
+      "labels": [
+        "jab",
+        "front-kick"
+      ]
+    }
+  },
+  "output": {
+    "layout": "BTC",
+    "phase_labels": [
+      "__PAD__",
+      "__UNKNOWN__",
+      "__TRACKING_LOST__",
+      "PREPARATION",
+      "ENTRY",
+      "EXECUTION",
+      "PEAK",
+      "RETRACTION",
+      "RECOVERY"
+    ]
+  },
+  "techniques": {
+    "jab": {
+      "native_to_phase": {
+        "GUARD": "PREPARATION",
+        "EXTENSION": "EXECUTION",
+        "FULL_EXTENSION": "PEAK",
+        "RETRACTION": "RETRACTION",
+        "RECOVERY": "RECOVERY"
+      },
+      "phase_to_native": {
+        "PREPARATION": "GUARD",
+        "ENTRY": "EXTENSION",
+        "EXECUTION": "EXTENSION",
+        "PEAK": "FULL_EXTENSION",
+        "RETRACTION": "RETRACTION",
+        "RECOVERY": "RECOVERY"
+      }
+    },
+    "front-kick": {
+      "native_to_phase": {
+        "STANCE": "PREPARATION",
+        "CHAMBER": "ENTRY",
+        "EXTENSION": "PEAK",
+        "RECOIL": "RETRACTION",
+        "RECOVERY": "RECOVERY"
+      },
+      "phase_to_native": {
+        "PREPARATION": "STANCE",
+        "ENTRY": "CHAMBER",
+        "EXECUTION": "EXTENSION",
+        "PEAK": "EXTENSION",
+        "RETRACTION": "RECOIL",
+        "RECOVERY": "RECOVERY"
+      }
+    }
+  },
+  "selected_seed": 43,
+  "selection_rule": "highest validation macro F1",
+  "evaluation_origin": "synthetic_bootstrap_pipeline_check"
+}
