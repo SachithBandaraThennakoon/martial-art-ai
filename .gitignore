@@ -1,0 +1,52 @@
+# Dependency directories
+node_modules/
+
+# Python caches and test/tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments and secrets
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Build and temporary workspaces
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Office application lock files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Thesis/document visual-QA intermediates
+research/outputs/thesis/**/rendered/
+research/outputs/thesis/**/rendered_*/
+research/outputs/thesis/**/rendered_pdf/
+research/outputs/thesis/**/rendered_pdf_*/
+research/outputs/thesis/**/contact_sheets/
+research/outputs/thesis/**/contact_sheets_*/
+
+# Generated artifact-inspection sidecars
+*.inspect.ndjson
+**/formula_scan.ndjson
+**/verification.ndjson
+
+# Common frontend/build outputs
+dist/
+build/
+coverage/
+.vite/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

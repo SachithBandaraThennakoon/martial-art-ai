@@ -8,6 +8,12 @@ import {
 
 import ExpectedPoseGuide from "./ExpectedPoseGuide";
 import { drawSkeleton } from "../utils/drawSkeleton";
+import { hasMeaningfulAngleChange } from "../utils/anglePayload";
+import {
+  isImagePlaneAnglePart,
+  selectAngleLandmarks
+} from "../utils/angleLandmarkSource";
+import { calculateAngle as calculateImageAngle } from "../utils/calculateAngle";
 import { Level1MotionLayer } from "../temporal/level1MotionLayer";
 import { Level2ActionLayer } from "../temporal/level2ActionLayer";
 import { Level3SessionLayer } from "../temporal/level3SessionLayer";
@@ -171,14 +177,16 @@ const BODY_PART_MAP = {
   wrist_left: [13, 15, 19]
 };
 
-const MIN_LANDMARK_VISIBILITY = 0.45;
+// Angle feedback is withheld below this confidence so an occluded joint is
+// shown as waiting instead of receiving a misleading red/green judgment.
+const MIN_LANDMARK_VISIBILITY = 0.55;
 const HAND_TRACKING_KEYWORDS = ["fist", "punch", "jab", "cross", "guard", "hand"];
 const POSE_HAND_POINTS = {
   left: { wrist: 15, pinky: 17, index: 19, thumb: 21 },
   right: { wrist: 16, pinky: 18, index: 20, thumb: 22 }
 };
 
-function calculateAngle(a, b, c) {
+function calculateSpatialAngle(a, b, c) {
   const ab = {
     x: a.x - b.x,
     y: a.y - b.y,
@@ -1431,10 +1439,9 @@ export default function SkeletonCanvas({
 
     const emitAngleUpdate = (anglesPayload) => {
       const previousAngles = lastAnglePayloadRef.current;
-      const hasMeaningfulChange = Object.entries(anglesPayload).some(
-        ([bodyPart, value]) =>
-          !Number.isFinite(previousAngles[bodyPart]) ||
-          Math.abs(previousAngles[bodyPart] - value) >= 1
+      const hasMeaningfulChange = hasMeaningfulAngleChange(
+        previousAngles,
+        anglesPayload
       );
 
       if (!hasMeaningfulChange) {
@@ -1788,10 +1795,21 @@ export default function SkeletonCanvas({
 
           if (mapping) {
             const [a, b, c] = mapping;
-            const points = [frame.worldPose?.[a], frame.worldPose?.[b], frame.worldPose?.[c]];
+            const angleLandmarks = selectAngleLandmarks(
+              part.body_part,
+              frame.pose,
+              frame.worldPose
+            );
+            const points = [
+              angleLandmarks?.[a],
+              angleLandmarks?.[b],
+              angleLandmarks?.[c]
+            ];
 
             if (hasVisiblePoints(points)) {
-              const angle = calculateAngle(points[0], points[1], points[2]);
+              const angle = isImagePlaneAnglePart(part.body_part)
+                ? calculateImageAngle(points[0], points[1], points[2])
+                : calculateSpatialAngle(points[0], points[1], points[2]);
 
               if (Number.isFinite(angle)) {
                 anglesPayload[part.body_part] = angle;

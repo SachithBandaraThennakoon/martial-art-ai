@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 
-import { buildExpectedPose } from "../utils/buildExpectedPose";
+import {
+  buildExpectedPose,
+  projectExpectedPose
+} from "../utils/buildExpectedPose";
 
 const CONNECTIONS = [
   ["head", "shoulder_left"],
@@ -38,30 +41,10 @@ export default function ExpectedPoseGuide({
     [requiredParts, stepName]
   );
   const qualityCues = requiredParts.filter((target) => target.feature);
-  const projectedPose = useMemo(() => {
-    const turn = Math.min(90, Math.max(0, viewDegrees)) / 90;
-    const widthScale = 1 - turn * 0.18;
-
-    return Object.fromEntries(
-      Object.entries(pose).map(([name, point]) => {
-        const isLeft = name.endsWith("_left");
-        const isRight = name.endsWith("_right");
-        const depthDirection = isLeft ? -1 : isRight ? 1 : 0;
-        const isTorsoJoint = /shoulder|hip/.test(name);
-        const convergence = isTorsoJoint ? depthDirection * -3.5 * turn : 0;
-        const depthDrop = depthDirection * 3 * turn;
-
-        return [
-          name,
-          {
-            x: 50 + (point.x - 50) * widthScale + convergence,
-            y: point.y + depthDrop
-          }
-        ];
-      })
-    );
-  }, [pose, viewDegrees]);
-  const mirrorTransform = mirrored ? "translate(100 0) scale(-1 1)" : undefined;
+  const projectedPose = useMemo(
+    () => projectExpectedPose(pose, viewDegrees, mirrored),
+    [mirrored, pose, viewDegrees]
+  );
 
   if (!requiredParts.length) return null;
 
@@ -77,7 +60,7 @@ export default function ExpectedPoseGuide({
         preserveAspectRatio="xMidYMid meet"
         viewBox="0 -8 100 132"
       >
-        <g transform={mirrorTransform}>
+        <g data-mirrored={mirrored ? "true" : "false"}>
           {CONNECTIONS.map(([fromName, toName]) => {
             const from = projectedPose[fromName];
             const to = projectedPose[toName];

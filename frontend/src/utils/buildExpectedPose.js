@@ -166,3 +166,30 @@ export function buildExpectedPose(requiredParts = [], stepName = "") {
   };
 }
 
+export function projectExpectedPose(pose, viewDegrees = 30, mirrored = false) {
+  const turn = Math.min(90, Math.max(0, viewDegrees)) / 90;
+  const widthScale = 1 - turn * 0.18;
+
+  return Object.fromEntries(
+    Object.entries(pose).map(([name, point]) => {
+      const isLeft = name.endsWith("_left");
+      const isRight = name.endsWith("_right");
+      const depthDirection = isLeft ? -1 : isRight ? 1 : 0;
+      const isTorsoJoint = /shoulder|hip/.test(name);
+      const convergence = isTorsoJoint ? depthDirection * -3.5 * turn : 0;
+      const depthDrop = depthDirection * 3 * turn;
+      const projectedX = 50 + (point.x - 50) * widthScale + convergence;
+
+      return [
+        name,
+        {
+          // Authored poses use mirror-view coordinates. Keep that direction
+          // beside mirrored video and reverse it for non-mirrored video.
+          x: mirrored ? projectedX : 100 - projectedX,
+          y: point.y + depthDrop
+        }
+      ];
+    })
+  );
+}
+

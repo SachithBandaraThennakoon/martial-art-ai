@@ -1,1 +1,1 @@
-participant_id,session_id,repetition_id,phase,start_frame,end_frame,annotator_id,annotation_pass,confidence_1_5,notes
+participant_id,session_id,clip_id,repetition_id,repetition_valid_yes_no,intended_error,phase,start_frame,end_frame,annotator_id,annotator_role,annotation_pass,blinded_yes_no,confidence_1_5,observed_form_finding,uncertainty_reason,notes

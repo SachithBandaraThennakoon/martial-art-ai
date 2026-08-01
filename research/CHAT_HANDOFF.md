@@ -240,3 +240,152 @@ Personal-laptop continuation prompt:
 > Read `research/CHAT_HANDOFF.md` and `research/CHAT_TRANSCRIPT.md`, using the
 > “Current transfer update — 2026-07-31” as authoritative. Continue with the
 > end-to-end pilot and framework-evaluation protocol. Do not generate the thesis.
+
+### Evidence continuation — 2026-08-01
+
+This subsection supersedes only the participant/capture scope stated above.
+
+- Practical scope is now one participant (P001): the researcher, developer, and
+  martial-arts expert; jab only; laptop camera.
+- Classify the work as a **single-participant expert feasibility case study** or
+  **expert self-evaluation**, not a three-participant pilot or effectiveness study.
+- The researcher supplied 78 categorized screenshots covering Train Easy/Hard,
+  Practice, Analysis, Admin diagnostics, Dashboard, and application pages.
+- Copies and hashes are preserved under
+  `research/outputs/framework_evaluation/20260801_screenshot_evidence/`.
+- Screenshots are restricted identifiable functional/observational evidence.
+  They do not independently establish accuracy, latency, LLM operation,
+  generalization, or human-equivalent cognition.
+- The protocol, templates, runbook, and analysis utility were adapted to n=1.
+- Next evidence needed: machine-readable practice tape/session export, timing or
+  latency evidence, configuration/model identifiers, and expert annotations or
+  a structured commentary for selected frames. Original recordings are useful
+  when the researcher can provide them securely.
+- Do not generate the thesis yet.
+- An authenticated `GET /research/export` endpoint and **Download research data**
+  button were added. The export includes P001's jab practice/training sessions,
+  repetitions, feedback, analytics and landmark tapes, with content hash and
+  limitations. It excludes account identity and raw video.
+- The user supplied the resulting 31.97 MB export. Its internal content hash was
+  verified and it was archived under
+  `research/outputs/framework_evaluation/20260801T143145Z_database_export/`.
+  It contains 42 practice sessions, 58 repetitions, 22 landmark tapes with 7,277
+  frames, 185 training sessions, 140 step attempts, and 3,623 feedback events.
+  It has no response-time observations or experimental-condition labels, and the
+  records include development history. Do not treat aggregate system scores as
+  independent accuracy. Use `EXPORT_INTERPRETATION.md` as the evidence summary.
+- The researcher confirmed `practice-42` as the valid/latest demonstrated session
+  and asked that mixed historical/outlier data not be used. A derived subset and
+  selection notes were created without altering the full export. The confirmed
+  session also reveals a retained integration inconsistency: canonical summary
+  reports 3 completed reps, rule-engine summary reports 0, and the database has
+  one rep row with an implausible duration. Treat this as failure-mode evidence.
+- P001 confirmed the post-session three-repetition clustering as good/correct and
+  explained that practice screenshots 6–14 show selected clusters/moments. A
+  cropped popup image and `P001_EXPERT_CLUSTER_VALIDATION.md` were archived. This
+  is expert self-validation, not independent ground truth.
+- Verified evidence was consolidated into
+  `research/outputs/evidence_consolidation/20260801/Combat_Cognition_Evidence_Consolidation.xlsx`
+  with separate model, software, framework-case, claim-control, and figure/table
+  sheets. Candidate figures F1, F2 and F4 were frozen under
+  `research/figures/verified/20260801/`. No combined overall accuracy was created.
+- A 22-source verified core literature matrix was created under
+  `research/outputs/literature/20260801/`, with a machine-readable CSV, nine
+  controlled framework-claim mappings, explicit claim boundaries, and a
+  prioritized full-text review queue. Verification currently covers primary
+  citation metadata and abstracts; page-specific full-text extraction remains
+  the next literature gate. No thesis prose was generated.
+- Literature matrix v2 adds 17 page/section-specific evidence extracts from 10
+  priority full texts: BlazePose, GHUM Holistic, MediaPipe Hands, ST-GCN,
+  2s-AGCN, Martinez et al., MS-TCN, Endsley, Hevner et al., and Piorkowski et
+  al. Eleven included sources remain in the full-text queue. The extracts enforce
+  baseline, boundary-metric, monocular-uncertainty, design-science, and bounded
+  situation-awareness claim controls. No thesis prose was generated.
+- Literature matrix v3 adds 10 further extracts from MediaPipe Framework,
+  MST-GCN, Mao et al., AS-GCN and ASFormer. The register now contains 27
+  page/section-specific extracts across 15 sources, with six included sources
+  remaining. Added controls cover timestamps/frame drops, non-causal learned
+  graph links, DCT smoothing of rapid movement, participant/session grouping,
+  and small-data temporal-model selection. No thesis prose was generated.
+- Literature matrix v4 closes the core queue: all 21 included/cautious sources
+  now have selected-claim analytic extraction, comprising 39 page/section-specific
+  entries. One pedestrian-trajectory STGAT paper remains explicitly excluded as
+  direct support. Final additions cover Human3.6M, MPI-INF-3DHP, 3DPW,
+  probabilistic monocular uncertainty, the Lockwood/Tant jab study, and the 2024
+  straight-punch study. The next gate is literature-to-local-evidence
+  reconciliation and an unresolved evaluation-action register. No thesis prose
+  was generated.
+- Literature-to-local-evidence reconciliation is now frozen under
+  `research/outputs/claim_reconciliation/20260801/`. The register classifies all
+  nine controlled claims: four are supported with mandatory boundaries (C03,
+  C05, C07 and C09), five are partially supported (C01, C02, C04, C06 and C08),
+  and none are wholly unsupported. EA03 was closed because the frozen ACP package
+  already includes last-pose and constant-velocity baselines; EA01, EA02 and
+  EA04–EA06 carry into the next gate.
+  The next task is to create the unresolved evaluation-action register and
+  decide which items must be completed now, reported as limitations, or deferred
+  as future evaluation. No thesis prose was generated.
+- The unresolved evaluation-action register is now frozen under
+  `research/outputs/evaluation_actions/20260801/`. Twelve actions were audited:
+  four are closed/complete and eight are open but bounded as explicit
+  limitations/future evaluation. No new participants, recordings, cameras,
+  techniques or retrospective ratings are required before chapter planning.
+  EA03 is complete because the ACP package already contains last-pose and
+  constant-velocity baselines. The next gate is preparation step 3: finalize
+  figures, tables and appendices, including the missing architecture/evidence-
+  flow figure. No thesis prose was generated.
+- Preparation step 3 is complete under
+  `research/outputs/report_artifacts/20260801/`. The final register freezes four
+  figures, seven tables, eight curated appendices and six explicit exclusions.
+  The missing F3 architecture/evidence-flow figure now exists as verified SVG
+  and PNG under `research/figures/verified/20260801/`. F1–F3 are eligible with
+  mandatory caption boundaries; F4 remains restricted and conditional on final
+  privacy review. Original recordings, the raw database export/landmark tapes,
+  unnecessary screenshots, operational-LLM claims and combined overall accuracy
+  are excluded. The next and final preparation gate is the university-format
+  chapter plan and controlled-claim approval. No thesis prose was generated.
+- Preparation step 4, the final pre-writing gate, is complete under
+  `research/outputs/chapter_plan/20260801/`. The workbook maps the extracted
+  university format to eight logical report parts, one research question, six
+  bounded objectives and fourteen approved controlled claims. There are no
+  remaining scientific evidence blockers for a P001 jab-only laptop-camera
+  expert feasibility/self-evaluation report. Six administrative confirmations
+  remain before document generation: official title, conclusions chapter
+  number, required preliminary pages, title-page metadata, optional F4 privacy
+  approval and explicit user authorization to begin writing. The university
+  PDFs are not present on this laptop; their earlier reviewed requirements are
+  preserved in `research/CHAT_TRANSCRIPT.md`. Do not generate the thesis until
+  the user explicitly asks.
+- The user subsequently supplied both original university PDFs. They were
+  visually reviewed in full and preserved with hashes under
+  `research/inputs/university_guidelines/20260801/`. The review directly confirms
+  A4, Times New Roman 12 pt, 1.5 spacing, 40/15/25 mm margins, chapter-heading,
+  caption/title, page-numbering, reference-style and final-PDF rules. It also
+  confirms the two source-level ambiguities: DS5299 explicitly jumps from
+  Chapter 4 to Chapter 6, and its preliminary-page list is shorter than the
+  general guideline. Keep both as lecturer-confirmation items. The chapter-plan
+  workbook was updated; no thesis prose was generated.
+- Current thesis-generation update — 2026-08-01: the user authorized thesis
+  generation and requested that the supervisor field remain blank. A complete
+  editable DOCX and submission PDF were generated under
+  `research/outputs/thesis/20260801/`. The PDF is 36 pages and contains the
+  approved preliminary pages, Chapters 1–5, 22 references, four figures, ten
+  numbered main-text tables, and eight appendices. The evidence boundaries are
+  preserved: P001 expert self-evaluation only, jab only, laptop camera only,
+  generated model data distinguished from real-human evidence, no operational
+  LLM, no combined overall accuracy, private videos excluded, and the retained
+  practice-42 persistence inconsistency reported. DOCX integrity and PDF text
+  structure passed automated checks, and every rendered PDF page was visually
+  inspected. See `research/outputs/thesis/20260801/THESIS_BUILD_NOTES.md`.
+- Screenshot revision — 2026-08-02: after the user requested fuller screenshot
+  inclusion, the thesis was revised to 48 pages with Appendix A9, "System
+  Interface and Functional Evidence." Twelve account-name-masked representative
+  figures now cover Studio selection, dashboard filters, Train Hard corrections
+  and voice transitions, completion/restart, Easy-mode hand tracking, live
+  Practice, full-session analysis, Analysis mode, administrator L1/L2 overlays,
+  live diagnostics and multi-level data layers. Chapter 4 now explicitly links
+  to this appendix and preserves the boundary that screenshots demonstrate
+  displayed interface states, not independent accuracy or effectiveness. The
+  list of figures and static page numbers were updated. DOCX integrity and image
+  audits passed (16 inline figures total), and all 48 PDF pages were visually
+  checked. Final hashes are recorded in the thesis build notes.

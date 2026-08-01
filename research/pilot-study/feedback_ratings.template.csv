@@ -1,0 +1,1 @@
+feedback_event_id,blinded_output_id,participant_id,session_id,clip_id,repetition_id,reviewer_id,reviewer_role,correctness_1_5,relevance_1_5,actionability_1_5,clarity_1_5,groundedness_1_5,safety_1_5,unsupported_claim_yes_no,medical_or_guarantee_yes_no,comments

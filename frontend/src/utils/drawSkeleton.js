@@ -1,17 +1,26 @@
 const BODY_CONNECTIONS = [
   { points: [11, 12], parts: ["shoulder_left", "shoulder_right"] },
-  { points: [11, 13], parts: ["shoulder_left", "elbow_left"] },
-  { points: [13, 15], parts: ["elbow_left", "wrist_left"] },
-  { points: [12, 14], parts: ["shoulder_right", "elbow_right"] },
-  { points: [14, 16], parts: ["elbow_right", "wrist_right"] },
-  { points: [11, 23], parts: ["shoulder_left", "hip_left"] },
-  { points: [12, 24], parts: ["shoulder_right", "hip_right"] },
+  { points: [11, 13], parts: ["shoulder_left"] },
+  { points: [13, 15], parts: ["elbow_left"] },
+  { points: [12, 14], parts: ["shoulder_right"] },
+  { points: [14, 16], parts: ["elbow_right"] },
+  { points: [11, 23], parts: ["hip_left"] },
+  { points: [12, 24], parts: ["hip_right"] },
   { points: [23, 24], parts: ["hip_left", "hip_right"] },
-  { points: [23, 25], parts: ["hip_left", "knee_left"] },
-  { points: [25, 27], parts: ["knee_left", "ankle_left"] },
-  { points: [24, 26], parts: ["hip_right", "knee_right"] },
-  { points: [26, 28], parts: ["knee_right", "ankle_right"] }
+  { points: [23, 25], parts: ["hip_left"] },
+  { points: [25, 27], parts: ["knee_left"] },
+  { points: [24, 26], parts: ["hip_right"] },
+  { points: [26, 28], parts: ["knee_right"] }
 ];
+
+const JOINT_PARTS = new Map([
+  [11, "shoulder_left"], [12, "shoulder_right"],
+  [13, "elbow_left"], [14, "elbow_right"],
+  [15, "wrist_left"], [16, "wrist_right"],
+  [23, "hip_left"], [24, "hip_right"],
+  [25, "knee_left"], [26, "knee_right"],
+  [27, "ankle_left"], [28, "ankle_right"]
+]);
 
 const KEY_JOINTS = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
 const SKELETON_SCALE = 0.7;
@@ -144,15 +153,10 @@ export function drawSkeleton(
   ctx.shadowBlur = 2;
   if (observedEnabled) KEY_JOINTS.forEach((index) => {
     const point = points[index];
-    const isCorrection = BODY_CONNECTIONS.some(
-      (connection) =>
-        connection.points.includes(index) &&
-        shouldHighlight(connection, correctionParts)
-    );
-    const isCorrect = !isCorrection && BODY_CONNECTIONS.some(
-      (connection) =>
-        connection.points.includes(index) &&
-        shouldHighlight(connection, correctParts)
+    const jointPart = JOINT_PARTS.get(index);
+    const isCorrection = Boolean(jointPart && correctionParts.has(jointPart));
+    const isCorrect = Boolean(
+      !isCorrection && jointPart && correctParts.has(jointPart)
     );
 
     if (!isVisible(point)) return;

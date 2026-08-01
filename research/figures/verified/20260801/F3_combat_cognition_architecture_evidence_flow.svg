@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Combat Cognition architecture and evidence flow</title>
+  <desc id="desc">A bounded architecture diagram showing laptop camera input, MediaPipe perception, four computational context levels, deterministic situation-awareness gates, context aggregation, rule-template coaching, user feedback and stored analytics. Evidence badges distinguish software verification, offline benchmark evidence, generated-data validation and the P001 expert self-evaluation case.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#45657a"/></marker>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#17324d" flood-opacity="0.14"/></filter>
+    <style>
+      .title{font:700 30px Arial,sans-serif;fill:#17324d}.subtitle{font:400 16px Arial,sans-serif;fill:#4c6575}.lane{font:700 15px Arial,sans-serif;fill:#17324d}.node-title{font:700 16px Arial,sans-serif;fill:#17324d}.node-text{font:400 13px Arial,sans-serif;fill:#345064}.tiny{font:400 12px Arial,sans-serif;fill:#4c6575}.evidence{font:700 12px Arial,sans-serif;fill:#17324d}.limit{font:700 13px Arial,sans-serif;fill:#6b4600}.box{fill:#ffffff;stroke:#9db2bf;stroke-width:1.5;rx:12;filter:url(#shadow)}.learned{fill:#eef6fb;stroke:#4f8ead}.det{fill:#f1f8f4;stroke:#56866a}.data{fill:#faf6ed;stroke:#a27b32}.planned{fill:#f4f4f4;stroke:#88949b;stroke-dasharray:7 5}.flow{fill:none;stroke:#45657a;stroke-width:2;marker-end:url(#arrow)}.feedback{fill:none;stroke:#7a5c28;stroke-width:2;stroke-dasharray:7 5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1600" height="980" fill="#f7fafc"/>
+  <text x="60" y="58" class="title">Combat Cognition: implemented architecture and evidence flow</text>
+  <text x="60" y="86" class="subtitle">P001 researcher-expert · jab only · laptop camera · feasibility/self-evaluation · deterministic operational coaching</text>
+
+  <text x="60" y="135" class="lane">LIVE COMPUTATIONAL FLOW</text>
+  <rect x="55" y="150" width="1490" height="500" rx="18" fill="#eef3f6" stroke="#c7d4dc"/>
+
+  <rect class="box data" x="85" y="205" width="180" height="122"/>
+  <text x="105" y="237" class="node-title">P001 laptop camera</text>
+  <text x="105" y="265" class="node-text">Single-person jab frames</text>
+  <text x="105" y="287" class="node-text">No calibrated 3D scale</text>
+  <text x="105" y="309" class="tiny">Visibility and occlusion matter</text>
+
+  <rect class="box learned" x="315" y="190" width="225" height="152"/>
+  <text x="335" y="222" class="node-title">Perception</text>
+  <text x="335" y="250" class="node-text">MediaPipe body landmarks</text>
+  <text x="335" y="272" class="node-text">Hand and face readiness proxies</text>
+  <text x="335" y="294" class="node-text">Tracking confidence / visibility</text>
+  <text x="335" y="320" class="tiny">Implemented; task accuracy unverified</text>
+
+  <rect class="box det" x="590" y="170" width="210" height="105"/>
+  <text x="610" y="201" class="node-title">L1 · Immediate motion</text>
+  <text x="610" y="228" class="node-text">Recent-frame motion context</text>
+  <text x="610" y="250" class="node-text">Angles and deterministic rules</text>
+
+  <rect class="box learned" x="590" y="298" width="210" height="145"/>
+  <text x="610" y="329" class="node-title">L2 · Action / projection</text>
+  <text x="610" y="356" class="node-text">Phase classifier + decoder</text>
+  <text x="610" y="378" class="node-text">ACP-STGAT future pose</text>
+  <text x="610" y="400" class="node-text">Forecast trust and risk gates</text>
+  <text x="610" y="424" class="tiny">Learned outputs remain bounded</text>
+
+  <rect class="box det" x="590" y="466" width="210" height="90"/>
+  <text x="610" y="497" class="node-title">L3 · Session</text>
+  <text x="610" y="524" class="node-text">Repetition, trend, consistency</text>
+  <text x="610" y="546" class="tiny">Fatigue is a non-medical proxy</text>
+
+  <rect class="box data" x="590" y="579" width="210" height="50"/>
+  <text x="610" y="610" class="node-title">L4 · Learner history</text>
+
+  <rect class="box det" x="850" y="240" width="235" height="155"/>
+  <text x="870" y="272" class="node-title">Situation-awareness gates</text>
+  <text x="870" y="300" class="node-text">Perception evidence</text>
+  <text x="870" y="322" class="node-text">State interpretation</text>
+  <text x="870" y="344" class="node-text">Bounded projection</text>
+  <text x="870" y="372" class="tiny">Computational lens—not human awareness</text>
+
+  <rect class="box data" x="1135" y="205" width="195" height="122"/>
+  <text x="1155" y="237" class="node-title">Context packet</text>
+  <text x="1155" y="265" class="node-text">L1–L4 evidence summary</text>
+  <text x="1155" y="287" class="node-text">Priority target + action</text>
+  <text x="1155" y="309" class="tiny">Structured data contract</text>
+
+  <rect class="box det" x="1360" y="190" width="155" height="152"/>
+  <text x="1380" y="222" class="node-title">Coach output</text>
+  <text x="1380" y="250" class="node-text">Rule/template</text>
+  <text x="1380" y="272" class="node-text">Voice and UI cue</text>
+  <text x="1380" y="300" class="tiny">No operational LLM</text>
+  <text x="1380" y="320" class="tiny">One prioritized correction</text>
+
+  <rect class="box data" x="1050" y="470" width="280" height="105"/>
+  <text x="1070" y="501" class="node-title">Session storage and analysis</text>
+  <text x="1070" y="528" class="node-text">Timeline · clusters · summaries · export</text>
+  <text x="1070" y="551" class="tiny">Historical inconsistencies are retained</text>
+
+  <rect class="box planned" x="1360" y="470" width="155" height="105"/>
+  <text x="1380" y="501" class="node-title">Future LLM</text>
+  <text x="1380" y="528" class="node-text">Planned only</text>
+  <text x="1380" y="551" class="tiny">Not evaluated here</text>
+
+  <path class="flow" d="M265 266 H315"/><path class="flow" d="M540 266 H565 V222 H590"/>
+  <path class="flow" d="M540 266 H565 V370 H590"/><path class="flow" d="M695 275 V298"/>
+  <path class="flow" d="M695 443 V466"/><path class="flow" d="M695 556 V579"/>
+  <path class="flow" d="M800 222 H825 V286 H850"/><path class="flow" d="M800 370 H850"/>
+  <path class="flow" d="M800 511 H825 V349 H850"/><path class="flow" d="M800 604 H825 V372 H850"/>
+  <path class="flow" d="M1085 317 H1135"/><path class="flow" d="M1330 266 H1360"/>
+  <path class="flow" d="M1232 327 V470"/><path class="feedback" d="M1438 342 V430 H250 V327"/>
+  <text x="280" y="452" class="tiny">feedback / next attempt</text>
+
+  <text x="60" y="702" class="lane">EVIDENCE ATTACHED TO THE ARCHITECTURE</text>
+  <rect x="55" y="718" width="1490" height="190" rx="18" fill="#ffffff" stroke="#c7d4dc"/>
+  <rect x="85" y="750" width="270" height="116" rx="12" fill="#e9f4ed" stroke="#71a281"/>
+  <text x="105" y="780" class="evidence">SOFTWARE VERIFICATION</text><text x="105" y="807" class="node-text">129/129 frontend assertions</text><text x="105" y="829" class="node-text">24/24 backend tests</text><text x="105" y="852" class="tiny">Verification ≠ task accuracy</text>
+  <rect x="385" y="750" width="270" height="116" rx="12" fill="#eaf2f8" stroke="#6293b1"/>
+  <text x="405" y="780" class="evidence">ACP BENCHMARK EVIDENCE</text><text x="405" y="807" class="node-text">Human3.6M-17 + simple baselines</text><text x="405" y="829" class="node-text">Normalized horizon errors</text><text x="405" y="852" class="tiny">Not live jab or physical units</text>
+  <rect x="685" y="750" width="270" height="116" rx="12" fill="#f3eff8" stroke="#8c75a6"/>
+  <text x="705" y="780" class="evidence">PHASE PIPELINE EVIDENCE</text><text x="705" y="807" class="node-text">Generated bootstrap metrics</text><text x="705" y="829" class="node-text">Confusion and robustness checks</text><text x="705" y="852" class="tiny">Not real-jab phase accuracy</text>
+  <rect x="985" y="750" width="270" height="116" rx="12" fill="#fff5df" stroke="#b78b32"/>
+  <text x="1005" y="780" class="evidence">P001 FRAMEWORK CASE</text><text x="1005" y="807" class="node-text">practice-42 · 3 confirmed clusters</text><text x="1005" y="829" class="node-text">250 frames · 96% tracking</text><text x="1005" y="852" class="tiny">Expert self-validation only</text>
+  <rect x="1285" y="750" width="230" height="116" rx="12" fill="#f6f0e6" stroke="#a27b32"/>
+  <text x="1305" y="780" class="evidence">MANDATORY BOUNDARY</text><text x="1305" y="807" class="node-text">Feasibility, not effectiveness</text><text x="1305" y="829" class="node-text">No combined accuracy</text><text x="1305" y="852" class="tiny">Videos private and excluded</text>
+
+  <text x="60" y="944" class="limit">Solid boxes: implemented · Dashed box: planned/not operational · Evidence classes remain separate</text>
+</svg>

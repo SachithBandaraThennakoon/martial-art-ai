@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
@@ -25,6 +26,7 @@ from models.target_angle import TargetAngle
 from models.training_memory import (
     PracticeRep,
     PracticeSession,
+    PracticeSessionAnalytics,
     PracticeSessionTape,
     TemporalLabelingDraft,
     TrainingFeedbackEvent,
@@ -47,6 +49,7 @@ from services.practice_analytics import (
     load_practice_analytics,
     upsert_practice_analytics,
 )
+from services.research_export import build_research_export
 from agents.master_orchestrator import MasterOrchestrator
 
 # Security
@@ -440,6 +443,64 @@ def get_practice_session_tape(
             "updated_at": tape.updated_at.isoformat() if tape.updated_at else None
         }
     }
+
+
+@app.get("/research/export")
+def export_research_evidence(
+    technique_name: str = "Jab",
+    include_tapes: bool = True,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    """Export the signed-in user's pseudonymous research evidence as JSON."""
+    user_record = _get_user_from_token(db, token)
+    selected = technique_name.strip()[:160] or "Jab"
+    practice_sessions = db.query(PracticeSession).filter(
+        PracticeSession.user_id == user_record.id,
+        func.lower(PracticeSession.technique_name) == selected.lower(),
+    ).order_by(PracticeSession.started_at).all()
+    practice_ids = [session.id for session in practice_sessions]
+    practice_reps = db.query(PracticeRep).filter(
+        PracticeRep.practice_session_id.in_(practice_ids)
+    ).order_by(PracticeRep.practice_session_id, PracticeRep.rep_number).all() if practice_ids else []
+    analytics = load_practice_analytics(db, practice_ids)
+    tapes = db.query(PracticeSessionTape).filter(
+        PracticeSessionTape.practice_session_id.in_(practice_ids)
+    ).all() if practice_ids else []
+
+    training_sessions = db.query(TrainingSession).filter(
+        TrainingSession.user_id == user_record.id,
+        func.lower(TrainingSession.technique_name) == selected.lower(),
+    ).order_by(TrainingSession.started_at).all()
+    training_ids = [session.id for session in training_sessions]
+    training_steps = db.query(TrainingStepAttempt).filter(
+        TrainingStepAttempt.session_id.in_(training_ids)
+    ).all() if training_ids else []
+    feedback_events = db.query(TrainingFeedbackEvent).filter(
+        TrainingFeedbackEvent.session_id.in_(training_ids)
+    ).order_by(TrainingFeedbackEvent.created_at).all() if training_ids else []
+
+    try:
+        document = build_research_export(
+            practice_sessions=practice_sessions,
+            practice_reps=practice_reps,
+            practice_analytics=analytics,
+            practice_tapes={tape.practice_session_id: tape for tape in tapes},
+            training_sessions=training_sessions,
+            training_steps=training_steps,
+            feedback_events=feedback_events,
+            include_tapes=include_tapes,
+            technique_name=selected,
+        )
+    except (zlib.error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        logger.error("Research export could not decode a practice tape: %s", exc)
+        raise HTTPException(status_code=500, detail="A stored practice tape is unavailable") from exc
+
+    filename = f"combat-cognition-{selected.lower().replace(' ', '-')}-research-export.json"
+    return JSONResponse(
+        content=document,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/admin/temporal-labeling/drafts/{technique_key}")

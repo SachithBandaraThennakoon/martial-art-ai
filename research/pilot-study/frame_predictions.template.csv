@@ -1,0 +1,1 @@
+output_id,participant_id,session_id,clip_id,condition,frame_index,timestamp_ms,ground_truth_phase,predicted_phase,tracking_available,prediction_available,forecast_trusted,t0_capture_ms,t1_pose_ms,t2_decision_ms,t3_feedback_ms,t4_render_ms,feedback_event_id,notes

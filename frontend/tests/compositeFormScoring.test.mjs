@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildCorrectionAcknowledgement,
   buildCompositeCorrectionFeedback,
   buildNaturalAwarenessFeedback,
   scoreCompositeForm
@@ -165,6 +166,34 @@ test("teaching priority ranks fist before larger angle errors", () => {
   assert.deepEqual(
     result.corrections.map((item) => item.bodyPart),
     ["fist_left", "elbow_left", "knee_left"]
+  );
+});
+
+test("biomechanical weight can raise a severe angle correction", () => {
+  const result = scoreCompositeForm({
+    angleTargets: [
+      { ...angleTargets[0], weight: 3 },
+      { ...angleTargets[1], weight: 1 }
+    ],
+    liveAngles: { elbow_left: 100, knee_left: 175 },
+    feedbackPriority: ["knee_left", "elbow_left"]
+  });
+
+  assert.equal(result.corrections[0].bodyPart, "elbow_left");
+  assert.equal(result.corrections[0].weight, 3);
+});
+
+test("coach acknowledges success before naming the next correction", () => {
+  assert.equal(
+    buildCorrectionAcknowledgement(
+      { bodyPart: "elbow_left" },
+      { bodyPart: "shoulder_right" }
+    ),
+    "Good lead elbow. Now rear shoulder."
+  );
+  assert.equal(
+    buildCorrectionAcknowledgement({ bodyPart: "knee_left" }, null),
+    "Good lead knee. Hold it."
   );
 });
 

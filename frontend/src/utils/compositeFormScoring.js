@@ -11,6 +11,18 @@ function angleGroup(target) {
   return "alignment";
 }
 
+export function correctionUrgency(item, feedbackPriority = []) {
+  const priorityIndex = feedbackPriority.indexOf(
+    item.body_part || item.feature
+  );
+  const priorityBoost = priorityIndex === -1
+    ? 0
+    : Math.max(0, feedbackPriority.length - priorityIndex) * 2;
+  const severity = Math.max(0, 100 - item.score);
+
+  return (Number(item.weight) || 1) * severity + priorityBoost;
+}
+
 function scoreAngle(target, value, toleranceScale) {
   const ideal =
     target.target_angle ?? Math.round((Number(target.min) + Number(target.max)) / 2);
@@ -168,16 +180,8 @@ export function scoreCompositeForm({
   const corrections = measured
     .filter((item) => item.issue && item.score < 80)
     .sort((first, second) => {
-      const firstPriority = feedbackPriority.indexOf(first.body_part || first.feature);
-      const secondPriority = feedbackPriority.indexOf(second.body_part || second.feature);
-      const normalizedFirst =
-        firstPriority === -1 ? Number.MAX_SAFE_INTEGER : firstPriority;
-      const normalizedSecond =
-        secondPriority === -1 ? Number.MAX_SAFE_INTEGER : secondPriority;
-      return normalizedFirst !== normalizedSecond
-        ? normalizedFirst - normalizedSecond
-        : second.weight * (100 - second.score) -
-            first.weight * (100 - first.score);
+      return correctionUrgency(second, feedbackPriority) -
+        correctionUrgency(first, feedbackPriority);
     })
     .map((item) => ({
       bodyPart: item.body_part || item.feature,
@@ -189,7 +193,8 @@ export function scoreCompositeForm({
       max: item.max,
       direction: item.issue,
       group: item.group,
-      score: Math.round(item.score)
+      score: Math.round(item.score),
+      weight: item.weight
     }));
   const strengths = measured
     .filter(
@@ -319,4 +324,17 @@ export function buildNaturalAwarenessFeedback({
       : `Extend your ${side} elbow slightly more.`;
   }
   return `Adjust your ${label}.`;
+}
+
+function shortCorrectionName(correction) {
+  const bodyPart = correction?.bodyPart || "position";
+  const side = bodyPart.endsWith("_left") ? "lead" : bodyPart.endsWith("_right") ? "rear" : "";
+  const joint = bodyPart.replace(/_(left|right)$/, "").replace(/_/g, " ");
+  return `${side} ${joint}`.trim();
+}
+
+export function buildCorrectionAcknowledgement(previous, next) {
+  const corrected = shortCorrectionName(previous);
+  if (!next) return `Good ${corrected}. Hold it.`;
+  return `Good ${corrected}. Now ${shortCorrectionName(next)}.`;
 }

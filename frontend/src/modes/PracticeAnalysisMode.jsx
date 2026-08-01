@@ -38,6 +38,7 @@ export default function PracticeAnalysisMode({
   const [analysis, setAnalysis] = useState(null);
   const [status, setStatus] = useState("Loading analysis.");
   const [loadState, setLoadState] = useState("loading");
+  const [exportState, setExportState] = useState("idle");
   const [selectedTapeSessionId, setSelectedTapeSessionId] = useState(null);
 
   const loadAnalysis = useCallback(async (signal) => {
@@ -88,6 +89,34 @@ export default function PracticeAnalysisMode({
     return () => controller.abort();
   }, [loadAnalysis]);
 
+  const downloadResearchExport = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token || exportState === "loading") return;
+    setExportState("loading");
+    try {
+      const query = new URLSearchParams({
+        technique_name: selectedTechniqueName || "Jab",
+        include_tapes: "true"
+      });
+      const response = await fetch(`${API_BASE_URL}/research/export?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error("export");
+      const payload = await response.blob();
+      const url = URL.createObjectURL(payload);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `combat-cognition-${(selectedTechniqueName || "jab").toLowerCase().replace(/\s+/g, "-")}-research-export.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setExportState("ready");
+    } catch {
+      setExportState("error");
+    }
+  }, [exportState, selectedTechniqueName]);
+
   const summary = analysis?.summary;
   const trainingSummary = analysis?.training_summary;
   const sessions = analysis?.sessions || [];
@@ -133,9 +162,15 @@ export default function PracticeAnalysisMode({
           <span>{formatDashboardDate()}</span>
           <strong>{formatDateTime(latestSession?.ended_at || latestSession?.started_at)}</strong>
           {loadState === "ready" ? (
-            <button className="analysis-refresh" onClick={() => loadAnalysis()} type="button">
-              Refresh data
-            </button>
+            <>
+              <button className="analysis-refresh" onClick={() => loadAnalysis()} type="button">
+                Refresh data
+              </button>
+              <button className="analysis-refresh" onClick={downloadResearchExport} type="button">
+                {exportState === "loading" ? "Preparing export…" : "Download research data"}
+              </button>
+              {exportState === "error" ? <small>Export failed. Please try again.</small> : null}
+            </>
           ) : null}
         </div>
       </div>

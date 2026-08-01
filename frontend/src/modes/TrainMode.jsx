@@ -21,6 +21,7 @@ import {
   repeatsPendingQuestion
 } from "../services/feedbackReasoning";
 import {
+  buildCorrectionAcknowledgement,
   buildNaturalAwarenessFeedback,
   FORM_DIFFICULTIES,
   scoreCompositeForm
@@ -180,7 +181,9 @@ export default function TrainMode({
     signature: "",
     firstSeenAt: 0,
     lastSpokenAt: 0,
-    recentParts: new Map()
+    recentParts: new Map(),
+    activeCorrection: null,
+    stepKey: ""
   });
   const localFeedbackPriorityUntilRef = useRef(0);
   const currentAudioRef = useRef(null);
@@ -259,9 +262,16 @@ export default function TrainMode({
         ACTION_LABELS[coachEvent?.state] ||
         "Master watching"
       : "Text off";
-  const focusLabel = formatBodyPart(
-    coachEvent?.focus_body_part || coachEvent?.body_part
+  const eventCoachMessage = coachText(coachEvent);
+  const isPlayingEarlierFeedback = Boolean(
+    voiceEnabled &&
+    currentVoiceMessage &&
+    eventCoachMessage &&
+    currentVoiceMessage !== eventCoachMessage
   );
+  const focusLabel = isPlayingEarlierFeedback
+    ? ""
+    : formatBodyPart(coachEvent?.focus_body_part || coachEvent?.body_part);
   const replyOptions = coachEvent?.question?.options || [];
   const requiresResponse = Boolean(coachEvent?.requires_response && replyOptions.length);
   const trainSessionComplete = [
@@ -327,6 +337,23 @@ export default function TrainMode({
     const awarenessPriority = ["tracking_unclear", "warning"].includes(
       situation?.situation_state
     );
+    const now = Date.now();
+    const feedbackState = compositeFeedbackRef.current;
+    const stepKey = currentStep?.id || currentStepName || "";
+    if (feedbackState.stepKey !== stepKey) {
+      feedbackState.stepKey = stepKey;
+      feedbackState.signature = "";
+      feedbackState.activeCorrection = null;
+      feedbackState.recentParts.clear();
+    }
+    const previousCorrection = feedbackState.activeCorrection;
+    const previousResolved = Boolean(
+      previousCorrection &&
+      !compositeForm.corrections.some(
+        (item) => item.bodyPart === previousCorrection.bodyPart
+      )
+    );
+
     if (
       (!textEnabled && !voiceEnabled) ||
       !trainSessionActive ||
@@ -336,25 +363,25 @@ export default function TrainMode({
         (
           !compositeForm.scorable ||
           compositeForm.coverage < 50 ||
-          !compositeForm.corrections.length
+          (!compositeForm.corrections.length && !previousResolved)
         )
       )
     ) {
       return;
     }
 
-    const now = Date.now();
-    const feedbackState = compositeFeedbackRef.current;
     const correction = awarenessPriority
       ? null
       : compositeForm.corrections.find(
           (item) =>
-            now - (feedbackState.recentParts.get(item.bodyPart) || 0) >= 10000
+            now - (feedbackState.recentParts.get(item.bodyPart) || 0) >= 14000
         ) || compositeForm.corrections[0];
     const signature = awarenessPriority
       ? `awareness:${situation.situation_state}`
+      : previousResolved
+        ? `confirmed:${stepKey}:${previousCorrection.bodyPart}:${correction?.bodyPart || "hold"}`
       : [
-          currentStep?.id || currentStepName,
+          stepKey,
           correction.bodyPart,
           correction.direction
         ].join(":");
@@ -365,33 +392,36 @@ export default function TrainMode({
       return;
     }
     if (
-      now - feedbackState.firstSeenAt < (awarenessPriority ? 700 : 1200) ||
-      now - feedbackState.lastSpokenAt < 5500 ||
+      now - feedbackState.firstSeenAt < (awarenessPriority ? 700 : previousResolved ? 900 : 1400) ||
+      now - feedbackState.lastSpokenAt < (previousResolved ? 3200 : 7500) ||
       (
-        correction &&
-        now - (feedbackState.recentParts.get(correction.bodyPart) || 0) < 10000
+        correction && !previousResolved &&
+        now - (feedbackState.recentParts.get(correction.bodyPart) || 0) < 14000
       )
     ) {
       return;
     }
 
-    const message = buildNaturalAwarenessFeedback({
-      correction,
-      form: compositeForm,
-      situation,
-      stepName: currentStepName,
-      strength: compositeForm.strengths?.find(
-        (item) => item.bodyPart !== correction?.bodyPart
-      )
-    });
+    const message = previousResolved && !awarenessPriority
+      ? buildCorrectionAcknowledgement(previousCorrection, correction)
+      : buildNaturalAwarenessFeedback({
+          correction,
+          form: compositeForm,
+          situation,
+          stepName: currentStepName,
+          strength: compositeForm.strengths?.find(
+            (item) => item.bodyPart !== correction?.bodyPart
+          )
+        });
     if (!message) return;
     feedbackState.lastSpokenAt = now;
     if (correction) {
       feedbackState.recentParts.set(correction.bodyPart, now);
     }
+    feedbackState.activeCorrection = awarenessPriority ? null : correction;
     localFeedbackPriorityUntilRef.current = now + 4000;
     setCoachEvent({
-      action: awarenessPriority ? "attention_prompt" : "correct",
+      action: awarenessPriority ? "attention_prompt" : previousResolved ? "hold_good" : "correct",
       message,
       summary: message,
       speak: true,
@@ -1360,7 +1390,7 @@ export default function TrainMode({
           currentStepIndex={safeStepIndex}
           accuracy={compositeForm.scorable ? compositeForm.accuracy : 0}
           angles={angles}
-          requiredParts={displayAngleParts}
+          requiredParts={feedbackAngleParts}
           feedback={textEnabled ? feedback : ""}
           coachEvent={textEnabled ? coachEvent : null}
           compositeForm={compositeForm}

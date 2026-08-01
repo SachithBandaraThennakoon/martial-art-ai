@@ -1,34 +1,26 @@
 # End-to-end system evaluation
 
-Evaluate the complete framework after both offline model evaluations and ONNX
-parity checks are complete.
+The executable design and field instructions are in
+`../pilot-study/PILOT_AND_FRAMEWORK_EVALUATION_PROTOCOL.md` and
+`../pilot-study/FIELD_RUNBOOK.md`.
 
-## Minimum comparison
+The minimum paired comparison is:
 
-- `rule_only`: perception and deterministic/rule feedback
-- `hybrid`: perception, temporal models, situation awareness, and reasoning layer
+- `rule_only`: perception plus deterministic biomechanical/state rules, with
+  learned temporal prediction and higher-level awareness disabled by a verified
+  configuration;
+- `hybrid_template`: perception, temporal models, situation awareness, and the
+  current deterministic/template feedback layer.
 
-Add `model_only` as an offline diagnostic, not as a user-facing coaching system.
-If LLM feedback is operational, compare `hybrid_template` and `hybrid_llm`.
+`model_only` remains an offline diagnostic. `hybrid_llm` is excluded because the
+checked repository has no operational LLM call. A label alone is not proof of a
+condition: the exported configuration and logs must demonstrate which components
+ran. The same recorded input must be replayed in both conditions.
 
-## Primary measures
+Primary measures are expert-ground-truth phase/form agreement, blinded feedback
+quality and safety, end-to-end latency, tracking/prediction availability, failures,
+and usability. Results are a single expert case (n=1), not generalizable evidence.
 
-- task/phase decision correctness against expert ground truth
-- feedback correctness, relevance, safety, and actionability
-- end-to-end response latency (median and p95)
-- tracking failure rate and prediction availability
-- repetition/phase-boundary errors
-- participant usability ratings and observed failure cases
-
-The three-participant study is a pilot and must not be generalized to all martial
-artists. Report individual results as well as descriptive aggregate statistics.
-
-## Completed deterministic verification
-
-The awareness and temporal algorithms have a separate automated verification
-record:
-
-- [`ALGORITHMIC_AWARENESS_VERIFICATION.md`](./ALGORITHMIC_AWARENESS_VERIFICATION.md)
-
-This verifies designed software behavior. Live human/system evaluation remains
-the final evidence stage.
+Automated deterministic verification is separately documented in
+`ALGORITHMIC_AWARENESS_VERIFICATION.md`; it is software evidence, not live-human
+accuracy.

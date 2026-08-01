@@ -1157,3 +1157,27 @@ Current next task: prepare the three-participant end-to-end pilot protocol with
 consented jab recordings, expert annotations, rule-only versus hybrid comparison,
 logs, screenshots, latency, failure cases, usability ratings and bias controls.
 Real-data phase-model retraining remains a later pending item.
+
+---
+
+## 43. Single-participant constraint and screenshot evidence
+
+On 2026-07-31 the user clarified that only the researcher can participate, the
+evaluation is jab-only, and the laptop camera will be used. The design was adapted
+to a single-participant expert feasibility case study. Researcher/developer/
+participant/annotator role overlap and self-review bias must be disclosed; results
+cannot be generalized to other people or techniques.
+
+On 2026-08-01 the user supplied 78 categorized screenshots for Train Hard, Train
+Easy, Practice, Analysis, Admin, Dashboard, and general pages. Copies, SHA-256
+hashes, privacy classification, and evidence interpretation were stored in
+`research/outputs/framework_evaluation/20260801_screenshot_evidence/`.
+
+The screenshots support functional/observational traceability, including named
+greeting, waiting for voice response, prioritized joint correction, step changes,
+session restart, practice timelines, Level 1 and ACP-STGAT overlays, diagnostics,
+L1–L4 panels, dashboard filters, and page coverage. They do not alone prove model
+accuracy, latency, LLM reasoning, baseline superiority, or generalization.
+
+Next requested evidence: machine-readable tapes/logs, timing data, configuration
+and model identifiers, and structured expert annotations. Do not write the thesis.
