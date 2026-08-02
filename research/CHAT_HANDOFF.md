@@ -410,3 +410,9 @@ This subsection supersedes only the participant/capture scope stated above.
   updater preserve this structure. DOCX archive integrity passed with nine
   unique appendix hyperlinks, four embedded core figures and 11 tables. The
   PDF was intentionally left unchanged for the user's Word-only editing phase.
+- Expanded A9 screenshot revision - 2026-08-02: all 78 user-supplied screenshots
+  were reviewed. Appendix A9 now retains 47 distinct account-name-masked views
+  embedded in its README. The former completion/restart pair and administrator
+  overlay/diagnostic composites were replaced by separate full-resolution
+  images. Repetitive frames and authentication/payment or unnecessary personal
+  material remain excluded. The DOCX and PDF were not regenerated.
