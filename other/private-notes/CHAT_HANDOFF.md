@@ -13,12 +13,12 @@ Portable discussion transcript: [`CHAT_TRANSCRIPT.md`](CHAT_TRANSCRIPT.md)
 3. Let the OneDrive project finish synchronizing.
 4. If the task is unavailable, open this file and give Codex this instruction:
 
-   > Continue my Combat Cognition thesis planning from `research/CHAT_HANDOFF.md`.
+   > Continue my Combat Cognition thesis planning from `other/private-notes/CHAT_HANDOFF.md`.
    > Do not write the report yet. First help me prepare and evaluate the datasets
    > and execute the two research notebooks step by step.
 
 The local path may differ on the personal laptop. Locate the synced
-`martial-art-ai/research` directory rather than relying on the office-laptop path.
+`martial-art-ai/other/private-notes` directory rather than relying on the office-laptop path.
 
 ## Agreed research position
 
@@ -237,7 +237,7 @@ agree chapter content against the university PDFs, and only then write the repor
 
 Personal-laptop continuation prompt:
 
-> Read `research/CHAT_HANDOFF.md` and `research/CHAT_TRANSCRIPT.md`, using the
+> Read `other/private-notes/CHAT_HANDOFF.md` and `other/private-notes/CHAT_TRANSCRIPT.md`, using the
 > “Current transfer update — 2026-07-31” as authoritative. Continue with the
 > end-to-end pilot and framework-evaluation protocol. Do not generate the thesis.
 
