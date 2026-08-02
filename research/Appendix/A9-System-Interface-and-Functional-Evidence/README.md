@@ -1,7 +1,7 @@
 # A9 - System interface and functional evidence
 
 The complete supplied set of 78 screenshots was reviewed. This appendix retains
-47 distinct, account-name-masked screenshots. Repetitive countdown or
+51 distinct, account-name-masked screenshots. Repetitive countdown or
 near-identical frames, authentication/payment pages and unnecessary personal
 details are excluded. Composite images were removed so every retained view can
 be inspected at its original screenshot resolution.
@@ -144,6 +144,16 @@ reasoning or generalizability.
 ### A9.31 Recovery frame
 
 ![Practice analysis recovery frame](29-practice-analysis-recovery-frame.png)
+
+### Additional Practice-42 selected frames
+
+![Rep 1 transition to step 3 and hold](29a-practice-analysis-rep1-step3-hold.png)
+
+![Rep 1 complete](29b-practice-analysis-rep1-complete.png)
+
+![Rep 2 transition to step 1 and hold](29c-practice-analysis-rep2-step1-hold.png)
+
+![Rep 2 complete](29d-practice-analysis-rep2-complete.png)
 
 ## Analysis-mode evidence
 

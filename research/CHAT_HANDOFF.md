@@ -416,3 +416,8 @@ This subsection supersedes only the participant/capture scope stated above.
   overlay/diagnostic composites were replaced by separate full-resolution
   images. Repetitive frames and authentication/payment or unnecessary personal
   material remain excluded. The DOCX and PDF were not regenerated.
+- A5 visual-traceability revision - 2026-08-02: the Practice-42 table no longer
+  shows inaccessible source-path labels. Its nine distinct evidence rows now
+  link to curated A9 files, and the same overview/selected frames are embedded
+  inline in A5. Four previously omitted non-duplicate selected frames were added
+  to A9, bringing the curated screenshot set to 51. The DOCX/PDF were unchanged.
