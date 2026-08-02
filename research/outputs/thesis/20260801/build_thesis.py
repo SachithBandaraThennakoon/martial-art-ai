@@ -678,7 +678,7 @@ appendix_sections = [
         "The generated-data status is mandatory. No appendix item converts these values into real-human accuracy.",
     ]),
     ("Appendix A4: System Interface and Functional Evidence", [
-        "The publication-ready supplementary appendix contains account-name-masked screenshots with descriptive filenames. They document visible controls, state transitions and diagnostic outputs in the P001 jab-only laptop-camera case. They are observational implementation evidence, not independent measurements of accuracy, effectiveness, causal reasoning or human-equivalent cognition. To avoid duplicating the same screenshots inside the report, the curated images are provided through the repository link below.",
+        "The publication-ready supplementary appendix contains 51 distinct, account-name-masked screenshots retained after review of all 78 supplied images. They document visible controls, state transitions and diagnostic outputs in the P001 jab-only laptop-camera case. They are observational implementation evidence, not independent measurements of accuracy, effectiveness, causal reasoning or human-equivalent cognition. To avoid duplicating the same screenshots inside the report, the curated images are provided through the repository link below.",
     ]),
     ("Appendix A5: P001 Protocol and Curated Evidence", [
         "P001 is the researcher/developer/martial-arts expert. The case uses a jab and laptop camera. The selected practice-42 record is the confirmed latest/good case. Anonymized representative screenshots are included where they provide distinct functional evidence. Original recordings and repetitive or unnecessary screenshots are excluded.",
@@ -706,7 +706,7 @@ for heading, paras in appendix_sections:
     appendix_id = heading.split(":", 1)[0].replace("Appendix ", "")
     set_font(p.add_run(f"Supplementary evidence ({appendix_id}): "), 12, bold=True)
     appendix_url = f"{APPENDIX_BASE_URL}/{APPENDIX_FOLDERS[heading]}"
-    add_hyperlink(p, appendix_url, appendix_url)
+    add_hyperlink(p, f"Open Appendix {appendix_id} evidence folder on GitHub", appendix_url)
 
 # Update fields on open and remove metadata traces.
 settings = doc.settings._element

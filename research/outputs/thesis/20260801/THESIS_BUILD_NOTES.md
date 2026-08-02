@@ -11,10 +11,10 @@
 - Formatting: A4, Times New Roman 12 pt, 1.5 line spacing, 40 mm left margin, 15 mm right margin, and 25 mm top/bottom margins
 - Screenshot revision: all 78 supplied screenshots were reviewed and 51 distinct, account-name-masked views were retained under `research/Appendix/A4-System-Interface-and-Functional-Evidence/`. Composite figures were replaced with separate full-resolution screenshots, the complete non-duplicate Practice-42 selected-frame sequence is linked and displayed from A5, and repetitive, personal authentication/payment and unnecessary frames were excluded. The Word report does not duplicate these screenshot pages.
 - Appendix links: every Appendix A1-A9 summary in the editable Word report has a direct public GitHub link to its matching `research/Appendix/A#-.../` evidence folder.
-- Verification: DOCX archive integrity passed; the editable Word report contains four inline core figures, 11 tables and nine unique appendix hyperlinks; the prior incorrect ACP-STGAT expansion is absent. The existing PDF was deliberately not regenerated after the Word-only appendix-link revision. Native DOCX rendering remains unavailable because LibreOffice is not installed, so this revision received structural rather than new visual-render QA.
+- Verification: full Word-only review passed for DOCX archive integrity, A4 page geometry and required margins, heading order, 22 cited references, four inline core figures, 11 tables, nine unique appendix hyperlinks, evidence boundaries and terminology. Figure alt text and readable appendix-link labels were added, leaving no accessibility-audit findings. The existing PDF was deliberately not regenerated. Native DOCX rendering remains unavailable because LibreOffice is not installed, so this revision received structural rather than new visual-render QA.
 - Evidence boundary: this is a P001 researcher/developer/martial-arts-expert, jab-only, laptop-camera feasibility/self-evaluation report. Generated-data model results are not presented as real-human accuracy, videos remain excluded, no operational LLM is claimed, and no combined overall accuracy is reported.
 
 SHA-256:
 
-- DOCX: `a5abbc31313ea62d2a3588e38f2e5f4f0cecc58e15afcd173d348570621d107a`
+- DOCX: `53d86cf6dc19b8f164072759db1f1eab9d28510ce61ee8d38765f7a6596c057b`
 - PDF: `55ed33fde97573dba0e89a1d701be10819cddfd68192c884f0debbfbe5a3b7f3`

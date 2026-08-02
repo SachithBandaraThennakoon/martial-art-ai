@@ -427,3 +427,10 @@ This subsection supersedes only the participant/capture scope stated above.
   Actions shifted to A7, A8 and A9 respectively. Folder names, Markdown links,
   DOCX headings/order, nine GitHub hyperlinks and reproducible builders were
   updated consistently. The PDF was deliberately not regenerated.
+- Full report review - 2026-08-02: the complete editable DOCX was reviewed for
+  front matter, chapter structure, evidence claims, terminology, tables,
+  figures, citations/references, appendices and hyperlinks. Corrections added
+  spaces to declaration labels, made all nine appendix links readable, added
+  meaningful alt text to four core figures and updated A4 to state that 51 of
+  78 reviewed screenshots were retained. Structural, citation, geometry,
+  archive and accessibility audits passed. The PDF remained unchanged.
