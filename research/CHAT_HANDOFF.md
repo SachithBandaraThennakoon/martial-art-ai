@@ -421,3 +421,9 @@ This subsection supersedes only the participant/capture scope stated above.
   link to curated A9 files, and the same overview/selected frames are embedded
   inline in A5. Four previously omitted non-duplicate selected frames were added
   to A9, bringing the curated screenshot set to 51. The DOCX/PDF were unchanged.
+- Appendix renumbering revision - 2026-08-02: at the user's request, System
+  Interface and Functional Evidence moved from A9 to A4; P001 remains A5;
+  Software Verification moved from A4 to A6; Database, Literature and Evaluation
+  Actions shifted to A7, A8 and A9 respectively. Folder names, Markdown links,
+  DOCX headings/order, nine GitHub hyperlinks and reproducible builders were
+  updated consistently. The PDF was deliberately not regenerated.

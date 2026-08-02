@@ -26,12 +26,12 @@ APPENDIX_FOLDERS = {
     "Appendix A1: Architecture and Implementation Evidence": "A1-Architecture-and-Implementation",
     "Appendix A2: ACP-STGAT Reproducibility Record": "A2-ACP-STGAT-Reproducibility",
     "Appendix A3: Phase-Classifier Reproducibility Record": "A3-Phase-Classifier-Reproducibility",
-    "Appendix A4: Software Verification": "A4-Software-Verification",
+    "Appendix A4: System Interface and Functional Evidence": "A4-System-Interface-and-Functional-Evidence",
     "Appendix A5: P001 Protocol and Curated Evidence": "A5-P001-Protocol-and-Curated-Evidence",
-    "Appendix A6: Database Export and Failure Evidence": "A6-Database-Export-and-Failure-Evidence",
-    "Appendix A7: Literature and Claim Audit": "A7-Literature-and-Claim-Audit",
-    "Appendix A8: Evaluation Actions and Evidence Locks": "A8-Evaluation-Actions-and-Evidence-Locks",
-    "Appendix A9: System Interface and Functional Evidence": "A9-System-Interface-and-Functional-Evidence",
+    "Appendix A6: Software Verification": "A6-Software-Verification",
+    "Appendix A7: Database Export and Failure Evidence": "A7-Database-Export-and-Failure-Evidence",
+    "Appendix A8: Literature and Claim Audit": "A8-Literature-and-Claim-Audit",
+    "Appendix A9: Evaluation Actions and Evidence Locks": "A9-Evaluation-Actions-and-Evidence-Locks",
 }
 
 
@@ -564,7 +564,7 @@ p001_rows = [
 ]
 add_table(doc, "Table 4.4 P001 practice-42 evidence summary", ["Item", "Verified value"], p001_rows, [1.9, 4.2], "This is expert self-validation, not independent ground truth. Application scores are not accuracy.")
 add_figure(doc, ROOT / "research/figures/verified/20260801/F4_p001_practice42_three_cluster_timeline.png", "Figure 4.3 Post-session three-cluster timeline for the confirmed P001 practice-42 jab case. P001 is the researcher/developer/martial-arts expert; confirmation is self-validation.", 5.9)
-add_body(doc, "The wider screenshot set also documents the implemented interaction path across mode selection, dashboard review, Easy and Hard coaching, voice-mediated transitions, practice-set execution, post-session analysis and administrator diagnostics. Representative anonymized frames are preserved in Appendix A9. They establish that these interface states and outputs were displayed during the P001 feasibility case; they do not independently validate the numerical scores, model accuracy, coaching effectiveness or generalizability.")
+add_body(doc, "The wider screenshot set also documents the implemented interaction path across mode selection, dashboard review, Easy and Hard coaching, voice-mediated transitions, practice-set execution, post-session analysis and administrator diagnostics. Representative anonymized frames are preserved in Appendix A4. They establish that these interface states and outputs were displayed during the P001 feasibility case; they do not independently validate the numerical scores, model accuracy, coaching effectiveness or generalizability.")
 add_body(doc, "The case demonstrates an end-to-end path from camera tracking through live interaction, session recording and post-session analysis. P001 confirmed the three displayed movement clusters as correct/good representations of the demonstrated repetitions. The analysis panel exposed the movement timeline, session accuracy trace, selected moments, phase labels, skeleton view and hand/face diagnostics. Train Easy and Train Hard screenshots additionally showed that the interface waited for responses, accepted microphone commands, prioritized corrections, and started a new session when requested.")
 add_body(doc, "These observations support functional feasibility and qualitative alignment with the researcher's expert interpretation. They do not provide independent annotation, a usability scale or a controlled comparison. The 96% tracking field is an application diagnostic and not ground-truth landmark accuracy. The historical export contained many development and outlier sessions, which were excluded from the headline case rather than averaged into a misleading score.")
 
@@ -677,20 +677,23 @@ appendix_sections = [
         "Frozen run: 20260731T091140Z. Generated bootstrap: 48 sessions (24 jab and 24 front kick). Seeds: 42, 43 and 44. Reported evidence includes classification, per-phase, boundary, repetition, robustness and ONNX deployment measures.",
         "The generated-data status is mandatory. No appendix item converts these values into real-human accuracy.",
     ]),
-    ("Appendix A4: Software Verification", [
-        "The final evidence consolidation records 129/129 frontend assertions across 23 test files and 24/24 current backend tests. Verification covers checked code paths and contracts; it does not establish live coaching correctness.",
+    ("Appendix A4: System Interface and Functional Evidence", [
+        "The publication-ready supplementary appendix contains account-name-masked screenshots with descriptive filenames. They document visible controls, state transitions and diagnostic outputs in the P001 jab-only laptop-camera case. They are observational implementation evidence, not independent measurements of accuracy, effectiveness, causal reasoning or human-equivalent cognition. To avoid duplicating the same screenshots inside the report, the curated images are provided through the repository link below.",
     ]),
     ("Appendix A5: P001 Protocol and Curated Evidence", [
         "P001 is the researcher/developer/martial-arts expert. The case uses a jab and laptop camera. The selected practice-42 record is the confirmed latest/good case. Anonymized representative screenshots are included where they provide distinct functional evidence. Original recordings and repetitive or unnecessary screenshots are excluded.",
     ]),
-    ("Appendix A6: Database Export and Failure Evidence", [
+    ("Appendix A6: Software Verification", [
+        "The final evidence consolidation records 129/129 frontend assertions across 23 test files and 24/24 current backend tests. Verification covers checked code paths and contracts; it does not establish live coaching correctness.",
+    ]),
+    ("Appendix A7: Database Export and Failure Evidence", [
         "The verified export contained 42 practice sessions, 58 recorded repetitions, 22 landmark tapes with 7,277 frames, 185 training sessions, 140 training-step attempts and 3,623 feedback events. These records include development history and are not aggregated into a controlled accuracy result.",
         "The 31.97 MB raw JSON and potentially identifying movement tapes are excluded. The interpretation and practice-42 inconsistency remain part of the audit trail.",
     ]),
-    ("Appendix A7: Literature and Claim Audit", [
+    ("Appendix A8: Literature and Claim Audit", [
         "The verified literature matrix contains 22 sources: 21 included or included with caution and one direct-support exclusion. Thirty-nine page/section-specific extracts connect source propositions, limitations and local evidence requirements.",
     ]),
-    ("Appendix A8: Evaluation Actions and Evidence Locks", [
+    ("Appendix A9: Evaluation Actions and Evidence Locks", [
         "Twelve evaluation actions were audited. Four were closed or complete, and eight remained open but bounded as limitations/future evaluation. No new participant, recording or retrospective score was invented for the present feasibility conclusion.",
     ]),
 ]
@@ -704,15 +707,6 @@ for heading, paras in appendix_sections:
     set_font(p.add_run(f"Supplementary evidence ({appendix_id}): "), 12, bold=True)
     appendix_url = f"{APPENDIX_BASE_URL}/{APPENDIX_FOLDERS[heading]}"
     add_hyperlink(p, appendix_url, appendix_url)
-
-add_heading(doc, "Appendix A9: System Interface and Functional Evidence", 2)
-add_body(doc, "The publication-ready supplementary appendix contains account-name-masked screenshots with descriptive filenames. They document visible controls, state transitions and diagnostic outputs in the P001 jab-only laptop-camera case. They are observational implementation evidence, not independent measurements of accuracy, effectiveness, causal reasoning or human-equivalent cognition. To avoid duplicating the same screenshots inside the report, the curated images are provided through the repository link below.")
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-p.paragraph_format.space_after = Pt(6)
-set_font(p.add_run("Supplementary evidence (A9): "), 12, bold=True)
-appendix_url = f"{APPENDIX_BASE_URL}/{APPENDIX_FOLDERS['Appendix A9: System Interface and Functional Evidence']}"
-add_hyperlink(p, appendix_url, appendix_url)
 
 # Update fields on open and remove metadata traces.
 settings = doc.settings._element

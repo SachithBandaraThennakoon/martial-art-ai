@@ -8,7 +8,7 @@ from docx.oxml.ns import qn
 
 DOCX = Path(__file__).with_name("Combat_Cognition_Thesis_I.T.M.S.S.B.Thennakoon.docx")
 APPENDIX_URL = "https://github.com/SachithBandaraThennakoon/martial-art-ai/tree/main/research/Appendix"
-HEADING = "Appendix A9: System Interface and Functional Evidence"
+HEADING = "Appendix A4: System Interface and Functional Evidence"
 BODY = (
     "The publication-ready supplementary appendix contains account-name-masked "
     "screenshots with descriptive filenames. They document visible controls, "

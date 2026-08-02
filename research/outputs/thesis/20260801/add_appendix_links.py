@@ -16,12 +16,12 @@ APPENDICES = {
     "Appendix A1: Architecture and Implementation Evidence": "A1-Architecture-and-Implementation",
     "Appendix A2: ACP-STGAT Reproducibility Record": "A2-ACP-STGAT-Reproducibility",
     "Appendix A3: Phase-Classifier Reproducibility Record": "A3-Phase-Classifier-Reproducibility",
-    "Appendix A4: Software Verification": "A4-Software-Verification",
+    "Appendix A4: System Interface and Functional Evidence": "A4-System-Interface-and-Functional-Evidence",
     "Appendix A5: P001 Protocol and Curated Evidence": "A5-P001-Protocol-and-Curated-Evidence",
-    "Appendix A6: Database Export and Failure Evidence": "A6-Database-Export-and-Failure-Evidence",
-    "Appendix A7: Literature and Claim Audit": "A7-Literature-and-Claim-Audit",
-    "Appendix A8: Evaluation Actions and Evidence Locks": "A8-Evaluation-Actions-and-Evidence-Locks",
-    "Appendix A9: System Interface and Functional Evidence": "A9-System-Interface-and-Functional-Evidence",
+    "Appendix A6: Software Verification": "A6-Software-Verification",
+    "Appendix A7: Database Export and Failure Evidence": "A7-Database-Export-and-Failure-Evidence",
+    "Appendix A8: Literature and Claim Audit": "A8-Literature-and-Claim-Audit",
+    "Appendix A9: Evaluation Actions and Evidence Locks": "A9-Evaluation-Actions-and-Evidence-Locks",
 }
 
 

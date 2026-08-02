@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[4]
 SOURCE = ROOT / "research/outputs/framework_evaluation/20260801_screenshot_evidence"
-OUTPUT = ROOT / "research/Appendix/A9-System-Interface-and-Functional-Evidence"
+OUTPUT = ROOT / "research/Appendix/A4-System-Interface-and-Functional-Evidence"
 
 SELECTIONS = {
     "01-studio-mode-selection.png": "pages/when user open studio ask that mode.PNG",
