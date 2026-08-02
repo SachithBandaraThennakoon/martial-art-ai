@@ -389,3 +389,18 @@ This subsection supersedes only the participant/capture scope stated above.
   list of figures and static page numbers were updated. DOCX integrity and image
   audits passed (16 inline figures total), and all 48 PDF pages were visually
   checked. Final hashes are recorded in the thesis build notes.
+- Word-only terminology correction — 2026-08-02: the ACP-STGAT expansion in
+  the thesis abbreviation table and the reproducible DOCX builder was corrected
+  to "Action-Conditioned Physics-Informed Spatio-Temporal Graph Attention
+  Transformer." The prior incorrect expansion was removed. The editable DOCX
+  passed structural checks; the PDF was deliberately not regenerated because
+  the user is now editing the Word thesis through the VS Code extension.
+- Appendix externalization — 2026-08-02: a publication-ready
+  `research/Appendix/` package was created with A1–A9 directories, concise
+  READMEs, selected reproducibility/audit records and 12 anonymized screenshots
+  renamed descriptively. The Word thesis now links to the GitHub appendix at
+  `https://github.com/SachithBandaraThennakoon/martial-art-ai/tree/main/research/Appendix`.
+  The duplicated A9 screenshot pages and their List-of-Figures entries were
+  removed from the DOCX; orphaned image payloads were also removed, leaving four
+  embedded core thesis figures. The PDF was intentionally not regenerated and
+  therefore still reflects the earlier screenshot-embedded version.

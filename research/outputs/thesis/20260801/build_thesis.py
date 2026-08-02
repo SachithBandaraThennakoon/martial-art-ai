@@ -21,6 +21,18 @@ TITLE = "COMBAT COGNITION: A HYBRID COMPUTATIONAL FRAMEWORK TOWARD MARTIAL-ARTIS
 AUTHOR = "I.T.M.S.S.B. THENNAKOON"
 REG_NO = "DTS2401"
 DATE = "1 AUGUST 2026"
+APPENDIX_BASE_URL = "https://github.com/SachithBandaraThennakoon/martial-art-ai/tree/main/research/Appendix"
+APPENDIX_FOLDERS = {
+    "Appendix A1: Architecture and Implementation Evidence": "A1-Architecture-and-Implementation",
+    "Appendix A2: ACP-STGAT Reproducibility Record": "A2-ACP-STGAT-Reproducibility",
+    "Appendix A3: Phase-Classifier Reproducibility Record": "A3-Phase-Classifier-Reproducibility",
+    "Appendix A4: Software Verification": "A4-Software-Verification",
+    "Appendix A5: P001 Protocol and Curated Evidence": "A5-P001-Protocol-and-Curated-Evidence",
+    "Appendix A6: Database Export and Failure Evidence": "A6-Database-Export-and-Failure-Evidence",
+    "Appendix A7: Literature and Claim Audit": "A7-Literature-and-Claim-Audit",
+    "Appendix A8: Evaluation Actions and Evidence Locks": "A8-Evaluation-Actions-and-Evidence-Locks",
+    "Appendix A9: System Interface and Functional Evidence": "A9-System-Interface-and-Functional-Evidence",
+}
 
 
 def set_font(run, size=12, bold=False, italic=False):
@@ -214,6 +226,29 @@ def add_field(paragraph, instruction, placeholder):
     set_font(run, 12)
 
 
+def add_hyperlink(paragraph, text, url):
+    relationship_id = paragraph.part.relate_to(
+        url,
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True,
+    )
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), relationship_id)
+    run = OxmlElement("w:r")
+    run_properties = OxmlElement("w:rPr")
+    color = OxmlElement("w:color")
+    color.set(qn("w:val"), "0563C1")
+    underline = OxmlElement("w:u")
+    underline.set(qn("w:val"), "single")
+    run_properties.extend([color, underline])
+    run.append(run_properties)
+    value = OxmlElement("w:t")
+    value.text = text
+    run.append(value)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+
+
 def page_number_footer(section, roman=False):
     footer = section.footer
     p = footer.paragraphs[0]
@@ -311,18 +346,6 @@ for text,page in [
     ("Figure 4.1 ACP-STGAT normalized prediction error by forecast horizon","14"),
     ("Figure 4.2 Generated-bootstrap temporal phase confusion matrix","16"),
     ("Figure 4.3 P001 practice-42 post-session three-cluster timeline","18"),
-    ("Figure A9.1 Studio mode-selection dialog","29"),
-    ("Figure A9.2 Dashboard overview and global filters","30"),
-    ("Figure A9.3 Train Hard prioritized elbow correction","31"),
-    ("Figure A9.4 Voice-mediated step transition","32"),
-    ("Figure A9.5 Train Hard guard-related shoulder correction","33"),
-    ("Figure A9.6 Train Hard completion and restart sequence","34"),
-    ("Figure A9.7 Easy-mode hand-tracking diagnostic","35"),
-    ("Figure A9.8 Practice-mode live set","36"),
-    ("Figure A9.9 Practice-mode full-session analysis","37"),
-    ("Figure A9.10 Analysis-mode dashboard","38"),
-    ("Figure A9.11 Administrator L1/L2 skeleton overlays","39"),
-    ("Figure A9.12 Administrator diagnostics and data layers","40"),
 ]: add_index_line(doc,text,page)
 doc.add_page_break(); centered_page_heading(doc, "List of Tables")
 for text,page in [
@@ -339,7 +362,7 @@ for text,page in [
 ]: add_index_line(doc,text,page)
 doc.add_page_break(); centered_page_heading(doc, "List of Abbreviations")
 add_table(doc, "Abbreviations", ["Abbreviation", "Meaning"], [
-    ["ACP-STGAT", "Anticipatory Cognitive Pose Spatial-Temporal Graph Attention model"],
+    ["ACP-STGAT", "Action-Conditioned Physics-Informed Spatio-Temporal Graph Attention Transformer"],
     ["ADE", "Average displacement error"], ["FDE", "Final displacement error"],
     ["F1", "Harmonic mean of precision and recall"], ["LLM", "Large language model"],
     ["MPJPE", "Mean per-joint position error"], ["ONNX", "Open Neural Network Exchange"],
@@ -674,27 +697,22 @@ appendix_sections = [
 for heading, paras in appendix_sections:
     add_heading(doc, heading, 2)
     for para in paras: add_body(doc, para)
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.space_after = Pt(6)
+    appendix_id = heading.split(":", 1)[0].replace("Appendix ", "")
+    set_font(p.add_run(f"Supplementary evidence ({appendix_id}): "), 12, bold=True)
+    appendix_url = f"{APPENDIX_BASE_URL}/{APPENDIX_FOLDERS[heading]}"
+    add_hyperlink(p, appendix_url, appendix_url)
 
 add_heading(doc, "Appendix A9: System Interface and Functional Evidence", 2)
-add_body(doc, "The following account-name-masked screenshots are representative selections from the researcher-supplied interface record. They document visible controls, state transitions and diagnostic outputs in a P001 jab-only laptop-camera session. They are observational implementation evidence, not independent measurements of accuracy, effectiveness, causal reasoning or human-equivalent cognition.")
-fig_root = ROOT / "research/figures/verified/20260802"
-appendix_figures = [
-    ("F5_studio_mode_selection.png", "Figure A9.1 Studio mode-selection dialog exposing Train, Practice and Analysis workflows."),
-    ("F6_dashboard_overview.png", "Figure A9.2 Dashboard overview with global filters and aggregate development-session summaries. Values include historical and outlier sessions and are not used as a controlled overall accuracy."),
-    ("F7_train_hard_prioritized_correction.png", "Figure A9.3 Train Hard frame showing a quantified, prioritized left-elbow correction and supporting landmark/angle panels."),
-    ("F8_train_hard_voice_transition.png", "Figure A9.4 Train Hard transition after the spoken command to move to the next step. The deterministic controller changed from guard stance to lead-hand extension."),
-    ("F9_train_hard_guard_correction.png", "Figure A9.5 Train Hard extension frame with a right-shoulder reduction prompt. Its guard interpretation is expert-authored and not independently validated."),
-    ("F10_train_hard_completion_restart.png", "Figure A9.6 Train Hard completion and restart sequence: (A) completion choice after the user requested Train again; (B) the restarted guard-stance step."),
-    ("F11_hand_tracking_test.png", "Figure A9.7 Easy-mode hand-readiness test showing the hand-landmark diagnostic alongside body-pose feedback."),
-    ("F12_practice_live_set.png", "Figure A9.8 Practice-mode set builder and live three-repetition start state with rhythm controls and session history."),
-    ("F13_practice_post_session.png", "Figure A9.9 Full-session analysis popup with the three confirmed movement clusters, accuracy timeline, selected frame and hand/face diagnostics."),
-    ("F14_analysis_dashboard.png", "Figure A9.10 Analysis-mode dashboard showing the latest practice-session summary and historical aggregates."),
-    ("F15_admin_l1_l2_overlay.png", "Figure A9.11 Administrator visualization: (A) Level 1 observed skeleton, (B) Level 2 ACP-STGAT forecast, and (C) combined observed/forecast overlay."),
-    ("F16_admin_diagnostics_layers.png", "Figure A9.12 Administrator evidence panels: (A) live-session diagnostics, (B) expanded Level 2 action analysis, and (C) expanded multi-level data-layer state."),
-]
-for filename, fig_caption in appendix_figures:
-    doc.add_page_break()
-    add_figure(doc, fig_root / filename, fig_caption, 6.0)
+add_body(doc, "The publication-ready supplementary appendix contains account-name-masked screenshots with descriptive filenames. They document visible controls, state transitions and diagnostic outputs in the P001 jab-only laptop-camera case. They are observational implementation evidence, not independent measurements of accuracy, effectiveness, causal reasoning or human-equivalent cognition. To avoid duplicating the same screenshots inside the report, the curated images are provided through the repository link below.")
+p = doc.add_paragraph()
+p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+p.paragraph_format.space_after = Pt(6)
+set_font(p.add_run("Supplementary evidence (A9): "), 12, bold=True)
+appendix_url = f"{APPENDIX_BASE_URL}/{APPENDIX_FOLDERS['Appendix A9: System Interface and Functional Evidence']}"
+add_hyperlink(p, appendix_url, appendix_url)
 
 # Update fields on open and remove metadata traces.
 settings = doc.settings._element
