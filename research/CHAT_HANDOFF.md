@@ -404,3 +404,9 @@ This subsection supersedes only the participant/capture scope stated above.
   removed from the DOCX; orphaned image payloads were also removed, leaving four
   embedded core thesis figures. The PDF was intentionally not regenerated and
   therefore still reflects the earlier screenshot-embedded version.
+- Appendix-link revision - 2026-08-02: each Appendix A1-A9 summary in the
+  editable DOCX now includes a separate clickable GitHub link to its matching
+  `research/Appendix/A#-.../` directory. The builder and an idempotent surgical
+  updater preserve this structure. DOCX archive integrity passed with nine
+  unique appendix hyperlinks, four embedded core figures and 11 tables. The
+  PDF was intentionally left unchanged for the user's Word-only editing phase.

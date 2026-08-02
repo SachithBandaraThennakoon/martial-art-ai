@@ -87,5 +87,11 @@ for heading, folder in APPENDICES.items():
     if next_heading is not None:
         next_heading._p.addprevious(link_paragraph._p)
 
+# Remove obsolete hyperlink relationships left by the former root link or a rerun.
+used_relationship_ids = set(doc._element.xpath(".//w:hyperlink/@r:id"))
+for relationship_id, relationship in list(doc.part.rels.items()):
+    if relationship.reltype == RT.HYPERLINK and relationship_id not in used_relationship_ids:
+        doc.part.drop_rel(relationship_id)
+
 doc.save(DOCX)
 print(f"Added {len(APPENDICES)} appendix links to {DOCX}")
