@@ -9,8 +9,10 @@ from sqlalchemy.pool import StaticPool
 
 from database import Base
 from models.password_reset_token import PasswordResetToken
+from models.refresh_session import RefreshSession
 from models.user import User
 from routers.auth import ForgotPasswordRequest, ResetPasswordRequest, forgot_password, reset_password
+from services.refresh_sessions import issue_refresh_session
 from utils.security import hash_password, verify_password
 
 
@@ -47,6 +49,8 @@ class PasswordResetFlowTests(unittest.TestCase):
         _send_email,
         _email_configured,
     ):
+        _refresh_token, refresh_session = issue_refresh_session(self.db, self.user)
+        self.db.commit()
         response = forgot_password(
             ForgotPasswordRequest(email="student@example.com"),
             self.request,
@@ -61,15 +65,19 @@ class PasswordResetFlowTests(unittest.TestCase):
 
         result = reset_password(
             ResetPasswordRequest(token=raw_token, password="new-password"),
+            self.request,
             self.db,
         )
         self.assertIn("Password updated", result["message"])
         self.db.refresh(self.user)
+        self.db.refresh(refresh_session)
         self.assertTrue(verify_password("new-password", self.user.password_hash))
+        self.assertIsNotNone(refresh_session.revoked_at)
 
         with self.assertRaises(HTTPException):
             reset_password(
                 ResetPasswordRequest(token=raw_token, password="another-password"),
+                self.request,
                 self.db,
             )
 

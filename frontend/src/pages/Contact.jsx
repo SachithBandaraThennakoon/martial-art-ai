@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { XCEED_COMPANY } from "../data/companyInfo";
 import { API_BASE_URL } from "../services/api";
 

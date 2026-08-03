@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { XCEED_COMPANY } from "../data/companyInfo";
 import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
 
@@ -31,6 +31,12 @@ export default function Footer() {
             {MAIN_CATEGORIES.slice(0, 4).map((category) => (
               <Link key={category} to={`/categories/${slugify(category)}`}>{category}</Link>
             ))}
+          </div>
+          <div>
+            <strong>Legal</strong>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
+            <Link to="/account/privacy">Privacy &amp; account</Link>
           </div>
           <div>
             <strong>Developed by Xceed</strong>

@@ -1,8 +1,9 @@
 import { useContext, useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import PayPalSubscriptionButton from "../components/PayPalSubscriptionButton";
 import { AuthContext } from "../context/auth";
 import { API_BASE_URL } from "../services/api";
+import { authFetch } from "../services/authSession";
 import {
   getPayPalPlanId,
   planFeatureNames,
@@ -20,8 +21,30 @@ function formatFeature(value) {
 }
 
 export default function Pricing() {
-  const { token, userPlan, setUserPlan } = useContext(AuthContext) || {};
+  const { token, userPlan, refreshProfile } = useContext(AuthContext) || {};
   const [activationMessage, setActivationMessage] = useState("");
+
+  const createCheckoutContext = useCallback(
+    async (planCode) => {
+      const response = await authFetch(
+        `${API_BASE_URL}/subscription/checkout-context`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ plan: planCode })
+        }
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Unable to prepare secure checkout");
+      }
+      return response.json();
+    },
+    [token]
+  );
 
   const activatePlan = useCallback(
     async ({ planCode, subscriptionId }) => {
@@ -33,7 +56,7 @@ export default function Pricing() {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/subscription/activate`, {
+        const response = await authFetch(`${API_BASE_URL}/subscription/activate`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -50,8 +73,7 @@ export default function Pricing() {
           throw new Error(data.detail || "Profile update failed");
         }
 
-        localStorage.setItem("userPlan", planCode);
-        setUserPlan?.(planCode);
+        await refreshProfile?.();
         setActivationMessage(
           `${planCode.replace("_PLAN", "")} package activated.`
         );
@@ -62,7 +84,7 @@ export default function Pricing() {
         );
       }
     },
-    [setUserPlan, token]
+    [refreshProfile, token]
   );
 
   return (
@@ -144,6 +166,7 @@ export default function Pricing() {
                 </div>
               ) : (
                 <PayPalSubscriptionButton
+                  createCheckoutContext={createCheckoutContext}
                   onApproved={activatePlan}
                   planCode={plan.code}
                   planId={getPayPalPlanId(plan)}

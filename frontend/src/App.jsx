@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -16,6 +16,9 @@ import NotFound from "./pages/NotFound";
 import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import PrivacyNotice from "./pages/PrivacyNotice";
+import Terms from "./pages/Terms";
+import AccountPrivacy from "./pages/AccountPrivacy";
 
 const Training = lazy(() => import("./pages/Training"));
 const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
@@ -81,6 +84,9 @@ function AppRoutes() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/privacy" element={<PrivacyNotice />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/account/privacy" element={<ProtectedRoute><AccountPrivacy /></ProtectedRoute>} />
 
         <Route
           path="/studio"

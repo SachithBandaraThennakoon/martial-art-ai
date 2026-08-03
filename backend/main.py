@@ -1,10 +1,12 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
+from collections import deque
+from datetime import datetime, timezone
 import logging
 import os
+import re
 import time
 import zlib
 from pydantic import BaseModel, Field
@@ -13,14 +15,17 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from jose import JWTError, jwt
 import json
 
+from services.production_config import validate_runtime_environment
+
+validate_runtime_environment()
+
 # DB
-from database import engine, get_db, init_db, SessionLocal
+from database import check_database_ready, database_readiness, get_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration, password_reset_token
+from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy
 from models.body_calibration import BodyCalibration
 from models.target_angle import TargetAngle
 from models.training_memory import (
@@ -41,38 +46,136 @@ from routers import technique as technique_router
 from routers import subscription as subscription_router
 from routers import contact as contact_router
 from routers import dashboard as dashboard_router
+from routers import privacy as privacy_router
 
 # Services
 from services.angle_service import compare_angles
-from services.catalog_sync import ensure_session_technique_columns, sync_technique_catalog
 from services.practice_analytics import (
     load_practice_analytics,
     upsert_practice_analytics,
 )
 from services.research_export import build_research_export
+from services.rate_limits import (
+    GLOBAL_WRITE_IP,
+    TAPE_UPLOAD_USER,
+    WEBSOCKET_CONNECT_IP,
+    WEBSOCKET_CONNECT_USER,
+    client_ip,
+    enforce_rate_limits,
+)
+from services.tape_storage import (
+    TAPE_MAX_BYTES,
+    TAPE_MAX_FRAMES,
+    TAPE_STORAGE_MODE,
+    create_upload_url,
+    download_tape,
+    new_blob_name,
+    parse_and_validate_tape,
+    retention_expiry,
+    verify_uploaded_blob,
+)
+from services.observability import (
+    configure_observability,
+    finish_http_span,
+    http_request_span,
+    record_http_request,
+    request_id_from_header,
+    reset_request_id,
+    set_request_id,
+)
 from agents.master_orchestrator import MasterOrchestrator
 
 # Security
-from utils.security import SECRET_KEY, ALGORITHM
+from auth_context import (
+    ensure_plan_access,
+    get_current_user,
+    get_user_from_token,
+    oauth2_scheme,
+)
 
+configure_observability()
 logger = logging.getLogger(__name__)
+
+WS_MAX_MESSAGE_BYTES = max(1024, int(os.getenv("WS_MAX_MESSAGE_BYTES", "262144")))
+WS_MAX_MESSAGES_PER_SECOND = max(1, int(os.getenv("WS_MAX_MESSAGES_PER_SECOND", "60")))
+WS_MAX_SESSION_SECONDS = max(60, int(os.getenv("WS_MAX_SESSION_SECONDS", "900")))
 
 # -----------------------------
 # INIT APP
 # -----------------------------
 app = FastAPI(title="AI Martial Platform")
 
-# Create DB tables
-DATABASE_READY = init_db()
-if DATABASE_READY:
-    try:
-        ensure_session_technique_columns(engine)
-        with SessionLocal() as catalog_db:
-            sync_technique_catalog(catalog_db)
-    except (SQLAlchemyError, OSError, ValueError, json.JSONDecodeError) as exc:
-        logger.warning("Technique catalog synchronization failed: %s", exc)
+
+async def request_observability(request, call_next):
+    correlation_id = request_id_from_header(request.headers.get("X-Request-ID"))
+    context_token = set_request_id(correlation_id)
+    started = time.perf_counter()
+    status_code = 500
+    with http_request_span(request.method) as span:
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            response.headers["X-Request-ID"] = correlation_id
+            return response
+        except Exception as exc:
+            logger.error(
+                "HTTP request failed",
+                extra={
+                    "event": "http_request_failed",
+                    "method": request.method,
+                    "route": request.scope.get("route").path if request.scope.get("route") else "unmatched",
+                    "status_code": 500,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            raise
+        finally:
+            duration_ms = round((time.perf_counter() - started) * 1000, 2)
+            route = request.scope.get("route")
+            route_template = route.path if route else "unmatched"
+            finish_http_span(span, request.method, route_template, status_code, correlation_id)
+            record_http_request(request.method, route_template, status_code, duration_ms)
+            if status_code >= 400 or not route_template.startswith("/health"):
+                logger.info(
+                    "HTTP request completed",
+                    extra={
+                        "event": "http_request_completed",
+                        "method": request.method,
+                        "route": route_template,
+                        "status_code": status_code,
+                        "duration_ms": duration_ms,
+                    },
+                )
+            reset_request_id(context_token)
 
 
+@app.middleware("http")
+async def shared_write_rate_limit(request, call_next):
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        with SessionLocal() as rate_limit_db:
+            try:
+                enforce_rate_limits(
+                    rate_limit_db,
+                    (GLOBAL_WRITE_IP, client_ip(request)),
+                )
+            except HTTPException as exc:
+                return JSONResponse(
+                    status_code=exc.status_code,
+                    content={"detail": exc.detail},
+                    headers=exc.headers,
+                )
+    return await call_next(request)
+
+
+# Register correlation/telemetry last so it wraps every HTTP response, including
+# early responses from the shared rate-limit middleware.
+app.middleware("http")(request_observability)
+
+# Schema changes are owned by Alembic. Application startup only verifies that
+# the database is reachable and already upgraded to the expected revision.
+DATABASE_READY = check_database_ready()
+if not DATABASE_READY and os.getenv("APP_ENV", "development").strip().lower() == "production":
+    raise RuntimeError("Database is unavailable or not upgraded to the Alembic head revision")
 # -----------------------------
 # CORS (Frontend Connection)
 # -----------------------------
@@ -102,14 +205,12 @@ app.include_router(technique_router.router)
 app.include_router(subscription_router.router)
 app.include_router(contact_router.router)
 app.include_router(dashboard_router.router)
+app.include_router(privacy_router.router)
 
 
 # -----------------------------
 # AUTH
 # -----------------------------
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-
 class PracticeSessionRequest(BaseModel):
     technique_name: str
     step_key: str | None = None
@@ -141,12 +242,21 @@ class PracticeCompleteRequest(BaseModel):
     corrected_summary: PracticeCorrectedSummary | None = None
 
 
-class PracticeTapeRequest(BaseModel):
-    version: int = 1
-    frame_rate: int = 30
-    duration_ms: int = 0
-    frames: list[dict]
-    metadata: dict = Field(default_factory=dict)
+class PracticeTapeUploadIntent(BaseModel):
+    version: int = Field(ge=1, le=3)
+    frame_rate: int = Field(ge=1, le=60)
+    frame_count: int = Field(ge=1, le=TAPE_MAX_FRAMES)
+    duration_ms: int = Field(ge=0, le=900_000)
+    content_length: int = Field(ge=1, le=TAPE_MAX_BYTES)
+    content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    idempotency_key: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    schema_name: str = Field(default="practice-tape/v2", pattern=r"^practice-tape/v[1-3]$")
+    algorithm_version: str | None = Field(default=None, max_length=96)
+    config_version: str | None = Field(default=None, max_length=96)
+
+
+class PracticeTapeFinalize(BaseModel):
+    idempotency_key: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class TemporalLabDraftRequest(BaseModel):
@@ -170,25 +280,41 @@ def root():
     }
 
 
+@app.get("/health/live")
+def health_liveness():
+    return {"status": "alive"}
+
+
+def _readiness_response():
+    readiness = database_readiness()
+    payload = {
+        "status": "ready" if readiness["ready"] else "not_ready",
+        "checks": {
+            "database": readiness["database"],
+            "migrations": readiness["migrations"],
+        },
+        "latency_ms": readiness["latency_ms"],
+    }
+    return JSONResponse(status_code=200 if readiness["ready"] else 503, content=payload)
+
+
+@app.get("/health/ready")
+def health_readiness():
+    return _readiness_response()
+
+
 @app.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "database": "ready" if DATABASE_READY else "unavailable"
-    }
+    """Compatibility alias for the live dependency readiness check."""
+    return _readiness_response()
 
 
 # -----------------------------
 # PROTECTED TEST
 # -----------------------------
 @app.get("/protected")
-def protected_route(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        return {"message": f"Hello {email}"}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+def protected_route(user_record: user.User = Depends(get_current_user)):
+    return {"message": f"Hello {user_record.email}"}
 
 
 @app.get("/profile/body-calibration")
@@ -260,9 +386,12 @@ def create_practice_session(
     technique_record = db.query(technique.Technique).filter(
         func.lower(technique.Technique.name) == technique_name.lower()
     ).first()
+    if not technique_record:
+        raise HTTPException(status_code=404, detail="Technique not found")
+    ensure_plan_access(user_record, technique_record.required_plan)
     session = PracticeSession(
         user_id=user_record.id,
-        technique_id=technique_record.id if technique_record else None,
+        technique_id=technique_record.id,
         technique_name=technique_name,
         step_key=str(request.step_key) if request.step_key is not None else None,
         step_name=(request.step_name or "").strip()[:160] or None,
@@ -350,55 +479,145 @@ def complete_practice_session(
     return _practice_session_payload(session)
 
 
-@app.put("/practice/sessions/{session_id}/tape")
-def store_practice_session_tape(
+@app.post("/practice/sessions/{session_id}/tape/upload-intent")
+def create_practice_tape_upload_intent(
     session_id: int,
-    request: PracticeTapeRequest,
+    request: PracticeTapeUploadIntent,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
     user_record = _get_user_from_token(db, token)
+    enforce_rate_limits(db, (TAPE_UPLOAD_USER, str(user_record.id)))
     session = _get_user_practice_session(db, user_record.id, session_id)
-    frame_count = len(request.frames)
-    if frame_count > 9000:
-        raise HTTPException(status_code=413, detail="Practice tape exceeds the frame limit")
+    existing = db.query(PracticeSessionTape).filter(
+        PracticeSessionTape.practice_session_id == session.id
+    ).first()
+    if existing and existing.idempotency_key == request.idempotency_key:
+        if existing.content_sha256 != request.content_sha256:
+            raise HTTPException(status_code=409, detail="Idempotency key payload mismatch")
+        if existing.upload_status == "ready":
+            return {"storage_mode": existing.storage_provider, "already_stored": True}
+    elif existing:
+        raise HTTPException(status_code=409, detail="A tape is already attached to this session")
 
-    tape_document = request.model_dump()
-    tape_document["version"] = max(1, min(request.version, 10))
-    tape_document["frame_rate"] = max(1, min(request.frame_rate, 60))
-    tape_document["duration_ms"] = max(0, request.duration_ms)
-    raw_payload = json.dumps(
-        tape_document,
-        separators=(",", ":"),
-        ensure_ascii=False
-    ).encode("utf-8")
-    if len(raw_payload) > 60 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Practice tape exceeds the storage limit")
+    if TAPE_STORAGE_MODE == "database":
+        return {
+            "storage_mode": "database",
+            "already_stored": False,
+            "max_bytes": TAPE_MAX_BYTES,
+        }
 
-    compressed_payload = zlib.compress(raw_payload, level=6)
+    tape = existing or PracticeSessionTape(practice_session_id=session.id)
+    if not existing:
+        db.add(tape)
+    tape.version = request.version
+    tape.frame_rate = request.frame_rate
+    tape.frame_count = request.frame_count
+    tape.duration_ms = request.duration_ms
+    tape.codec = "json"
+    tape.payload = None
+    tape.storage_provider = "azure"
+    tape.blob_name = tape.blob_name or new_blob_name(user_record.id, session.id)
+    tape.upload_status = "pending"
+    tape.content_sha256 = request.content_sha256
+    tape.idempotency_key = request.idempotency_key
+    tape.schema_name = request.schema_name
+    tape.capture_source = "device_estimate"
+    tape.algorithm_version = request.algorithm_version
+    tape.config_version = request.config_version
+    tape.uncompressed_bytes = request.content_length
+    tape.compressed_bytes = 0
+    tape.expires_at = retention_expiry()
+    try:
+        upload_url, upload_expires_at = create_upload_url(
+            tape.blob_name,
+            expected_sha256=request.content_sha256,
+        )
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("Could not create a private tape upload URL: %s", exc)
+        raise HTTPException(status_code=503, detail="Private tape storage is unavailable") from exc
+    return {
+        "storage_mode": "azure",
+        "already_stored": False,
+        "upload_url": upload_url,
+        "upload_expires_at": upload_expires_at.isoformat(),
+        "headers": {
+            "x-ms-blob-type": "BlockBlob",
+            "Content-Type": "application/json",
+        },
+        "max_bytes": TAPE_MAX_BYTES,
+    }
+
+
+@app.put("/practice/sessions/{session_id}/tape")
+async def store_practice_session_tape(
+    session_id: int,
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    if TAPE_STORAGE_MODE != "database":
+        raise HTTPException(status_code=409, detail="Use the private tape upload flow")
+    user_record = _get_user_from_token(db, token)
+    enforce_rate_limits(db, (TAPE_UPLOAD_USER, str(user_record.id)))
+    session = _get_user_practice_session(db, user_record.id, session_id)
+    idempotency_key = request.headers.get("Idempotency-Key", "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{16,64}", idempotency_key):
+        raise HTTPException(status_code=400, detail="A valid Idempotency-Key is required")
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > TAPE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Practice tape exceeds the upload limit")
+    raw_payload = bytearray()
+    async for chunk in request.stream():
+        raw_payload.extend(chunk)
+        if len(raw_payload) > TAPE_MAX_BYTES:
+            raise HTTPException(status_code=413, detail="Practice tape exceeds the upload limit")
+    tape_document, content_sha256 = parse_and_validate_tape(bytes(raw_payload))
+
     tape = db.query(PracticeSessionTape).filter(
         PracticeSessionTape.practice_session_id == session.id
     ).first()
+    if tape and tape.idempotency_key == idempotency_key:
+        if tape.content_sha256 != content_sha256:
+            raise HTTPException(status_code=409, detail="Idempotency key payload mismatch")
+        return {"stored": True, "idempotent": True, "session_id": session.id}
+    if tape:
+        raise HTTPException(status_code=409, detail="A tape is already attached to this session")
+
+    compressed_payload = zlib.compress(bytes(raw_payload), level=6)
     if not tape:
         tape = PracticeSessionTape(practice_session_id=session.id, payload=compressed_payload)
         db.add(tape)
 
     tape.version = tape_document["version"]
     tape.frame_rate = tape_document["frame_rate"]
-    tape.frame_count = frame_count
+    tape.frame_count = len(tape_document["frames"])
     tape.duration_ms = tape_document["duration_ms"]
     tape.codec = "zlib-json"
     tape.payload = compressed_payload
+    tape.storage_provider = "database"
+    tape.upload_status = "ready"
+    tape.content_sha256 = content_sha256
+    tape.idempotency_key = idempotency_key
+    tape.schema_name = "practice-tape/v2"
+    tape.capture_source = "device_estimate"
+    tape.algorithm_version = str(tape_document["metadata"].get("algorithmVersion") or "")[:96] or None
+    tape.config_version = str(tape_document["metadata"].get("configVersion") or "")[:96] or None
+    tape.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    tape.expires_at = retention_expiry()
     tape.uncompressed_bytes = len(raw_payload)
     tape.compressed_bytes = len(compressed_payload)
     analytics_payload = upsert_practice_analytics(
         db,
         session.id,
         {
-            **request.metadata,
+            **tape_document["metadata"],
             "captureDurationMs": tape_document["duration_ms"],
             "canonicalCompletedReps": session.completed_reps,
             "canonicalTargetReps": session.target_reps,
+            "measurementSource": "device_estimate",
         },
     )
     db.commit()
@@ -409,6 +628,63 @@ def store_practice_session_tape(
         "frame_count": tape.frame_count,
         "duration_ms": tape.duration_ms,
         "compressed_bytes": tape.compressed_bytes,
+        "analytics": analytics_payload,
+    }
+
+
+@app.post("/practice/sessions/{session_id}/tape/finalize")
+def finalize_practice_session_tape(
+    session_id: int,
+    request: PracticeTapeFinalize,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    user_record = _get_user_from_token(db, token)
+    enforce_rate_limits(db, (TAPE_UPLOAD_USER, str(user_record.id)))
+    session = _get_user_practice_session(db, user_record.id, session_id)
+    tape = db.query(PracticeSessionTape).filter(
+        PracticeSessionTape.practice_session_id == session.id
+    ).first()
+    if not tape or tape.storage_provider != "azure":
+        raise HTTPException(status_code=404, detail="Tape upload intent was not found")
+    if tape.idempotency_key != request.idempotency_key:
+        raise HTTPException(status_code=409, detail="Tape upload intent does not match")
+    if tape.upload_status == "ready":
+        return {"stored": True, "idempotent": True, "session_id": session.id}
+    try:
+        properties = verify_uploaded_blob(
+            tape.blob_name,
+            tape.uncompressed_bytes,
+            tape.content_sha256,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Could not finalize private tape %s: %s", tape.id, exc)
+        raise HTTPException(status_code=503, detail="Private tape verification is unavailable") from exc
+
+    document = properties.document
+    if len(document["frames"]) != tape.frame_count or document["duration_ms"] != tape.duration_ms:
+        raise HTTPException(status_code=422, detail="Uploaded tape metadata does not match the intent")
+    tape.upload_status = "ready"
+    tape.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    analytics_payload = upsert_practice_analytics(
+        db,
+        session.id,
+        {
+            **document["metadata"],
+            "captureDurationMs": document["duration_ms"],
+            "canonicalCompletedReps": session.completed_reps,
+            "canonicalTargetReps": session.target_reps,
+            "measurementSource": "device_estimate",
+        },
+    )
+    db.commit()
+    return {
+        "stored": True,
+        "session_id": session.id,
+        "frame_count": tape.frame_count,
+        "duration_ms": tape.duration_ms,
         "analytics": analytics_payload,
     }
 
@@ -426,10 +702,18 @@ def get_practice_session_tape(
     ).first()
     if not tape:
         raise HTTPException(status_code=404, detail="No frame tape is stored for this session")
+    if tape.upload_status != "ready":
+        raise HTTPException(status_code=409, detail="The tape upload has not been finalized")
 
     try:
-        document = json.loads(zlib.decompress(tape.payload).decode("utf-8"))
-    except (zlib.error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        if tape.storage_provider == "azure":
+            raw = download_tape(tape.blob_name)
+            document, content_sha256 = parse_and_validate_tape(raw)
+            if content_sha256 != tape.content_sha256:
+                raise ValueError("Stored tape checksum mismatch")
+        else:
+            document = json.loads(zlib.decompress(tape.payload).decode("utf-8"))
+    except (zlib.error, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         logger.error("Stored practice tape %s could not be decoded: %s", tape.id, exc)
         raise HTTPException(status_code=500, detail="Stored practice tape is unavailable") from exc
 
@@ -439,6 +723,9 @@ def get_practice_session_tape(
         "storage": {
             "compressed_bytes": tape.compressed_bytes,
             "uncompressed_bytes": tape.uncompressed_bytes,
+            "provider": tape.storage_provider,
+            "content_sha256": tape.content_sha256,
+            "capture_source": tape.capture_source,
             "created_at": tape.created_at.isoformat() if tape.created_at else None,
             "updated_at": tape.updated_at.isoformat() if tape.updated_at else None
         }
@@ -804,62 +1091,73 @@ async def train(websocket: WebSocket):
 
     import time
 
-    token = websocket.query_params.get("token")
+    try:
+        with SessionLocal() as connection_limit_db:
+            enforce_rate_limits(
+                connection_limit_db,
+                (WEBSOCKET_CONNECT_IP, client_ip(websocket)),
+            )
+    except HTTPException as exc:
+        await websocket.accept()
+        await websocket.close(
+            code=1013 if exc.status_code in {429, 503} else 1008,
+            reason="Too many connection attempts" if exc.status_code == 429 else "Training service unavailable",
+        )
+        return
 
     await websocket.accept()
 
-    if not token:
-        try:
-            auth_payload = json.loads(
-                await asyncio.wait_for(websocket.receive_text(), timeout=8)
-            )
-            if auth_payload.get("type") != "authenticate":
-                await websocket.close(code=1008, reason="Authentication required")
-                return
-            token = auth_payload.get("token")
-        except WebSocketDisconnect:
-            return
-        except (asyncio.TimeoutError, json.JSONDecodeError):
+    db = None
+    user_record = None
+    training_session = None
+    last_memory_save_time = 0
+    sent_initial_greeting = False
+    access_granted = False
+    connected_at = time.monotonic()
+    recent_messages = deque()
+
+    try:
+        auth_payload = json.loads(
+            await asyncio.wait_for(websocket.receive_text(), timeout=8)
+        )
+        if auth_payload.get("type") != "authenticate":
             await websocket.close(code=1008, reason="Authentication required")
             return
+        token = auth_payload.get("token")
+    except WebSocketDisconnect:
+        return
+    except (asyncio.TimeoutError, json.JSONDecodeError):
+        await websocket.close(code=1008, reason="Authentication required")
+        return
 
     if not token:
         await websocket.close(code=1008, reason="Authentication required")
         return
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if not email:
-            await websocket.close(code=1008)
-            return
-
-    except JWTError:
-        logger.warning("Rejected WebSocket connection with an invalid token")
-        await websocket.close(code=1008)
-        return
-
-    db = None
-    db_ready = False
-    user_record = None
-    training_session = None
-    last_memory_save_time = 0
-    sent_initial_greeting = False
-
-    try:
         db = SessionLocal()
         db.execute(text("SELECT 1"))
-        db_ready = True
+        user_record = get_user_from_token(db, token)
+        enforce_rate_limits(
+            db,
+            (WEBSOCKET_CONNECT_USER, str(user_record.id)),
+        )
+    except HTTPException:
+        logger.warning("Rejected WebSocket connection with an invalid account token")
+        if db:
+            db.close()
+        await websocket.close(code=1008, reason="Authentication required")
+        return
     except SQLAlchemyError as exc:
         logger.warning("Training persistence is unavailable: %s", exc)
-
-    if db_ready:
-        user_record = db.query(user.User).filter(user.User.email == email).first()
+        if db:
+            db.close()
+        await websocket.close(code=1013, reason="Training service unavailable")
+        return
 
     coach = MasterOrchestrator()
-    if db_ready and user_record:
-        _restore_coach_memory(db, user_record.id, coach)
-        coach.student_name = _display_student_name(user_record)
+    _restore_coach_memory(db, user_record.id, coach)
+    coach.student_name = _display_student_name(user_record)
 
     # -----------------------------
     # MEMORY (PAST 5 SECONDS)
@@ -878,12 +1176,39 @@ async def train(websocket: WebSocket):
 
     try:
         while True:
-            data = await websocket.receive_text()
+            remaining_session_seconds = (
+                WS_MAX_SESSION_SECONDS - (time.monotonic() - connected_at)
+            )
+            if remaining_session_seconds <= 0:
+                await websocket.close(code=1008, reason="Reauthentication required")
+                return
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=remaining_session_seconds,
+                )
+            except asyncio.TimeoutError:
+                await websocket.close(code=1008, reason="Reauthentication required")
+                return
+
+            if len(data.encode("utf-8")) > WS_MAX_MESSAGE_BYTES:
+                await websocket.close(code=1009, reason="Message is too large")
+                return
+
+            message_time = time.monotonic()
+            while recent_messages and message_time - recent_messages[0] >= 1:
+                recent_messages.popleft()
+            if len(recent_messages) >= WS_MAX_MESSAGES_PER_SECOND:
+                await websocket.close(code=1008, reason="Message rate exceeded")
+                return
+            recent_messages.append(message_time)
+
             parsed = json.loads(data)
 
             event_type = parsed.get("type", "training_frame")
 
             if event_type == "session_config":
+                access_granted = False
                 previous_step_key = coach.current_step_key
                 previous_step_index = coach.current_step_index
                 was_ready = coach.is_ready
@@ -900,24 +1225,47 @@ async def train(websocket: WebSocket):
                 coach.current_step_name = parsed.get("step_name") or coach.current_step_name
                 coach.current_step_index = parsed.get("step_index", coach.current_step_index) or 0
                 coach.total_steps = parsed.get("total_steps", coach.total_steps) or 0
-                if db_ready:
-                    technique_record = db.query(technique.Technique).filter(
-                        func.lower(technique.Technique.name) == coach.technique_name.lower()
-                    ).first()
-                    if not training_session:
-                        training_session = TrainingSession(
-                            user_id=user_record.id if user_record else None,
-                            technique_id=technique_record.id if technique_record else None,
-                            technique_name=coach.technique_name,
-                            mode=coach.mode,
-                        )
-                        db.add(training_session)
-                    else:
-                        training_session.technique_name = coach.technique_name
-                        training_session.technique_id = technique_record.id if technique_record else None
-                        training_session.mode = coach.mode
-                    db.commit()
-                    db.refresh(training_session)
+                technique_record = db.query(technique.Technique).filter(
+                    func.lower(technique.Technique.name) == coach.technique_name.lower()
+                ).first()
+                if not technique_record:
+                    await websocket.send_text(json.dumps({
+                        "type": "access_denied",
+                        "message": "This technique is not available.",
+                    }))
+                    continue
+                if coach.mode == "admin" and user_record.role != "admin":
+                    await websocket.send_text(json.dumps({
+                        "type": "access_denied",
+                        "message": "Administrator access required.",
+                    }))
+                    continue
+                try:
+                    ensure_plan_access(user_record, technique_record.required_plan)
+                except HTTPException as exc:
+                    detail = exc.detail if isinstance(exc.detail, dict) else {}
+                    await websocket.send_text(json.dumps({
+                        "type": "access_denied",
+                        "message": detail.get("message", "A different plan is required."),
+                        "required_plan": detail.get("required_plan"),
+                    }))
+                    continue
+
+                access_granted = True
+                if not training_session:
+                    training_session = TrainingSession(
+                        user_id=user_record.id,
+                        technique_id=technique_record.id,
+                        technique_name=coach.technique_name,
+                        mode=coach.mode,
+                    )
+                    db.add(training_session)
+                else:
+                    training_session.technique_name = coach.technique_name
+                    training_session.technique_id = technique_record.id
+                    training_session.mode = coach.mode
+                db.commit()
+                db.refresh(training_session)
 
                 if not sent_initial_greeting:
                     if coach.state in {"confirm_session_complete", "session_complete"}:
@@ -963,10 +1311,17 @@ async def train(websocket: WebSocket):
                 last_issue = coach_event.get("issue")
                 last_action = coach_event.get("action")
                 last_feedback_time = time.time()
-                if db_ready and user_record:
+                if user_record:
                     _save_coach_memory(db, user_record.id, coach, coach_event)
                     last_memory_save_time = time.time()
                 await websocket.send_text(json.dumps(coach_event))
+                continue
+
+            if not access_granted:
+                await websocket.send_text(json.dumps({
+                    "type": "access_denied",
+                    "message": "Choose an available technique before training.",
+                }))
                 continue
 
             if event_type == "user_message":
@@ -976,7 +1331,7 @@ async def train(websocket: WebSocket):
                 last_issue = coach_event.get("issue")
                 last_action = coach_event.get("action")
                 last_feedback_time = time.time()
-                if db_ready and user_record:
+                if user_record:
                     _save_coach_memory(db, user_record.id, coach, coach_event)
                     last_memory_save_time = time.time()
                 await websocket.send_text(json.dumps(coach_event))
@@ -984,7 +1339,7 @@ async def train(websocket: WebSocket):
 
             if event_type == "coach_intelligence_context":
                 coach_event = coach.intelligence_context_event(parsed)
-                if db_ready and user_record:
+                if user_record:
                     _save_coach_memory(db, user_record.id, coach, coach_event)
                     last_memory_save_time = time.time()
                 if coach_event:
@@ -993,7 +1348,7 @@ async def train(websocket: WebSocket):
                     last_issue = coach_event.get("issue")
                     last_action = coach_event.get("action")
                     last_feedback_time = time.time()
-                    if db_ready and training_session:
+                    if training_session:
                         _record_training_feedback(
                             db,
                             training_session.id,
@@ -1006,11 +1361,11 @@ async def train(websocket: WebSocket):
 
             if event_type == "session_complete":
                 coach_event = coach.complete_session()
-                if db_ready and training_session:
+                if training_session:
                     training_session.completed = True
                     training_session.ended_at = func.now()
                     db.commit()
-                if db_ready and user_record:
+                if user_record:
                     _save_coach_memory(db, user_record.id, coach, coach_event)
                     last_memory_save_time = time.time()
                 await websocket.send_text(json.dumps(coach_event))
@@ -1045,7 +1400,7 @@ async def train(websocket: WebSocket):
             # -----------------------------
             if required_parts_payload:
                 required_parts = required_parts_payload
-            elif db_ready and isinstance(step_id, int):
+            elif isinstance(step_id, int):
                 required_parts = db.query(TargetAngle).filter(
                     TargetAngle.step_id == step_id
                 ).all()
@@ -1096,7 +1451,7 @@ async def train(websocket: WebSocket):
                 last_issue = coach_event.get("issue")
                 last_action = coach_event.get("action")
                 last_feedback_time = current_time
-                if db_ready and training_session:
+                if training_session:
                     _record_training_feedback(
                         db,
                         training_session.id,
@@ -1113,7 +1468,7 @@ async def train(websocket: WebSocket):
                     )
                     if user_record:
                         _record_user_training_memory(db, user_record.id, coach_event)
-                if db_ready and user_record and current_time - last_memory_save_time > 3:
+                if user_record and current_time - last_memory_save_time > 3:
                     _save_coach_memory(db, user_record.id, coach, coach_event)
                     last_memory_save_time = current_time
             else:
@@ -1133,7 +1488,7 @@ async def train(websocket: WebSocket):
         logger.debug("Training WebSocket disconnected")
 
     finally:
-        if db_ready and db and training_session:
+        if db and training_session:
             training_session.final_accuracy = accuracy if "accuracy" in locals() else 0
             training_session.ended_at = func.now()
             db.commit()
@@ -1164,17 +1519,7 @@ def _display_student_name(user_record):
 
 
 def _get_user_from_token(db, token):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    email = payload.get("sub")
-    user_record = db.query(user.User).filter(user.User.email == email).first()
-    if not user_record:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    return user_record
+    return get_user_from_token(db, token)
 
 
 def _body_calibration_payload(calibration):

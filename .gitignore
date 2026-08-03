@@ -20,6 +20,9 @@ tmp/
 temp/
 *.tmp
 *.temp
+*.db
+*.sqlite
+*.sqlite3
 
 # Office application lock files
 ~$*.docx

@@ -3,6 +3,8 @@ import json
 import zlib
 from datetime import datetime, timezone
 
+from services.tape_storage import download_tape, parse_and_validate_tape
+
 
 def iso(value):
     return value.isoformat() if value else None
@@ -11,7 +13,12 @@ def iso(value):
 def decode_tape(tape):
     if not tape:
         return None
-    document = json.loads(zlib.decompress(tape.payload).decode("utf-8"))
+    if getattr(tape, "storage_provider", "database") == "azure":
+        document, digest = parse_and_validate_tape(download_tape(tape.blob_name))
+        if digest != tape.content_sha256:
+            raise ValueError("Stored tape checksum mismatch")
+    else:
+        document = json.loads(zlib.decompress(tape.payload).decode("utf-8"))
     return {
         "version": tape.version,
         "frame_rate": tape.frame_rate,
@@ -78,6 +85,11 @@ def build_research_export(
                 "duration_ms": tape.duration_ms,
                 "compressed_bytes": tape.compressed_bytes,
                 "uncompressed_bytes": tape.uncompressed_bytes,
+                "storage_provider": getattr(tape, "storage_provider", "database"),
+                "content_sha256": getattr(tape, "content_sha256", None),
+                "capture_source": getattr(tape, "capture_source", "device_estimate"),
+                "algorithm_version": getattr(tape, "algorithm_version", None),
+                "config_version": getattr(tape, "config_version", None),
             }
             if include_tapes:
                 item["tape"] = decode_tape(tape)
@@ -131,6 +143,7 @@ def build_research_export(
             "Researcher, developer, participant, and expert roles overlap.",
             "Single-participant jab evidence is not population-generalizable.",
             "Database scores are system outputs, not independent ground truth.",
+            "Practice tape measurements are device-generated coaching estimates.",
         ],
     }
     document["content_sha256"] = stable_sha256(document)

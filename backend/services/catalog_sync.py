@@ -1,24 +1,9 @@
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func, text
 
 from models.target_angle import TargetAngle
 from models.technique import Technique
 from models.technique_step import TechniqueStep
 from services.technique_package_loader import TECHNIQUE_ROOT, load_technique_catalog
-
-
-def ensure_session_technique_columns(engine):
-    """Add nullable technique relationships to existing databases without losing history."""
-    inspector = inspect(engine)
-    with engine.begin() as connection:
-        for table in ("practice_sessions", "training_sessions"):
-            columns = {item["name"] for item in inspector.get_columns(table)}
-            if "technique_id" not in columns:
-                connection.execute(text(
-                    f"ALTER TABLE {table} ADD COLUMN technique_id INTEGER REFERENCES techniques(id)"
-                ))
-            connection.execute(text(
-                f"CREATE INDEX IF NOT EXISTS ix_{table}_technique_id ON {table} (technique_id)"
-            ))
 
 
 def sync_technique_catalog(db, technique_root=TECHNIQUE_ROOT):

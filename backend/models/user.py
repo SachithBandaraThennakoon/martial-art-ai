@@ -11,6 +11,6 @@ class User(Base):
     role = Column(String, default="user")
     plan = Column(String, default="FREE_PLAN")
     subscription_status = Column(String, default="trial")
-    paypal_subscription_id = Column(String, nullable=True)
+    paypal_subscription_id = Column(String, nullable=True, unique=True)
     trial_ends_at = Column(DateTime, nullable=True)
     subscription_ends_at = Column(DateTime, nullable=True)

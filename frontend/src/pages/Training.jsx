@@ -1,4 +1,4 @@
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";

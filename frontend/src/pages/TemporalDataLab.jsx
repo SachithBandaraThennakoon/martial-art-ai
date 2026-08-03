@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import {
   getTechniqueTrackingPackage,
@@ -7,6 +7,7 @@ import {
   techniqueCatalog
 } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
+import { authFetch, getAccessToken } from "../services/authSession";
 import { validateTemporalModelMetadata } from "../tracking/temporalModelContract";
 
 const CONTEXT_LABELS = [
@@ -379,11 +380,11 @@ export default function TemporalDataLab() {
   }, [recording]);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     const controller = new AbortController();
     setDraftReady(false);
     setSaveStatus("Loading saved draft…");
-    fetch(`${API_BASE_URL}/admin/temporal-labeling/drafts/${encodeURIComponent(technique.id)}`, {
+    authFetch(`${API_BASE_URL}/admin/temporal-labeling/drafts/${encodeURIComponent(technique.id)}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal
     })
@@ -426,10 +427,10 @@ export default function TemporalDataLab() {
   useEffect(() => {
     if (!draftReady || recording) return undefined;
     const timer = window.setTimeout(async () => {
-      const token = localStorage.getItem("token");
+      const token = getAccessToken();
       setSaveStatus("Saving…");
       try {
-        const response = await fetch(
+        const response = await authFetch(
           `${API_BASE_URL}/admin/temporal-labeling/drafts/${encodeURIComponent(technique.id)}`,
           {
             method: "PUT",

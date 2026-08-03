@@ -1,32 +1,18 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from auth_context import get_current_user
 from database import get_db
 from models.technique import Technique
 from models.training_memory import PracticeRep, PracticeSession, TrainingFeedbackEvent, TrainingSession
 from models.user import User
 from services.practice_analytics import load_practice_analytics
-from utils.security import ALGORITHM, SECRET_KEY
 
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-
-def current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    try:
-        email = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]).get("sub")
-    except JWTError as error:
-        raise HTTPException(status_code=401, detail="Invalid token") from error
-    user = db.query(User).filter(User.email == email).first() if email else None
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    return user
 
 
 def iso(value):
@@ -46,7 +32,7 @@ def dashboard(
     accuracy_min: float | None = None,
     accuracy_max: float | None = None,
     focus: str | None = None,
-    user: User = Depends(current_user),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Return filtered, user-scoped aggregates for every dashboard page."""

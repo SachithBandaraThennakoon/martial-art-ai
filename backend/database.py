@@ -1,10 +1,15 @@
 from fastapi import HTTPException
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from alembic.util.exc import CommandError
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import logging
 import os
+import time
 
 from dotenv import load_dotenv
 
@@ -28,13 +33,51 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 
-def init_db():
+def database_readiness() -> dict:
+    started = time.perf_counter()
     try:
-        Base.metadata.create_all(bind=engine)
-        return True
-    except SQLAlchemyError as exc:
-        logger.error("Database unavailable during startup: %s", exc)
-        return False
+        alembic_config = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+        expected_heads = set(ScriptDirectory.from_config(alembic_config).get_heads())
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+            current_heads = set(MigrationContext.configure(connection).get_current_heads())
+        if current_heads != expected_heads:
+            return {
+                "ready": False,
+                "database": "reachable",
+                "migrations": "mismatch",
+                "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+            }
+        return {
+            "ready": True,
+            "database": "reachable",
+            "migrations": "current",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+        }
+    except SQLAlchemyError:
+        return {
+            "ready": False,
+            "database": "unavailable",
+            "migrations": "unknown",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+        }
+    except (CommandError, OSError, RuntimeError, ValueError):
+        return {
+            "ready": False,
+            "database": "unknown",
+            "migrations": "unavailable",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+        }
+
+
+def check_database_ready():
+    status = database_readiness()
+    if not status["ready"]:
+        logger.error(
+            "Database readiness failed",
+            extra={"event": "database_not_ready", "component": "database", "outcome": status["migrations"]},
+        )
+    return bool(status["ready"])
 
 
 def get_db():

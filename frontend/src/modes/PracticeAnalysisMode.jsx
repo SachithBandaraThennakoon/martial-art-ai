@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import SessionAnalysisPanel from "../components/SessionAnalysisPanel";
 import StoredSessionTapePanel from "../components/StoredSessionTapePanel";
 import { API_BASE_URL } from "../services/api";
+import { authFetch, getAccessToken } from "../services/authSession";
 
 const formatBodyPart = (bodyPart) =>
   bodyPart
@@ -42,7 +43,7 @@ export default function PracticeAnalysisMode({
   const [selectedTapeSessionId, setSelectedTapeSessionId] = useState(null);
 
   const loadAnalysis = useCallback(async (signal) => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) {
       setStatus("Log in to view practice analysis.");
       setLoadState("error");
@@ -54,7 +55,7 @@ export default function PracticeAnalysisMode({
     try {
       const query = new URLSearchParams();
       if (selectedTechniqueName) query.set("technique_name", selectedTechniqueName);
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/practice/analysis${query.size ? `?${query}` : ""}`,
         {
         headers: {
@@ -90,7 +91,7 @@ export default function PracticeAnalysisMode({
   }, [loadAnalysis]);
 
   const downloadResearchExport = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token || exportState === "loading") return;
     setExportState("loading");
     try {
@@ -98,7 +99,7 @@ export default function PracticeAnalysisMode({
         technique_name: selectedTechniqueName || "Jab",
         include_tapes: "true"
       });
-      const response = await fetch(`${API_BASE_URL}/research/export?${query}`, {
+      const response = await authFetch(`${API_BASE_URL}/research/export?${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error("export");

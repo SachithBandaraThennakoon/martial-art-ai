@@ -10,6 +10,7 @@ import {
   getTechniqueTrackingPackage
 } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
+import { authFetch, getAccessToken } from "../services/authSession";
 import {
   createBrowserAudio,
   playBrowserAudio,
@@ -1746,14 +1747,14 @@ export default function PracticeMode({
   }, [steps]);
 
   const loadPracticeAnalysis = useCallback(async (signal) => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token || !currentTechnique?.name) return;
 
     try {
       const query = new URLSearchParams({
         technique_name: currentTechnique.name
       });
-      const response = await fetch(`${API_BASE_URL}/practice/analysis?${query}`, {
+      const response = await authFetch(`${API_BASE_URL}/practice/analysis?${query}`, {
         headers: { Authorization: `Bearer ${token}` },
         signal
       });
@@ -1905,7 +1906,7 @@ export default function PracticeMode({
 
   const postPracticeRep = useCallback(async (nextRep, repAccuracy, durationMs, focus, issue) => {
     const activeSession = sessionRef.current;
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!activeSession?.id || !token) return;
 
     const safeRepNumber = Number.isFinite(nextRep)
@@ -1919,7 +1920,7 @@ export default function PracticeMode({
       : 0;
     const qualityLabel = safeAccuracy >= CLEAN_ACCURACY ? "clean" : "shaky";
     try {
-      const response = await fetch(`${API_BASE_URL}/practice/sessions/${activeSession.id}/reps`, {
+      const response = await authFetch(`${API_BASE_URL}/practice/sessions/${activeSession.id}/reps`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -1961,7 +1962,7 @@ export default function PracticeMode({
     correctedSummary = null
   ) => {
     const activeSession = sessionRef.current;
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!activeSession?.id || !token) {
       if (activeSession) {
         const updatedSession = {
@@ -1976,7 +1977,7 @@ export default function PracticeMode({
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/practice/sessions/${activeSession.id}/complete`, {
+      const response = await authFetch(`${API_BASE_URL}/practice/sessions/${activeSession.id}/complete`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -2009,23 +2010,84 @@ export default function PracticeMode({
   }, [loadPracticeAnalysis, sayPractice]);
 
   const storePracticeTape = useCallback(async (sessionId, frames, metadata) => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!sessionId || !token || !frames.length) return false;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/practice/sessions/${sessionId}/tape`, {
+      const document = {
+        version: 2,
+        frame_rate: 30,
+        duration_ms: Math.round(frames[frames.length - 1]?.elapsedMs || 0),
+        frames: frames.map(encodePracticeTapeFrame),
+        metadata: {
+          ...metadata,
+          algorithmVersion: metadata?.biomechanicsSchema || "unknown",
+          configVersion: `frame-organization-v${metadata?.frameOrganizationVersion || 1}`,
+          deviceGeneratedEstimate: true
+        }
+      };
+      const serialized = JSON.stringify(document);
+      const encoded = new TextEncoder().encode(serialized);
+      const digest = await crypto.subtle.digest("SHA-256", encoded);
+      const contentSha256 = Array.from(new Uint8Array(digest))
+        .map((value) => value.toString(16).padStart(2, "0"))
+        .join("");
+      const idempotencyKey = crypto.randomUUID().replaceAll("-", "");
+      const intentResponse = await authFetch(
+        `${API_BASE_URL}/practice/sessions/${sessionId}/tape/upload-intent`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            version: document.version,
+            frame_rate: document.frame_rate,
+            frame_count: document.frames.length,
+            duration_ms: document.duration_ms,
+            content_length: encoded.byteLength,
+            content_sha256: contentSha256,
+            idempotency_key: idempotencyKey,
+            schema_name: "practice-tape/v2",
+            algorithm_version: document.metadata.algorithmVersion,
+            config_version: document.metadata.configVersion
+          })
+        }
+      );
+      if (!intentResponse.ok) return false;
+      const intent = await intentResponse.json();
+      if (intent.already_stored) return true;
+
+      if (intent.storage_mode === "azure") {
+        const uploadResponse = await fetch(intent.upload_url, {
+          method: "PUT",
+          headers: intent.headers,
+          body: serialized
+        });
+        if (!uploadResponse.ok) return false;
+        const finalizeResponse = await authFetch(
+          `${API_BASE_URL}/practice/sessions/${sessionId}/tape/finalize`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ idempotency_key: idempotencyKey })
+          }
+        );
+        return finalizeResponse.ok;
+      }
+
+      const response = await authFetch(`${API_BASE_URL}/practice/sessions/${sessionId}/tape`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey
         },
-        body: JSON.stringify({
-          version: 2,
-          frame_rate: 30,
-          duration_ms: Math.round(frames[frames.length - 1]?.elapsedMs || 0),
-          frames: frames.map(encodePracticeTapeFrame),
-          metadata
-        })
+        body: serialized
       });
       return response.ok;
     } catch {
@@ -2396,7 +2458,7 @@ export default function PracticeMode({
     clearCountBeatTimers();
     stopPracticeVoice();
     const requestId = voiceRequestIdRef.current;
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     sessionRef.current = LOCAL_SESSION;
     setSession(LOCAL_SESSION);
     setTemporalSessionId((sessionId) => sessionId + 1);
@@ -2486,7 +2548,7 @@ export default function PracticeMode({
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/practice/sessions`, {
+      const response = await authFetch(`${API_BASE_URL}/practice/sessions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -2894,14 +2956,14 @@ export default function PracticeMode({
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) {
       setHistorySessionPopup(historySession);
       return;
     }
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/practice/sessions/${historySession.id}/tape`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -2943,7 +3005,7 @@ export default function PracticeMode({
       );
       let correctedHistorySession = authoritativeHistorySession;
       if (correctedHistorySummary.completed_reps > 0) {
-        const correctionResponse = await fetch(
+        const correctionResponse = await authFetch(
           `${API_BASE_URL}/practice/sessions/${historySession.id}/complete`,
           {
             method: "PATCH",
@@ -3528,6 +3590,7 @@ export default function PracticeMode({
                 {displayedCompletedReps}/{tapeTargetReps} reps ·{" "}
                 {formatTapeTime(fullTapeDurationMs)}
               </strong>
+              <small>Device-generated coaching estimate — not an independently validated performance score.</small>
             </div>
             <div>
               <button

@@ -150,6 +150,7 @@ import {
   getStudioPerformanceConfig
 } from "../performance/studioPerformanceConfig";
 import { WS_BASE_URL } from "../services/api";
+import { getAccessToken } from "../services/authSession";
 import { getBodyCalibrationSample, getCalibrationFit } from "../utils/bodyCalibration";
 import { assignHandSides } from "../utils/handSideAssignment";
 import {
@@ -1170,7 +1171,7 @@ export default function SkeletonCanvas({
       return undefined;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     const socket = new WebSocket(`${WS_BASE_URL}/ws/train`);
     let disposed = false;
     wsRef.current = socket;

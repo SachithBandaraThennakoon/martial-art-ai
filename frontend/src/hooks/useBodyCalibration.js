@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../services/api";
+import { authFetch, getAccessToken } from "../services/authSession";
 import { buildBodyCalibrationProfile } from "../utils/bodyCalibration";
 
 const STORAGE_KEY = "martial_art_ai_body_calibration_v1";
@@ -29,11 +30,11 @@ export default function useBodyCalibration() {
   const persistProfile = useCallback(async (nextProfile) => {
     setProfile(nextProfile);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextProfile));
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/profile/body-calibration`, {
+      const response = await authFetch(`${API_BASE_URL}/profile/body-calibration`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -54,10 +55,10 @@ export default function useBodyCalibration() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return;
 
-    fetch(`${API_BASE_URL}/profile/body-calibration`, {
+    authFetch(`${API_BASE_URL}/profile/body-calibration`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then((response) => (response.ok ? response.json() : null))
@@ -93,10 +94,10 @@ export default function useBodyCalibration() {
     setProfile(null);
     localStorage.removeItem(STORAGE_KEY);
     setState((current) => ({ ...current, active: false, acceptedSamples: 0, guidance: "Calibration cleared. You can create a new profile any time." }));
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) return;
     try {
-      await fetch(`${API_BASE_URL}/profile/body-calibration`, {
+      await authFetch(`${API_BASE_URL}/profile/body-calibration`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });

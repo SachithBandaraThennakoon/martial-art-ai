@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router";
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/auth";
 import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
@@ -55,6 +55,7 @@ export default function Navbar() {
               <span>Workspace</span>
               {token ? <NavLink className={studioNavClass} onClick={closeMenu} to="/studio">Studio</NavLink> : null}
               {token ? <NavLink className={dashboardNavClass} onClick={closeMenu} to="/dashboard/overview">Dashboard</NavLink> : null}
+              {token ? <NavLink className={navClass} onClick={closeMenu} to="/account/privacy">Privacy &amp; account</NavLink> : null}
               <NavLink className={navClass} onClick={closeMenu} to="/pricing">Plans</NavLink>
               <NavLink className={navClass} onClick={closeMenu} to="/contact">Contact</NavLink>
               {userRole === "admin" ? (

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { NavLink, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams, useSearchParams } from "react-router";
 import SessionAnalysisPanel from "../components/SessionAnalysisPanel";
 import StoredSessionTapePanel from "../components/StoredSessionTapePanel";
 import { techniqueCatalog } from "../data/techniqueCatalog";
 import { API_BASE_URL } from "../services/api";
+import { authFetch, getAccessToken } from "../services/authSession";
 
 const PAGES = [
   { id: "overview", code: "01", label: "Overview", description: "Health and next action" },
@@ -282,11 +283,11 @@ export default function Dashboard() {
   }, [activePage, navigate, page]);
 
   const loadDashboard = useCallback(async (signal) => {
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     const query = new URLSearchParams(searchParams);
     setLoadState("loading");
     try {
-      const response = await fetch(`${API_BASE_URL}/dashboard?${query}`, { headers: { Authorization: `Bearer ${token}` }, signal });
+      const response = await authFetch(`${API_BASE_URL}/dashboard?${query}`, { headers: { Authorization: `Bearer ${token}` }, signal });
       if (!response.ok) throw new Error(response.status === 401 ? "Your session expired." : "Dashboard data is temporarily unavailable.");
       setData(await response.json());
       setLoadState("ready");

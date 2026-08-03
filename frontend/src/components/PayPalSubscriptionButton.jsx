@@ -57,6 +57,7 @@ function getErrorMessage(error) {
 }
 
 export default function PayPalSubscriptionButton({
+  createCheckoutContext,
   onApproved,
   planCode,
   planId,
@@ -85,10 +86,13 @@ export default function PayPalSubscriptionButton({
               shape: "rect",
               tagline: false
             },
-            createSubscription: (_data, actions) =>
-              actions.subscription.create({
-                plan_id: planId
-              }),
+            createSubscription: async (_data, actions) => {
+              const checkout = await createCheckoutContext(planCode);
+              return actions.subscription.create({
+                plan_id: checkout.plan_id,
+                custom_id: checkout.custom_id
+              });
+            },
             onApprove: (data) => {
               onApproved?.({
                 planCode,
@@ -119,7 +123,7 @@ export default function PayPalSubscriptionButton({
     return () => {
       isMounted = false;
     };
-  }, [clientId, onApproved, planCode, planId, planName]);
+  }, [clientId, createCheckoutContext, onApproved, planCode, planId, planName]);
 
   if (!clientId) {
     return (

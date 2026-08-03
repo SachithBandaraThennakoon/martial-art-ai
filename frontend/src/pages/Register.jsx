@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { API_BASE_URL } from "../services/api";
 import AuthStory from "../components/AuthStory";
 
@@ -11,6 +11,21 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [legalDocuments, setLegalDocuments] = useState(null);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [confirmMinimumAge, setConfirmMinimumAge] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_BASE_URL}/legal/documents`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then(setLegalDocuments)
+      .catch(() => {
+        if (!controller.signal.aborted) setError("Registration is temporarily unavailable while legal documents load.");
+      });
+    return () => controller.abort();
+  }, []);
 
   const handleRegister = async (event) => {
     event.preventDefault();
@@ -21,7 +36,16 @@ export default function Register() {
       const response = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ name: name.trim(), email: email.trim(), password })
+        body: new URLSearchParams({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          privacy_version: legalDocuments?.privacy_notice_version || "",
+          terms_version: legalDocuments?.terms_version || "",
+          accept_privacy: String(acceptPrivacy),
+          accept_terms: String(acceptTerms),
+          confirm_minimum_age: String(confirmMinimumAge)
+        })
       });
       const data = await response.json().catch(() => ({}));
 
@@ -76,12 +100,18 @@ export default function Register() {
           <small id="password-hint">Use 8 or more characters.</small>
         </label>
 
+        <div className="auth-consents">
+          <label><input checked={acceptPrivacy} onChange={(event) => setAcceptPrivacy(event.target.checked)} required type="checkbox" /> <span>I accept the <Link target="_blank" to="/privacy">privacy notice</Link>.</span></label>
+          <label><input checked={acceptTerms} onChange={(event) => setAcceptTerms(event.target.checked)} required type="checkbox" /> <span>I accept the <Link target="_blank" to="/terms">terms of use</Link>.</span></label>
+          <label><input checked={confirmMinimumAge} onChange={(event) => setConfirmMinimumAge(event.target.checked)} required type="checkbox" /> <span>I confirm that I am at least {legalDocuments?.minimum_age || 18} years old.</span></label>
+        </div>
+
         {error ? <p className="form-error" role="alert">{error}</p> : null}
 
-        <button className="btn btn--light btn--full" disabled={isSubmitting} type="submit">
+        <button className="btn btn--light btn--full" disabled={isSubmitting || !legalDocuments || !acceptPrivacy || !acceptTerms || !confirmMinimumAge} type="submit">
           {isSubmitting ? "Creating your account…" : "Create free account"}
         </button>
-        <p className="auth-terms">By continuing, you agree to train safely and within your physical limits.</p>
+        <p className="auth-terms">Train safely and within your physical limits.</p>
         <p className="auth-card__footer">Already have an account? <Link to="/login">Sign in</Link></p>
       </form>
     </main>

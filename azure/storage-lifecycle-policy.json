@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "name": "expire-practice-tapes",
+      "enabled": true,
+      "type": "Lifecycle",
+      "definition": {
+        "filters": {
+          "blobTypes": ["blockBlob"],
+          "prefixMatch": ["practice-tapes/users/"]
+        },
+        "actions": {
+          "baseBlob": {
+            "delete": {
+              "daysAfterModificationGreaterThan": 90
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../services/api";
+import { authFetch, getAccessToken } from "../services/authSession";
 import { buildPracticeSessionAnalysis } from "../utils/practiceSessionAnalysis";
 
 const CONNECTIONS = [
@@ -188,7 +189,7 @@ export default function StoredSessionTapePanel({
 
   const loadTape = useCallback(async () => {
     if (!sessionId || loadState === "loading") return;
-    const token = localStorage.getItem("token");
+    const token = getAccessToken();
     if (!token) {
       setLoadState("error");
       setMessage("Log in to load this stored tape.");
@@ -197,7 +198,7 @@ export default function StoredSessionTapePanel({
     setLoadState("loading");
     setMessage("Loading the stored 30 FPS movement tape.");
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/practice/sessions/${sessionId}/tape`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -257,6 +258,7 @@ export default function StoredSessionTapePanel({
             {session?.target_reps ?? 0} reps
             {frames.length ? ` · ${frames.length} frames · ${formatTime(tape?.duration_ms)}` : ""}
           </strong>
+          <small>Device-generated coaching estimate — not an independently validated performance score.</small>
         </div>
         <button
           aria-expanded={expanded}
@@ -313,7 +315,7 @@ export default function StoredSessionTapePanel({
                       </strong>
                     </span>
                     <span><small>Phase</small><strong>{formatLabel(assignment?.phase)}</strong></span>
-                    <span><small>Accuracy</small><strong>{Number.isFinite(currentFrame.accuracy) ? `${currentFrame.accuracy}%` : "Not scored"}</strong></span>
+                    <span><small>Accuracy estimate</small><strong>{Number.isFinite(currentFrame.accuracy) ? `${currentFrame.accuracy}%` : "Not scored"}</strong></span>
                     <span><small>Tracking</small><strong>{currentFrame.trackingReliable === false ? "Lost" : "Tracked"}</strong></span>
                   </div>
                   <div className="stored-tape-panel__summary">

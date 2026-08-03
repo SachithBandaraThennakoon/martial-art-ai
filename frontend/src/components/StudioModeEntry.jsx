@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { DEFAULT_STUDIO_MODE, STUDIO_MODES } from "../data/studioModes";
 
 export default function StudioModeEntry({

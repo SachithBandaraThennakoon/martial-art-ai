@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import ActionSkeletonOverlay from "../components/ActionSkeletonOverlay";
 import AwarenessPanel from "../components/AwarenessPanel";
 import BodyCalibrationPanel from "../components/BodyCalibrationPanel";

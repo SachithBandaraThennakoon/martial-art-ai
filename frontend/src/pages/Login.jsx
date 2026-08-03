@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import { AuthContext } from "../context/auth";
 import { API_BASE_URL } from "../services/api";
 import AuthStory from "../components/AuthStory";
@@ -23,6 +23,7 @@ export default function Login() {
     try {
       const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ email: email.trim(), password })
       });

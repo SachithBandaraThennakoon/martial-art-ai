@@ -1,12 +1,18 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models.contact_message import ContactMessage
+from services.rate_limits import (
+    CONTACT_ACCOUNT,
+    CONTACT_IP,
+    client_ip,
+    enforce_rate_limits,
+)
 
 router = APIRouter(prefix="/contact", tags=["Contact"])
 
@@ -29,7 +35,11 @@ class ContactRequest(BaseModel):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_contact_message(data: ContactRequest, db: Session = Depends(get_db)):
+def create_contact_message(
+    data: ContactRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
     # Bots commonly complete this visually hidden field. Return a neutral response
     # without storing their payload so the endpoint is less useful to spammers.
     if data.company.strip():
@@ -39,6 +49,11 @@ def create_contact_message(data: ContactRequest, db: Session = Depends(get_db)):
     email = data.email.strip().lower()
     topic = data.topic.strip()
     message = data.message.strip()
+    enforce_rate_limits(
+        db,
+        (CONTACT_IP, client_ip(request)),
+        (CONTACT_ACCOUNT, email),
+    )
 
     if not EMAIL_PATTERN.fullmatch(email):
         raise HTTPException(status_code=422, detail="Enter a valid email address")

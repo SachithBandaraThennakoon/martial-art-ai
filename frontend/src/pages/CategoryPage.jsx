@@ -1,5 +1,5 @@
 import { useContext, useMemo, useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useParams } from "react-router";
 import { AuthContext } from "../context/auth";
 import { getCategoryBySlug, slugify } from "../data/techniqueCatalog";
 import { canAccessPlan, formatPlanName } from "../data/planAccess";

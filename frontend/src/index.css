@@ -5647,6 +5647,32 @@ select:focus {
   }
 }
 
+.legal-page {
+  position: relative;
+  z-index: 1;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 112px 28px 80px;
+  line-height: 1.7;
+}
+.legal-page h1 { margin: 8px 0 24px; }
+.legal-page h2 { margin: 32px 0 8px; font-size: 1.2rem; }
+.legal-page a, .auth-consents a { color: var(--accent); }
+.privacy-card {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.privacy-card--danger { border-color: rgba(230, 93, 93, .45); }
+.btn--danger { background: #b73737; color: #fff; border-color: #d95757; }
+.btn--danger:hover, .btn--danger:focus-visible { background: #cf4141; }
+.privacy-card form { display: grid; gap: 16px; }
+.auth-consents { display: grid; gap: 10px; font-size: .86rem; color: var(--muted); }
+.auth-consents label { display: flex; align-items: flex-start; gap: 9px; }
+.auth-consents input { margin-top: 4px; accent-color: var(--accent); }
+
 /* Practice count leader and the post-set movement tape. */
 .practice-count-cue {
   position: absolute;
