@@ -39,6 +39,21 @@ function midpoint(first, second) {
   };
 }
 
+function weightedPoint(weightedPoints) {
+  const available = weightedPoints.filter(({ point, weight }) => point && Number.isFinite(weight));
+  const totalWeight = available.reduce((total, item) => total + item.weight, 0);
+  if (!totalWeight) return null;
+  return ["x", "y", "z"].reduce((point, axis) => ({
+    ...point,
+    [axis]: available.reduce((total, item) => total + (item.point[axis] || 0) * item.weight, 0) / totalWeight
+  }), {});
+}
+
+function horizontalDistance(first, second) {
+  if (!first || !second) return null;
+  return Math.hypot((first.x || 0) - (second.x || 0), (first.z || 0) - (second.z || 0));
+}
+
 function vectorMagnitude(vector) {
   return Math.hypot(vector?.x || 0, vector?.y || 0, vector?.z || 0);
 }
@@ -127,6 +142,8 @@ export class BiomechanicalFeatureExtractor {
     const rightShoulder = get("rightShoulder");
     const leftHip = get("leftHip");
     const rightHip = get("rightHip");
+    const leftAnkle = get("leftAnkle");
+    const rightAnkle = get("rightAnkle");
     const leadShoulder = get(`${lead}Shoulder`);
     const leadWrist = get(`${lead}Wrist`);
     const rearShoulder = get(`${rear}Shoulder`);
@@ -136,6 +153,14 @@ export class BiomechanicalFeatureExtractor {
     const kickAnkle = get(`${kick}Ankle`);
     const shoulderCenter = midpoint(leftShoulder, rightShoulder);
     const hipCenter = midpoint(leftHip, rightHip);
+    const ankleCenter = midpoint(leftAnkle, rightAnkle);
+    const centerOfMass = weightedPoint([
+      { point: hipCenter, weight: 0.55 },
+      { point: shoulderCenter, weight: 0.35 },
+      { point: ankleCenter, weight: 0.1 }
+    ]);
+    const baseOfSupportWidth = distance(leftAnkle, rightAnkle);
+    const comSupportOffset = horizontalDistance(centerOfMass, ankleCenter);
     const leadReach = distance(leadWrist, leadShoulder);
     const kickReach = distance(kickAnkle, kickHip);
     const motionEnergy = average(
@@ -147,6 +172,18 @@ export class BiomechanicalFeatureExtractor {
         vectorMagnitude(velocities[LANDMARK[`${support}Ankle`]])
       ]) / 0.5
     );
+    const dynamicStability = baseOfSupportWidth && comSupportOffset !== null
+      ? clamp((1 - comSupportOffset / Math.max(baseOfSupportWidth * 0.6, 0.001)) * supportStability)
+      : null;
+    const leftChainLength = [
+      distance(leftShoulder, leftHip), distance(leftHip, get("leftKnee")), distance(get("leftKnee"), leftAnkle)
+    ].filter(Number.isFinite).reduce((total, value) => total + value, 0);
+    const rightChainLength = [
+      distance(rightShoulder, rightHip), distance(rightHip, get("rightKnee")), distance(get("rightKnee"), rightAnkle)
+    ].filter(Number.isFinite).reduce((total, value) => total + value, 0);
+    const symmetryScore = leftChainLength && rightChainLength
+      ? clamp(1 - Math.abs(leftChainLength - rightChainLength) / Math.max((leftChainLength + rightChainLength) / 2, 0.001))
+      : null;
 
     const baseline = this.stanceBaseline[kick];
     const returnToStanceDistance = baseline && kickAnkle
@@ -168,6 +205,11 @@ export class BiomechanicalFeatureExtractor {
       lead_elbow_angular_velocity: angularVelocity(
         leadElbowAngle,
         this.previous?.leadElbowAngle,
+        deltaSeconds
+      ),
+      lead_elbow_angular_acceleration: angularVelocity(
+        angularVelocity(leadElbowAngle, this.previous?.leadElbowAngle, deltaSeconds),
+        this.previous?.features?.lead_elbow_angular_velocity,
         deltaSeconds
       ),
       lead_wrist_guard_distance: distance(leadWrist, leadShoulder),
@@ -205,6 +247,13 @@ export class BiomechanicalFeatureExtractor {
         deltaSeconds
       ),
       support_leg_stability: supportStability,
+      center_of_mass_proxy_x: centerOfMass?.x ?? null,
+      center_of_mass_proxy_y: centerOfMass?.y ?? null,
+      center_of_mass_proxy_z: centerOfMass?.z ?? null,
+      base_of_support_width: baseOfSupportWidth,
+      com_support_offset: comSupportOffset,
+      dynamic_stability: dynamicStability,
+      left_right_symmetry: symmetryScore,
       return_to_stance_distance: returnToStanceDistance
     };
 

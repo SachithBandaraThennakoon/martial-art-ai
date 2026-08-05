@@ -200,6 +200,11 @@
       "directory": "hand-up-test",
       "enabled": true,
       "catalog_version": "1.0.0"
+    },
+    {
+      "id": "jab2",
+      "directory": "jab2",
+      "enabled": true
     }
   ]
 }

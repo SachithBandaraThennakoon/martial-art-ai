@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "id": "jab2",
+  "name": "jab 2",
+  "tracking_package": "jab2",
+  "tracking_version": "1.0.0",
+  "category": "Technique Training",
+  "subcategory": "Punching",
+  "difficulty": "Intermediate",
+  "price": 0,
+  "required_plan": "FREE_PLAN",
+  "description": "jab 2 test jjksklsllslss"
+}

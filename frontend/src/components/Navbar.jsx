@@ -14,7 +14,7 @@ export default function Navbar() {
       ? "navbar__link active"
       : "navbar__link";
   const adminNavClass = () =>
-    ["/admin-studio", "/admin-training", "/admin-temporal-data"].includes(location.pathname)
+    ["/admin-studio", "/admin-training", "/admin-temporal-data", "/admin-catalog"].includes(location.pathname)
       ? "navbar__link active"
       : "navbar__link";
   const dashboardNavClass = () =>
@@ -64,6 +64,7 @@ export default function Navbar() {
                   <NavLink className={navClass} onClick={closeMenu} to="/admin-training?mode=analysis">Admin Training</NavLink>
                   <NavLink className={navClass} onClick={closeMenu} to="/model-test">Model Test</NavLink>
                   <NavLink className={navClass} onClick={closeMenu} to="/admin-temporal-data">Temporal Data Lab</NavLink>
+                  <NavLink className={navClass} onClick={closeMenu} to="/admin-catalog">Technique Catalog</NavLink>
                 </>
               ) : null}
             </div>
