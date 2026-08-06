@@ -17,21 +17,39 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "target_positions",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("step_id", sa.Integer(), nullable=False),
-        sa.Column("body_part", sa.String(), nullable=False),
-        sa.Column("x", sa.Float(), nullable=False),
-        sa.Column("y", sa.Float(), nullable=False),
-        sa.Column("z", sa.Float(), nullable=False),
-        sa.Column("tolerance", sa.Float(), nullable=False),
-        sa.Column("coordinate_space", sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(["step_id"], ["technique_steps.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("step_id", "body_part", name="uq_target_position_step_body_part"),
-    )
-    op.create_index("ix_target_positions_step_id", "target_positions", ["step_id"])
+    conn = op.get_bind()
+
+    def _table_exists(table_name: str) -> bool:
+        return conn.execute(
+            sa.text("SELECT to_regclass(:table_name)"),
+            {"table_name": table_name},
+        ).scalar() is not None
+
+    def _index_exists(index_name: str) -> bool:
+        return conn.execute(
+            sa.text(
+                "SELECT 1 FROM pg_indexes WHERE indexname = :index_name"
+            ),
+            {"index_name": index_name},
+        ).fetchone() is not None
+
+    if not _table_exists("target_positions"):
+        op.create_table(
+            "target_positions",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("step_id", sa.Integer(), nullable=False),
+            sa.Column("body_part", sa.String(), nullable=False),
+            sa.Column("x", sa.Float(), nullable=False),
+            sa.Column("y", sa.Float(), nullable=False),
+            sa.Column("z", sa.Float(), nullable=False),
+            sa.Column("tolerance", sa.Float(), nullable=False),
+            sa.Column("coordinate_space", sa.String(), nullable=False),
+            sa.ForeignKeyConstraint(["step_id"], ["technique_steps.id"], ondelete="CASCADE"),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("step_id", "body_part", name="uq_target_position_step_body_part"),
+        )
+    if not _index_exists("ix_target_positions_step_id"):
+        op.create_index("ix_target_positions_step_id", "target_positions", ["step_id"])
 
 
 def downgrade() -> None:

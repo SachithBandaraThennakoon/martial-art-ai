@@ -482,90 +482,90 @@
         {
           "body_part": "elbow_left",
           "label": "Lead elbow extension",
-          "target_angle": 170,
-          "min": 155.0,
-          "max": 177.0,
+          "target_angle": 127,
+          "min": 115.0,
+          "max": 139.0,
           "role": "primary",
           "weight": 3
         },
         {
           "body_part": "elbow_right",
           "label": "Rear elbow chamber",
-          "target_angle": 90,
-          "min": 70.0,
-          "max": 110.0,
+          "target_angle": 149,
+          "min": 137.0,
+          "max": 161.0,
           "role": "supporting",
           "weight": 1.5
         },
         {
           "body_part": "shoulder_left",
           "label": "Lead shoulder drive",
-          "target_angle": 90,
-          "min": 65.0,
-          "max": 115.0,
+          "target_angle": 60,
+          "min": 48.0,
+          "max": 72.0,
           "role": "supporting",
           "weight": 2
         },
         {
           "body_part": "shoulder_right",
           "label": "Rear shoulder control",
-          "target_angle": 70,
-          "min": 45.0,
-          "max": 85.0,
+          "target_angle": 35,
+          "min": 23.0,
+          "max": 47.0,
           "role": "supporting",
           "weight": 1.25
         },
         {
           "body_part": "hip_left",
           "label": "Front-stance lead hip",
-          "target_angle": 135,
-          "min": 115.0,
-          "max": 155.0,
+          "target_angle": 126,
+          "min": 114.0,
+          "max": 138.0,
           "role": "supporting",
           "weight": 2
         },
         {
           "body_part": "hip_right",
           "label": "Front-stance rear hip",
-          "target_angle": 155,
-          "min": 140.0,
-          "max": 175.0,
+          "target_angle": 140,
+          "min": 128.0,
+          "max": 152.0,
           "role": "supporting",
           "weight": 1.75
         },
         {
           "body_part": "knee_left",
           "label": "Bent front knee",
-          "target_angle": 135,
-          "min": 120.0,
-          "max": 150.0,
+          "target_angle": 172,
+          "min": 160.0,
+          "max": 180.0,
           "role": "supporting",
           "weight": 2
         },
         {
           "body_part": "knee_right",
           "label": "Long rear leg",
-          "target_angle": 160,
-          "min": 145.0,
-          "max": 175.0,
+          "target_angle": 165,
+          "min": 153.0,
+          "max": 177.0,
           "role": "supporting",
           "weight": 1.75
         },
         {
           "body_part": "ankle_left",
           "label": "Front foot support",
-          "target_angle": 110,
-          "min": 90.0,
-          "max": 125.0,
+          "target_angle": 173,
+          "min": 161.0,
+          "max": 180.0,
           "role": "supporting",
           "weight": 1.25
         },
         {
           "body_part": "ankle_right",
           "label": "Rear foot support",
-          "target_angle": 115,
-          "min": 95.0,
-          "max": 130.0,
+          "target_angle": 171,
+          "min": 159.0,
+          "max": 180.0,
           "role": "supporting",
           "weight": 1.25
         },
@@ -712,161 +712,161 @@
         "tolerance": 0.12,
         "landmarks": {
           "head": [
-            -0.9174,
-            1.156,
-            0.0
+            -1.1752,
+            0.83,
+            -0.0344
           ],
           "shoulder_left": [
-            -1.7059,
-            0.3979,
-            0.0
+            -1.3014,
+            0.152,
+            -0.0143
           ],
           "shoulder_right": [
-            -0.129,
-            0.3979,
-            0.0
+            -0.4925,
+            0.7306,
+            -0.0392
           ],
           "elbow_left": [
-            -2.1911,
-            -0.3299,
-            0.0303
+            -1.181,
+            -0.3863,
+            0.0086
           ],
           "elbow_right": [
-            0.3562,
-            -0.3299,
-            0.0303
+            -0.305,
+            0.2123,
+            -0.0115
           ],
           "wrist_left": [
-            -2.52,
-            -1.0749,
-            0.0758
+            -0.7114,
+            -0.5957,
+            0.0239
           ],
           "wrist_right": [
-            -0.3042,
-            -0.8066,
-            0.0758
+            -0.4026,
+            -0.2917,
+            0.0258
           ],
           "hip_left": [
-            -0.3807,
-            -0.5097,
-            0.0
+            -0.3328,
+            -0.1453,
+            -0.0019
           ],
           "hip_right": [
-            0.3807,
-            0.5097,
-            0.0
+            0.3328,
+            0.1453,
+            0.0019
           ],
           "knee_left": [
-            -0.1775,
-            -1.8306,
-            0.0606
+            -0.065,
+            -0.9438,
+            0.0469
           ],
           "knee_right": [
-            1.6731,
-            0.1695,
-            0.0606
+            1.1733,
+            0.2113,
+            0.043
           ],
           "ankle_left": [
-            0.8269,
-            -2.5659,
-            0.0
+            0.2706,
+            -1.6476,
+            0.1453
           ],
           "ankle_right": [
-            2.7195,
-            -0.5047,
-            0.0
+            1.9421,
+            0.0851,
+            0.1453
           ],
           "foot_left": [
-            0.9474,
-            -2.7096,
-            0.5307
+            0.4437,
+            -1.9469,
+            0.2247
           ],
           "foot_right": [
-            2.8969,
-            -0.5657,
-            0.5307
+            2.273,
+            -0.0105,
+            0.2314
           ]
         },
         "bones": [
           {
             "from": "head",
             "to": "shoulder_left",
-            "length": 1.0938
+            "length": 0.6899
           },
           {
             "from": "head",
             "to": "shoulder_right",
-            "length": 1.0938
+            "length": 0.6899
           },
           {
             "from": "shoulder_left",
             "to": "shoulder_right",
-            "length": 1.5769
+            "length": 0.9948
           },
           {
             "from": "shoulder_left",
             "to": "elbow_left",
-            "length": 0.8752
+            "length": 0.5521
           },
           {
             "from": "elbow_left",
             "to": "wrist_left",
-            "length": 0.8156
+            "length": 0.5144
           },
           {
             "from": "shoulder_right",
             "to": "elbow_right",
-            "length": 0.8752
+            "length": 0.5519
           },
           {
             "from": "elbow_right",
             "to": "wrist_right",
-            "length": 0.8157
+            "length": 0.5147
           },
           {
             "from": "shoulder_left",
             "to": "hip_left",
-            "length": 1.6062
+            "length": 1.0133
           },
           {
             "from": "shoulder_right",
             "to": "hip_right",
-            "length": 0.5218
+            "length": 1.0126
           },
           {
             "from": "hip_left",
             "to": "hip_right",
-            "length": 1.2724
+            "length": 0.7263
           },
           {
             "from": "hip_left",
             "to": "knee_left",
-            "length": 1.3378
+            "length": 0.8436
           },
           {
             "from": "knee_left",
             "to": "ankle_left",
-            "length": 1.2463
+            "length": 0.7859
           },
           {
             "from": "ankle_left",
             "to": "foot_left",
-            "length": 0.5629
+            "length": 0.3548
           },
           {
             "from": "hip_right",
             "to": "knee_right",
-            "length": 1.3378
+            "length": 0.8441
           },
           {
             "from": "knee_right",
             "to": "ankle_right",
-            "length": 1.2463
+            "length": 0.7858
           },
           {
             "from": "ankle_right",
             "to": "foot_right",
-            "length": 0.5629
+            "length": 0.355
           }
         ]
       }
