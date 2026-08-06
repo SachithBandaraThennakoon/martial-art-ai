@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from auth_context import require_admin_user
+import logging
 from database import get_db
 from models.user import User
 from services.catalog_sync import sync_technique_catalog
@@ -299,7 +300,10 @@ def create_package(payload: PackagePayload, db: Session = Depends(get_db), _admi
     if (TECHNIQUE_ROOT / package_id).exists():
         raise HTTPException(409, "A technique with this id already exists")
     _save_package(package_id, catalog, training_steps, payload.enabled, creating=True)
-    sync_technique_catalog(db)
+    try:
+        sync_technique_catalog(db)
+    except Exception:
+        logging.getLogger(__name__).exception("Catalog saved to files but failed to sync with database")
     return {"message": "Technique created", "id": package_id}
 
 
@@ -309,7 +313,10 @@ def update_package(technique_id: str, payload: PackagePayload, db: Session = Dep
         raise HTTPException(404, "Technique package not found")
     package_id, catalog, training_steps = _validate_payload(payload, technique_id)
     _save_package(package_id, catalog, training_steps, payload.enabled, creating=False)
-    sync_technique_catalog(db)
+    try:
+        sync_technique_catalog(db)
+    except Exception:
+        logging.getLogger(__name__).exception("Catalog updated on disk but failed to sync with database")
     return {"message": "Technique updated", "id": package_id}
 
 

@@ -5,8 +5,22 @@
     "angle_unit": "degrees",
     "movement_style": "Karate straight punch from front stance",
     "stance": "Zenkutsu-dachi",
-    "image_plane_angles": ["elbow_left","elbow_right","wrist_left","wrist_right"],
-    "world_space_angles": ["shoulder_left","shoulder_right","hip_left","hip_right","knee_left","knee_right","ankle_left","ankle_right"],
+    "image_plane_angles": [
+      "elbow_left",
+      "elbow_right",
+      "wrist_left",
+      "wrist_right"
+    ],
+    "world_space_angles": [
+      "shoulder_left",
+      "shoulder_right",
+      "hip_left",
+      "hip_right",
+      "knee_left",
+      "knee_right",
+      "ankle_left",
+      "ankle_right"
+    ],
     "measurement_reason": "Camera-plane arm flexion avoids monocular depth bending; torso and lower-body angles retain world-space depth.",
     "primary": "Used for step scoring and temporal phase evidence",
     "supporting": "Used for live coaching and target-shape guidance",
@@ -53,18 +67,114 @@
         "face_calm"
       ],
       "angle_targets": [
-        {"body_part":"elbow_left","label":"Lead elbow guard bend","target_angle":90,"min":70,"max":110,"role":"primary","weight":2},
-        {"body_part":"elbow_right","label":"Rear elbow guard bend","target_angle":90,"min":70,"max":110,"role":"primary","weight":2},
-        {"body_part":"shoulder_left","label":"Lead shoulder guard position","target_angle":70,"min":45,"max":85,"role":"supporting","weight":1.5},
-        {"body_part":"shoulder_right","label":"Rear shoulder guard position","target_angle":70,"min":45,"max":85,"role":"supporting","weight":1.5},
-        {"body_part":"hip_left","label":"Front-stance lead hip","target_angle":135,"min":115,"max":155,"role":"supporting","weight":1.5},
-        {"body_part":"hip_right","label":"Front-stance rear hip","target_angle":155,"min":140,"max":175,"role":"supporting","weight":1.5},
-        {"body_part":"knee_left","label":"Bent front knee","target_angle":135,"min":120,"max":150,"role":"supporting","weight":1.75},
-        {"body_part":"knee_right","label":"Long rear leg","target_angle":160,"min":145,"max":175,"role":"supporting","weight":1.75},
-        {"body_part":"ankle_left","label":"Front foot support","target_angle":110,"min":90,"max":125,"role":"supporting","weight":1.25},
-        {"body_part":"ankle_right","label":"Rear foot support","target_angle":115,"min":95,"max":130,"role":"supporting","weight":1.25},
-        {"body_part":"wrist_left","label":"Lead wrist alignment","target_angle":160,"min":140,"max":180,"role":"supporting","weight":1.25},
-        {"body_part":"wrist_right","label":"Rear wrist alignment","target_angle":160,"min":140,"max":180,"role":"supporting","weight":1.25}
+        {
+          "body_part": "elbow_left",
+          "label": "Lead elbow guard bend",
+          "target_angle": 110,
+          "min": 98.0,
+          "max": 122.0,
+          "role": "primary",
+          "weight": 2
+        },
+        {
+          "body_part": "elbow_right",
+          "label": "Rear elbow guard bend",
+          "target_angle": 103,
+          "min": 91.0,
+          "max": 115.0,
+          "role": "primary",
+          "weight": 2
+        },
+        {
+          "body_part": "shoulder_left",
+          "label": "Lead shoulder guard position",
+          "target_angle": 75,
+          "min": 63.0,
+          "max": 87.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "shoulder_right",
+          "label": "Rear shoulder guard position",
+          "target_angle": 74,
+          "min": 62.0,
+          "max": 86.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "hip_left",
+          "label": "Front-stance lead hip",
+          "target_angle": 136,
+          "min": 124.0,
+          "max": 148.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "hip_right",
+          "label": "Front-stance rear hip",
+          "target_angle": 147,
+          "min": 135.0,
+          "max": 159.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "knee_left",
+          "label": "Bent front knee",
+          "target_angle": 135,
+          "min": 123.0,
+          "max": 147.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "knee_right",
+          "label": "Long rear leg",
+          "target_angle": 172,
+          "min": 160.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "ankle_left",
+          "label": "Front foot support",
+          "target_angle": 92,
+          "min": 80.0,
+          "max": 104.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "ankle_right",
+          "label": "Rear foot support",
+          "target_angle": 58,
+          "min": 46.0,
+          "max": 70.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "wrist_left",
+          "label": "Lead wrist alignment",
+          "target_angle": 160,
+          "min": 140.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "wrist_right",
+          "label": "Rear wrist alignment",
+          "target_angle": 160,
+          "min": 140.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 1.25
+        }
       ],
       "quality_targets": [
         {
@@ -173,6 +283,172 @@
           "knees",
           "ankles"
         ]
+      },
+      "reference_pose": {
+        "schema_version": "1.0",
+        "coordinate_space": "body_normalized_v1",
+        "origin": "hip_center",
+        "scale_basis": "torso_length",
+        "tolerance": 0.12,
+        "landmarks": {
+          "head": [
+            0.0076,
+            1.465,
+            0.1015
+          ],
+          "shoulder_left": [
+            -0.4812,
+            0.9819,
+            0.1034
+          ],
+          "shoulder_right": [
+            0.4869,
+            1.0181,
+            -0.1053
+          ],
+          "elbow_left": [
+            -0.4088,
+            0.8475,
+            0.6322
+          ],
+          "elbow_right": [
+            0.464,
+            0.8714,
+            0.4245
+          ],
+          "wrist_left": [
+            -0.2306,
+            1.2534,
+            0.8895
+          ],
+          "wrist_right": [
+            0.5269,
+            1.3182,
+            0.6684
+          ],
+          "hip_left": [
+            -0.3478,
+            -0.0186,
+            0.0986
+          ],
+          "hip_right": [
+            0.3478,
+            0.0186,
+            -0.0986
+          ],
+          "knee_left": [
+            -0.4383,
+            -0.6465,
+            0.6503
+          ],
+          "knee_right": [
+            0.3792,
+            -0.6999,
+            -0.5341
+          ],
+          "ankle_left": [
+            -0.4002,
+            -1.4278,
+            0.6141
+          ],
+          "ankle_right": [
+            0.3497,
+            -1.3154,
+            -1.0171
+          ],
+          "foot_left": [
+            -0.4059,
+            -1.4545,
+            0.9666
+          ],
+          "foot_right": [
+            0.3078,
+            -1.3478,
+            -0.6675
+          ]
+        },
+        "bones": [
+          {
+            "from": "head",
+            "to": "shoulder_left",
+            "length": 0.6873
+          },
+          {
+            "from": "head",
+            "to": "shoulder_right",
+            "length": 0.6872
+          },
+          {
+            "from": "shoulder_left",
+            "to": "shoulder_right",
+            "length": 0.991
+          },
+          {
+            "from": "shoulder_left",
+            "to": "elbow_left",
+            "length": 0.5504
+          },
+          {
+            "from": "elbow_left",
+            "to": "wrist_left",
+            "length": 0.5126
+          },
+          {
+            "from": "shoulder_right",
+            "to": "elbow_right",
+            "length": 0.5502
+          },
+          {
+            "from": "elbow_right",
+            "to": "wrist_right",
+            "length": 0.5129
+          },
+          {
+            "from": "shoulder_left",
+            "to": "hip_left",
+            "length": 1.0094
+          },
+          {
+            "from": "shoulder_right",
+            "to": "hip_right",
+            "length": 1.0092
+          },
+          {
+            "from": "hip_left",
+            "to": "hip_right",
+            "length": 0.724
+          },
+          {
+            "from": "hip_left",
+            "to": "knee_left",
+            "length": 0.8407
+          },
+          {
+            "from": "knee_left",
+            "to": "ankle_left",
+            "length": 0.7831
+          },
+          {
+            "from": "ankle_left",
+            "to": "foot_left",
+            "length": 0.3536
+          },
+          {
+            "from": "hip_right",
+            "to": "knee_right",
+            "length": 0.8408
+          },
+          {
+            "from": "knee_right",
+            "to": "ankle_right",
+            "length": 0.7829
+          },
+          {
+            "from": "ankle_right",
+            "to": "foot_right",
+            "length": 0.3536
+          }
+        ]
       }
     },
     {
@@ -203,18 +479,114 @@
         "face_calm"
       ],
       "angle_targets": [
-        {"body_part":"elbow_left","label":"Lead elbow extension","target_angle":170,"min":155,"max":177,"role":"primary","weight":3},
-        {"body_part":"elbow_right","label":"Rear elbow chamber","target_angle":90,"min":70,"max":110,"role":"supporting","weight":1.5},
-        {"body_part":"shoulder_left","label":"Lead shoulder drive","target_angle":90,"min":65,"max":115,"role":"supporting","weight":2},
-        {"body_part":"shoulder_right","label":"Rear shoulder control","target_angle":70,"min":45,"max":85,"role":"supporting","weight":1.25},
-        {"body_part":"hip_left","label":"Front-stance lead hip","target_angle":135,"min":115,"max":155,"role":"supporting","weight":2},
-        {"body_part":"hip_right","label":"Front-stance rear hip","target_angle":155,"min":140,"max":175,"role":"supporting","weight":1.75},
-        {"body_part":"knee_left","label":"Bent front knee","target_angle":135,"min":120,"max":150,"role":"supporting","weight":2},
-        {"body_part":"knee_right","label":"Long rear leg","target_angle":160,"min":145,"max":175,"role":"supporting","weight":1.75},
-        {"body_part":"ankle_left","label":"Front foot support","target_angle":110,"min":90,"max":125,"role":"supporting","weight":1.25},
-        {"body_part":"ankle_right","label":"Rear foot support","target_angle":115,"min":95,"max":130,"role":"supporting","weight":1.25},
-        {"body_part":"wrist_left","label":"Punching wrist alignment","target_angle":160,"min":140,"max":180,"role":"supporting","weight":2},
-        {"body_part":"wrist_right","label":"Chambered wrist alignment","target_angle":160,"min":140,"max":180,"role":"supporting","weight":1.25}
+        {
+          "body_part": "elbow_left",
+          "label": "Lead elbow extension",
+          "target_angle": 170,
+          "min": 155.0,
+          "max": 177.0,
+          "role": "primary",
+          "weight": 3
+        },
+        {
+          "body_part": "elbow_right",
+          "label": "Rear elbow chamber",
+          "target_angle": 90,
+          "min": 70.0,
+          "max": 110.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "shoulder_left",
+          "label": "Lead shoulder drive",
+          "target_angle": 90,
+          "min": 65.0,
+          "max": 115.0,
+          "role": "supporting",
+          "weight": 2
+        },
+        {
+          "body_part": "shoulder_right",
+          "label": "Rear shoulder control",
+          "target_angle": 70,
+          "min": 45.0,
+          "max": 85.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "hip_left",
+          "label": "Front-stance lead hip",
+          "target_angle": 135,
+          "min": 115.0,
+          "max": 155.0,
+          "role": "supporting",
+          "weight": 2
+        },
+        {
+          "body_part": "hip_right",
+          "label": "Front-stance rear hip",
+          "target_angle": 155,
+          "min": 140.0,
+          "max": 175.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "knee_left",
+          "label": "Bent front knee",
+          "target_angle": 135,
+          "min": 120.0,
+          "max": 150.0,
+          "role": "supporting",
+          "weight": 2
+        },
+        {
+          "body_part": "knee_right",
+          "label": "Long rear leg",
+          "target_angle": 160,
+          "min": 145.0,
+          "max": 175.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "ankle_left",
+          "label": "Front foot support",
+          "target_angle": 110,
+          "min": 90.0,
+          "max": 125.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "ankle_right",
+          "label": "Rear foot support",
+          "target_angle": 115,
+          "min": 95.0,
+          "max": 130.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "wrist_left",
+          "label": "Punching wrist alignment",
+          "target_angle": 160,
+          "min": 140.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 2
+        },
+        {
+          "body_part": "wrist_right",
+          "label": "Chambered wrist alignment",
+          "target_angle": 160,
+          "min": 140.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 1.25
+        }
       ],
       "quality_targets": [
         {
@@ -331,6 +703,172 @@
           "knees",
           "ankles"
         ]
+      },
+      "reference_pose": {
+        "schema_version": "1.0",
+        "coordinate_space": "body_normalized_v1",
+        "origin": "hip_center",
+        "scale_basis": "torso_length",
+        "tolerance": 0.12,
+        "landmarks": {
+          "head": [
+            -0.9174,
+            1.156,
+            0.0
+          ],
+          "shoulder_left": [
+            -1.7059,
+            0.3979,
+            0.0
+          ],
+          "shoulder_right": [
+            -0.129,
+            0.3979,
+            0.0
+          ],
+          "elbow_left": [
+            -2.1911,
+            -0.3299,
+            0.0303
+          ],
+          "elbow_right": [
+            0.3562,
+            -0.3299,
+            0.0303
+          ],
+          "wrist_left": [
+            -2.52,
+            -1.0749,
+            0.0758
+          ],
+          "wrist_right": [
+            -0.3042,
+            -0.8066,
+            0.0758
+          ],
+          "hip_left": [
+            -0.3807,
+            -0.5097,
+            0.0
+          ],
+          "hip_right": [
+            0.3807,
+            0.5097,
+            0.0
+          ],
+          "knee_left": [
+            -0.1775,
+            -1.8306,
+            0.0606
+          ],
+          "knee_right": [
+            1.6731,
+            0.1695,
+            0.0606
+          ],
+          "ankle_left": [
+            0.8269,
+            -2.5659,
+            0.0
+          ],
+          "ankle_right": [
+            2.7195,
+            -0.5047,
+            0.0
+          ],
+          "foot_left": [
+            0.9474,
+            -2.7096,
+            0.5307
+          ],
+          "foot_right": [
+            2.8969,
+            -0.5657,
+            0.5307
+          ]
+        },
+        "bones": [
+          {
+            "from": "head",
+            "to": "shoulder_left",
+            "length": 1.0938
+          },
+          {
+            "from": "head",
+            "to": "shoulder_right",
+            "length": 1.0938
+          },
+          {
+            "from": "shoulder_left",
+            "to": "shoulder_right",
+            "length": 1.5769
+          },
+          {
+            "from": "shoulder_left",
+            "to": "elbow_left",
+            "length": 0.8752
+          },
+          {
+            "from": "elbow_left",
+            "to": "wrist_left",
+            "length": 0.8156
+          },
+          {
+            "from": "shoulder_right",
+            "to": "elbow_right",
+            "length": 0.8752
+          },
+          {
+            "from": "elbow_right",
+            "to": "wrist_right",
+            "length": 0.8157
+          },
+          {
+            "from": "shoulder_left",
+            "to": "hip_left",
+            "length": 1.6062
+          },
+          {
+            "from": "shoulder_right",
+            "to": "hip_right",
+            "length": 0.5218
+          },
+          {
+            "from": "hip_left",
+            "to": "hip_right",
+            "length": 1.2724
+          },
+          {
+            "from": "hip_left",
+            "to": "knee_left",
+            "length": 1.3378
+          },
+          {
+            "from": "knee_left",
+            "to": "ankle_left",
+            "length": 1.2463
+          },
+          {
+            "from": "ankle_left",
+            "to": "foot_left",
+            "length": 0.5629
+          },
+          {
+            "from": "hip_right",
+            "to": "knee_right",
+            "length": 1.3378
+          },
+          {
+            "from": "knee_right",
+            "to": "ankle_right",
+            "length": 1.2463
+          },
+          {
+            "from": "ankle_right",
+            "to": "foot_right",
+            "length": 0.5629
+          }
+        ]
       }
     },
     {
@@ -360,18 +898,114 @@
         "face_calm"
       ],
       "angle_targets": [
-        {"body_part":"elbow_left","label":"Lead elbow recovery","target_angle":90,"min":70,"max":110,"role":"primary","weight":2.5},
-        {"body_part":"elbow_right","label":"Rear elbow guard bend","target_angle":90,"min":70,"max":110,"role":"supporting","weight":1.5},
-        {"body_part":"shoulder_left","label":"Lead shoulder recovery","target_angle":70,"min":45,"max":85,"role":"supporting","weight":1.75},
-        {"body_part":"shoulder_right","label":"Rear shoulder guard position","target_angle":70,"min":45,"max":85,"role":"supporting","weight":1.5},
-        {"body_part":"hip_left","label":"Front-stance lead hip","target_angle":135,"min":115,"max":155,"role":"supporting","weight":1.5},
-        {"body_part":"hip_right","label":"Front-stance rear hip","target_angle":155,"min":140,"max":175,"role":"supporting","weight":1.5},
-        {"body_part":"knee_left","label":"Bent front knee","target_angle":135,"min":120,"max":150,"role":"supporting","weight":1.75},
-        {"body_part":"knee_right","label":"Long rear leg","target_angle":160,"min":145,"max":175,"role":"supporting","weight":1.75},
-        {"body_part":"ankle_left","label":"Front foot support","target_angle":110,"min":90,"max":125,"role":"supporting","weight":1.25},
-        {"body_part":"ankle_right","label":"Rear foot support","target_angle":115,"min":95,"max":130,"role":"supporting","weight":1.25},
-        {"body_part":"wrist_left","label":"Lead wrist guard alignment","target_angle":160,"min":140,"max":180,"role":"supporting","weight":1.5},
-        {"body_part":"wrist_right","label":"Rear wrist guard alignment","target_angle":160,"min":140,"max":180,"role":"supporting","weight":1.25}
+        {
+          "body_part": "elbow_left",
+          "label": "Lead elbow recovery",
+          "target_angle": 90,
+          "min": 70.0,
+          "max": 110.0,
+          "role": "primary",
+          "weight": 2.5
+        },
+        {
+          "body_part": "elbow_right",
+          "label": "Rear elbow guard bend",
+          "target_angle": 90,
+          "min": 70.0,
+          "max": 110.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "shoulder_left",
+          "label": "Lead shoulder recovery",
+          "target_angle": 70,
+          "min": 45.0,
+          "max": 85.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "shoulder_right",
+          "label": "Rear shoulder guard position",
+          "target_angle": 70,
+          "min": 45.0,
+          "max": 85.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "hip_left",
+          "label": "Front-stance lead hip",
+          "target_angle": 135,
+          "min": 115.0,
+          "max": 155.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "hip_right",
+          "label": "Front-stance rear hip",
+          "target_angle": 155,
+          "min": 140.0,
+          "max": 175.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "knee_left",
+          "label": "Bent front knee",
+          "target_angle": 135,
+          "min": 120.0,
+          "max": 150.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "knee_right",
+          "label": "Long rear leg",
+          "target_angle": 160,
+          "min": 145.0,
+          "max": 175.0,
+          "role": "supporting",
+          "weight": 1.75
+        },
+        {
+          "body_part": "ankle_left",
+          "label": "Front foot support",
+          "target_angle": 110,
+          "min": 90.0,
+          "max": 125.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "ankle_right",
+          "label": "Rear foot support",
+          "target_angle": 115,
+          "min": 95.0,
+          "max": 130.0,
+          "role": "supporting",
+          "weight": 1.25
+        },
+        {
+          "body_part": "wrist_left",
+          "label": "Lead wrist guard alignment",
+          "target_angle": 160,
+          "min": 140.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 1.5
+        },
+        {
+          "body_part": "wrist_right",
+          "label": "Rear wrist guard alignment",
+          "target_angle": 160,
+          "min": 140.0,
+          "max": 180.0,
+          "role": "supporting",
+          "weight": 1.25
+        }
       ],
       "quality_targets": [
         {
@@ -487,6 +1121,172 @@
         "optional": [
           "knees",
           "ankles"
+        ]
+      },
+      "reference_pose": {
+        "schema_version": "1.0",
+        "coordinate_space": "body_normalized_v1",
+        "origin": "hip_center",
+        "scale_basis": "torso_length",
+        "tolerance": 0.12,
+        "landmarks": {
+          "head": [
+            -0.2549,
+            1.7297,
+            0.0
+          ],
+          "shoulder_left": [
+            -1.0482,
+            0.967,
+            0.0
+          ],
+          "shoulder_right": [
+            0.5384,
+            0.967,
+            0.0
+          ],
+          "elbow_left": [
+            -1.5363,
+            0.2347,
+            0.0305
+          ],
+          "elbow_right": [
+            1.0265,
+            0.2347,
+            0.0305
+          ],
+          "wrist_left": [
+            -0.8719,
+            -0.2448,
+            0.0763
+          ],
+          "wrist_right": [
+            0.3621,
+            -0.2448,
+            0.0763
+          ],
+          "hip_left": [
+            -0.0623,
+            -0.3135,
+            0.0
+          ],
+          "hip_right": [
+            0.0623,
+            0.3135,
+            0.0
+          ],
+          "knee_left": [
+            -0.2785,
+            -1.6406,
+            0.061
+          ],
+          "knee_right": [
+            -0.1422,
+            -1.0155,
+            0.061
+          ],
+          "ankle_left": [
+            0.454,
+            -2.6565,
+            0.0
+          ],
+          "ankle_right": [
+            -0.7067,
+            -2.1335,
+            0.0
+          ],
+          "foot_left": [
+            0.5246,
+            -2.8315,
+            0.5339
+          ],
+          "foot_right": [
+            -0.7491,
+            -2.3174,
+            0.5339
+          ]
+        },
+        "bones": [
+          {
+            "from": "head",
+            "to": "shoulder_left",
+            "length": 1.1005
+          },
+          {
+            "from": "head",
+            "to": "shoulder_right",
+            "length": 1.1005
+          },
+          {
+            "from": "shoulder_left",
+            "to": "shoulder_right",
+            "length": 1.5866
+          },
+          {
+            "from": "shoulder_left",
+            "to": "elbow_left",
+            "length": 0.8806
+          },
+          {
+            "from": "elbow_left",
+            "to": "wrist_left",
+            "length": 0.8206
+          },
+          {
+            "from": "shoulder_right",
+            "to": "elbow_right",
+            "length": 0.8806
+          },
+          {
+            "from": "elbow_right",
+            "to": "wrist_right",
+            "length": 0.8206
+          },
+          {
+            "from": "shoulder_left",
+            "to": "hip_left",
+            "length": 1.6161
+          },
+          {
+            "from": "shoulder_right",
+            "to": "hip_right",
+            "length": 0.8085
+          },
+          {
+            "from": "hip_left",
+            "to": "hip_right",
+            "length": 0.6393
+          },
+          {
+            "from": "hip_left",
+            "to": "knee_left",
+            "length": 1.346
+          },
+          {
+            "from": "knee_left",
+            "to": "ankle_left",
+            "length": 1.2539
+          },
+          {
+            "from": "ankle_left",
+            "to": "foot_left",
+            "length": 0.5663
+          },
+          {
+            "from": "hip_right",
+            "to": "knee_right",
+            "length": 1.346
+          },
+          {
+            "from": "knee_right",
+            "to": "ankle_right",
+            "length": 1.2539
+          },
+          {
+            "from": "ankle_right",
+            "to": "foot_right",
+            "length": 0.5663
+          }
         ]
       }
     }
@@ -905,5 +1705,11 @@
         }
       }
     }
+  },
+  "biomechanics": {
+    "schema_version": "1.0",
+    "review_status": "DRAFT",
+    "reviewed_by": null,
+    "measurements": []
   }
 }
