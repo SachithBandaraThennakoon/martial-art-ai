@@ -1,6 +1,7 @@
 from sqlalchemy import func, text
 
 from models.target_angle import TargetAngle
+from models.target_position import TargetPosition
 from models.technique import Technique
 from models.technique_step import TechniqueStep
 from services.technique_package_loader import TECHNIQUE_ROOT, load_technique_catalog
@@ -56,6 +57,30 @@ def sync_technique_catalog(db, technique_root=TECHNIQUE_ROOT):
                     db.add(angle)
                 angle.min_angle = float(angle_source.get("min", angle_source.get("min_angle", 0)))
                 angle.max_angle = float(angle_source.get("max", angle_source.get("max_angle", 180)))
+
+            reference_pose = step_source.get("reference_pose") or {}
+            coordinate_space = reference_pose.get("coordinate_space", "body_normalized_v1")
+            tolerance = float(reference_pose.get("tolerance", 0.12))
+            position_parts = set()
+            for body_part, coordinates in (reference_pose.get("landmarks") or {}).items():
+                if not isinstance(coordinates, list) or len(coordinates) != 3:
+                    continue
+                position_parts.add(body_part)
+                position = db.query(TargetPosition).filter(
+                    TargetPosition.step_id == step.id,
+                    TargetPosition.body_part == body_part,
+                ).first()
+                if not position:
+                    position = TargetPosition(step_id=step.id, body_part=body_part)
+                    db.add(position)
+                position.x, position.y, position.z = (float(value) for value in coordinates)
+                position.tolerance = tolerance
+                position.coordinate_space = coordinate_space
+            if position_parts:
+                db.query(TargetPosition).filter(
+                    TargetPosition.step_id == step.id,
+                    ~TargetPosition.body_part.in_(position_parts),
+                ).delete(synchronize_session=False)
 
     db.commit()
     for table in ("practice_sessions", "training_sessions"):

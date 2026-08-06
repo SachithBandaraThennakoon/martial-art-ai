@@ -27,6 +27,17 @@ SENSOR_OR_ESTIMATE_ONLY = {
     "joint_torque", "ground_reaction_force", "center_of_pressure",
     "impulse", "collision_impact", "friction", "force",
 }
+POSE_BONES = (
+    ("head", "shoulder_left"), ("head", "shoulder_right"),
+    ("shoulder_left", "shoulder_right"), ("shoulder_left", "elbow_left"),
+    ("elbow_left", "wrist_left"), ("shoulder_right", "elbow_right"),
+    ("elbow_right", "wrist_right"), ("shoulder_left", "hip_left"),
+    ("shoulder_right", "hip_right"), ("hip_left", "hip_right"),
+    ("hip_left", "knee_left"), ("knee_left", "ankle_left"),
+    ("ankle_left", "foot_left"), ("hip_right", "knee_right"),
+    ("knee_right", "ankle_right"), ("ankle_right", "foot_right"),
+)
+POSE_LANDMARKS = {joint for bone in POSE_BONES for joint in bone}
 
 
 class PackagePayload(BaseModel):
@@ -122,6 +133,53 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
             target["max"] = maximum
         step["angle_targets"] = targets
         step.pop("angles", None)
+
+        reference_pose = step.get("reference_pose")
+        if reference_pose is not None:
+            if not isinstance(reference_pose, dict):
+                raise HTTPException(400, f"Step {index} reference pose must be an object")
+            coordinate_space = str(reference_pose.get("coordinate_space") or "")
+            if coordinate_space != "body_normalized_v1":
+                raise HTTPException(400, f"Step {index} reference pose must use body_normalized_v1")
+            landmarks = reference_pose.get("landmarks")
+            if not isinstance(landmarks, dict) or not landmarks:
+                raise HTTPException(400, f"Step {index} reference pose needs landmarks")
+            try:
+                position_tolerance = float(reference_pose.get("tolerance", 0.12))
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"Step {index} has an invalid position tolerance") from None
+            if not 0.01 <= position_tolerance <= 0.5:
+                raise HTTPException(400, f"Step {index} position tolerance must be between 0.01 and 0.5")
+            normalized_landmarks = {}
+            for body_part, position in landmarks.items():
+                body_part = str(body_part).strip()
+                if not body_part or not isinstance(position, list) or len(position) != 3:
+                    raise HTTPException(400, f"Step {index} has an invalid position for {body_part or 'unknown joint'}")
+                try:
+                    coordinates = [float(value) for value in position]
+                except (TypeError, ValueError):
+                    raise HTTPException(400, f"Step {index} has non-numeric position data for {body_part}") from None
+                if any(abs(value) > 5 for value in coordinates):
+                    raise HTTPException(400, f"Step {index} position for {body_part} is outside the normalized body space")
+                normalized_landmarks[body_part] = coordinates
+            missing_landmarks = sorted(POSE_LANDMARKS - normalized_landmarks.keys())
+            if missing_landmarks:
+                raise HTTPException(400, f"Step {index} reference pose is missing: {', '.join(missing_landmarks)}")
+            normalized_bones = []
+            for first, second in POSE_BONES:
+                first_position = normalized_landmarks[first]
+                second_position = normalized_landmarks[second]
+                length = sum((value - second_position[axis]) ** 2 for axis, value in enumerate(first_position)) ** 0.5
+                normalized_bones.append({"from": first, "to": second, "length": round(length, 4)})
+            step["reference_pose"] = {
+                "schema_version": str(reference_pose.get("schema_version") or "1.0"),
+                "coordinate_space": coordinate_space,
+                "origin": "hip_center",
+                "scale_basis": "torso_length",
+                "tolerance": position_tolerance,
+                "landmarks": normalized_landmarks,
+                "bones": normalized_bones,
+            }
 
     biomechanics = training_steps.get("biomechanics")
     if biomechanics is not None:

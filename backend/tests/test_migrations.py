@@ -18,6 +18,7 @@ from models import (  # noqa: F401
     rate_limit_bucket,
     refresh_session,
     target_angle,
+    target_position,
     technique,
     technique_step,
     training_memory,

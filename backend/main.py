@@ -25,9 +25,10 @@ validate_runtime_environment()
 from database import check_database_ready, database_readiness, get_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy
+from models import user, technique, technique_step, target_angle, target_position, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy
 from models.body_calibration import BodyCalibration
 from models.target_angle import TargetAngle
+from models.target_position import TargetPosition
 from models.training_memory import (
     PracticeRep,
     PracticeSession,
@@ -1746,3 +1747,21 @@ def get_angles(step_id: int, db: Session = Depends(get_db)):
         }
         for a in angles
     ]
+
+
+@app.get("/steps/{step_id}/positions")
+def get_positions(step_id: int, db: Session = Depends(get_db)):
+    positions = db.query(TargetPosition).filter(
+        TargetPosition.step_id == step_id
+    ).all()
+
+    return {
+        "coordinate_space": positions[0].coordinate_space if positions else "body_normalized_v1",
+        "origin": "hip_center",
+        "scale_basis": "torso_length",
+        "tolerance": positions[0].tolerance if positions else 0.12,
+        "landmarks": {
+            position.body_part: [position.x, position.y, position.z]
+            for position in positions
+        },
+    }

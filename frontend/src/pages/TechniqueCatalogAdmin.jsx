@@ -152,7 +152,7 @@ export default function TechniqueCatalogAdmin() {
     return { ...current, training_steps: { ...current.training_steps, steps } };
   });
 
-  const applyPoseRanges = (targets) => setDraft((current) => {
+  const applyPoseRanges = (targets, referencePose) => setDraft((current) => {
     const steps = [...current.training_steps.steps];
     const step = steps[poseStepIndex];
     const existing = new Map((step.angle_targets || []).map((target) => [target.body_part, target]));
@@ -165,7 +165,7 @@ export default function TechniqueCatalogAdmin() {
         weight: currentTarget?.weight ?? target.weight
       });
     });
-    steps[poseStepIndex] = { ...step, angle_targets: [...existing.values()] };
+    steps[poseStepIndex] = { ...step, angle_targets: [...existing.values()], reference_pose: referencePose };
     return { ...current, training_steps: { ...current.training_steps, steps } };
   });
 
@@ -249,6 +249,7 @@ export default function TechniqueCatalogAdmin() {
               key={draft.training_steps.steps[poseStepIndex]?.step_number}
               onApply={applyPoseRanges}
               rangeTargets={draft.training_steps.steps[poseStepIndex]?.angle_targets || []}
+              referencePose={draft.training_steps.steps[poseStepIndex]?.reference_pose || null}
             />
             <div className="catalog-admin__steps">{draft.training_steps.steps.map((step, stepIndex) => <article className="catalog-admin__step" key={`${step.step_number}-${stepIndex}`}><div className="catalog-admin__step-top"><span>Step {stepIndex + 1}</span><input value={step.step_name} onChange={(event) => updateStep(stepIndex, "step_name", event.target.value)} /><button className="catalog-admin__text-button" disabled={draft.training_steps.steps.length === 1} onClick={() => removeStep(stepIndex)} type="button">Remove step</button></div><div className="catalog-admin__ranges">{(step.angle_targets || []).map((target, targetIndex) => <div className="catalog-admin__range" key={`${target.body_part}-${targetIndex}`}><input aria-label="Body part" value={target.body_part} onChange={(event) => updateTarget(stepIndex, targetIndex, "body_part", event.target.value)} /><input aria-label="Range label" value={target.label || ""} onChange={(event) => updateTarget(stepIndex, targetIndex, "label", event.target.value)} placeholder="Label" /><input aria-label="Minimum angle" min="0" max="180" type="number" value={target.min} onChange={(event) => updateTarget(stepIndex, targetIndex, "min", Number(event.target.value))} /><span>to</span><input aria-label="Maximum angle" min="0" max="180" type="number" value={target.max} onChange={(event) => updateTarget(stepIndex, targetIndex, "max", Number(event.target.value))} /><button className="catalog-admin__text-button" disabled={step.angle_targets.length === 1} onClick={() => setDraft((current) => { const steps = [...current.training_steps.steps]; steps[stepIndex] = { ...steps[stepIndex], angle_targets: step.angle_targets.filter((_, index) => index !== targetIndex) }; return { ...current, training_steps: { ...current.training_steps, steps } }; })} type="button">×</button></div>)}<button className="catalog-admin__add-range" onClick={() => updateStep(stepIndex, "angle_targets", [...(step.angle_targets || []), newTarget()])} type="button">+ Add angle range</button></div></article>)}</div>
             <div className="catalog-admin__actions"><button className="btn btn--ghost" onClick={() => setDraft(null)} type="button">Cancel</button>{packages.some((item) => item.id === draft.id) ? <button className="btn btn--danger" onClick={archive} type="button">Archive</button> : null}<button className="btn btn--light" disabled={isSaving} onClick={save} type="button">{isSaving ? "Saving…" : "Save catalog item"}</button></div>

@@ -36,7 +36,7 @@ BASELINE_REVISION = "883102153f8d"
 def baseline_metadata() -> MetaData:
     metadata = MetaData()
     for table in Base.metadata.sorted_tables:
-        if table.name not in {"billing_events", "billing_subscriptions", "consent_records"}:
+        if table.name not in {"billing_events", "billing_subscriptions", "consent_records", "target_positions"}:
             table.to_metadata(metadata)
     users_table = metadata.tables["users"]
     for constraint in list(users_table.constraints):
