@@ -104,24 +104,28 @@ function rotateDescendants(pose, pivotJoint, quaternion) {
   return enforceAllBoneLengths(next, pivotJoint);
 }
 
-function poseFromRanges(rangeTargets = []) {
-  let pose = freshPose();
-  rangeTargets.forEach((target) => {
+function poseFromAngleTargets(pose, angleTargets = []) {
+  let nextPose = Object.fromEntries(Object.entries(pose).map(([name, position]) => [name, [...position]]));
+  angleTargets.forEach((target) => {
     const joints = ANGLE_JOINTS[target.body_part];
     const desired = Number(target.target_angle ?? ((Number(target.min) + Number(target.max)) / 2));
     if (!joints || !Number.isFinite(desired)) return;
     for (let iteration = 0; iteration < 48; iteration += 1) {
-      const current = calculateAngle(pose[joints.first], pose[joints.center], pose[joints.end]);
+      const current = calculateAngle(nextPose[joints.first], nextPose[joints.center], nextPose[joints.end]);
       if (Math.abs(desired - current) < 1) break;
-      const positive = rotateBranch(pose, joints.end, joints.center, Math.PI / 180 * 3);
-      const negative = rotateBranch(pose, joints.end, joints.center, -Math.PI / 180 * 3);
+      const positive = rotateBranch(nextPose, joints.end, joints.center, Math.PI / 180 * 3);
+      const negative = rotateBranch(nextPose, joints.end, joints.center, -Math.PI / 180 * 3);
       const positiveError = Math.abs(desired - calculateAngle(positive[joints.first], positive[joints.center], positive[joints.end]));
       const negativeError = Math.abs(desired - calculateAngle(negative[joints.first], negative[joints.center], negative[joints.end]));
       if (positiveError >= Math.abs(desired - current) && negativeError >= Math.abs(desired - current)) break;
-      pose = positiveError <= negativeError ? positive : negative;
+      nextPose = positiveError <= negativeError ? positive : negative;
     }
   });
-  return pose;
+  return nextPose;
+}
+
+function poseFromRanges(rangeTargets = []) {
+  return poseFromAngleTargets(freshPose(), rangeTargets);
 }
 
 function Bone({ from, to }) {
@@ -178,6 +182,8 @@ export default function PoseRangeDesigner({ onApply, rangeTargets = [], referenc
   const [transformMode, setTransformMode] = useState("translate");
   const [rotationSnap, setRotationSnap] = useState(false);
   const [jointRotations, setJointRotations] = useState({});
+  const [draftAngleValues, setDraftAngleValues] = useState(() => Object.fromEntries(ANGLES.map(([body_part]) => [body_part, ""])));
+  const [activeAngleInput, setActiveAngleInput] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   useEffect(() => {
     const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === workbenchRef.current);
@@ -194,6 +200,17 @@ export default function PoseRangeDesigner({ onApply, rangeTargets = [], referenc
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
   const calculated = useMemo(() => ANGLES.map(([body_part, label, first, center, last]) => ({ body_part, label, target_angle: calculateAngle(pose[first], pose[center], pose[last]) })), [pose]);
+  useEffect(() => {
+    if (activeAngleInput) return;
+    setDraftAngleValues(Object.fromEntries(calculated.map((item) => [item.body_part, String(item.target_angle)])));
+  }, [activeAngleInput, calculated]);
+  const syncAngleDrafts = (nextPose, activeBodyPart = null) => {
+    setDraftAngleValues((current) => Object.fromEntries(ANGLES.map(([body_part, , first, center, last]) => {
+      const nextValue = String(calculateAngle(nextPose[first], nextPose[center], nextPose[last]));
+      if (activeBodyPart && body_part === activeBodyPart) return [body_part, current[body_part] ?? nextValue];
+      return [body_part, nextValue];
+    })));
+  };
   const moveJoint = (name, position) => setPose((current) => {
     const currentPosition = current[name];
     let nextPosition = position;
@@ -211,7 +228,9 @@ export default function PoseRangeDesigner({ onApply, rangeTargets = [], referenc
       moveChildren(child);
     });
     moveChildren(name);
-    return enforceAllBoneLengths(nextPose, name);
+    const nextResolvedPose = enforceAllBoneLengths(nextPose, name);
+    syncAngleDrafts(nextResolvedPose, activeAngleInput);
+    return nextResolvedPose;
   });
   const updateCoordinate = (index, value) => {
     const nextValue = Number(value);
@@ -226,7 +245,11 @@ export default function PoseRangeDesigner({ onApply, rangeTargets = [], referenc
     const previousQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...previousRotation));
     const nextQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(...normalizedRotation));
     const deltaQuaternion = nextQuaternion.clone().multiply(previousQuaternion.clone().invert());
-    setPose((current) => rotateDescendants(current, name, deltaQuaternion));
+    setPose((current) => {
+      const nextPose = rotateDescendants(current, name, deltaQuaternion);
+      syncAngleDrafts(nextPose, activeAngleInput);
+      return nextPose;
+    });
     setJointRotations((current) => ({ ...current, [name]: normalizedRotation }));
   };
   const updateRotation = (index, value) => {
@@ -236,6 +259,26 @@ export default function PoseRangeDesigner({ onApply, rangeTargets = [], referenc
     rotation[index] = THREE.MathUtils.degToRad(degrees);
     rotateJoint(selectedJoint, rotation);
   };
+  const updateAngleDraft = (bodyPart, value) => {
+    setDraftAngleValues((current) => ({ ...current, [bodyPart]: value }));
+  };
+  const applyAngleTarget = (bodyPart, rawValue) => {
+    if (rawValue === "" || rawValue === null || rawValue === undefined) return;
+    const nextValue = Number(rawValue);
+    if (!Number.isFinite(nextValue)) return;
+    const clampedValue = Math.max(0, Math.min(180, nextValue));
+    setPose((current) => {
+      const nextPose = poseFromAngleTargets(current, [{ body_part: bodyPart, target_angle: clampedValue }]);
+      syncAngleDrafts(nextPose, activeAngleInput);
+      return nextPose;
+    });
+    setJointRotations({});
+    setDraftAngleValues((current) => ({ ...current, [bodyPart]: String(clampedValue) }));
+  };
+  const commitAngleTarget = (bodyPart) => {
+    applyAngleTarget(bodyPart, draftAngleValues[bodyPart]);
+    setActiveAngleInput(null);
+  };
   const apply = () => onApply(calculated.map((item) => ({ ...item, min: Math.max(0, item.target_angle - tolerance), max: Math.min(180, item.target_angle + tolerance), role: "supporting", weight: 1 })), referencePoseFromPose(pose, positionTolerance));
   const loadCurrentRanges = () => { setPose(poseFromReferencePose(referencePose) || poseFromRanges(rangeTargets)); setPositionTolerance(Number(referencePose?.tolerance) || .12); setJointRotations({}); };
   const toggleFullscreen = async () => {
@@ -244,5 +287,5 @@ export default function PoseRangeDesigner({ onApply, rangeTargets = [], referenc
   };
   const selectedRotation = jointRotations[selectedJoint] || [0, 0, 0];
   const resetPose = () => { setPose(freshPose()); setSelectedJoint("elbow_left"); setJointRotations({}); };
-  return <section className="pose-designer pose-designer--workbench" ref={workbenchRef}><div className="pose-designer__toolbar"><div><span className="catalog-admin__eyebrow">Pose workbench</span><strong>Object mode · {transformMode === "translate" ? "Move" : "Rotate"}</strong><div className="pose-designer__mode-switch" aria-label="Transform mode"><button className={transformMode === "translate" ? "is-active" : ""} onClick={() => setTransformMode("translate")} title="Move (G)" type="button">Move <kbd>G</kbd></button><button className={transformMode === "rotate" ? "is-active" : ""} onClick={() => setTransformMode("rotate")} title="Rotate (R)" type="button">Rotate <kbd>R</kbd></button></div></div><span>Orbit: drag · Pan: right drag · Zoom: wheel</span><div className="pose-designer__toolbar-actions"><button className="btn btn--ghost btn--small" onClick={loadCurrentRanges} type="button">Load step pose</button><button className="btn btn--ghost btn--small" onClick={toggleFullscreen} type="button">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</button><button className="btn btn--ghost btn--small" onClick={resetPose} type="button">Reset pose</button></div></div><div className="pose-designer__workbench"><div className="pose-designer__viewport"><div className="pose-designer__viewport-bar"><span>Perspective</span><span>Pose collection / {selectedJoint}</span></div><Canvas camera={{ fov: 32, position: [2.8, 1.3, 5.1] }}><color attach="background" args={["#0c121b"]} /><PoseScene onMoveJoint={moveJoint} onRotateJoint={rotateJoint} onSelectJoint={setSelectedJoint} pose={pose} poseScale={1.35} rotation={selectedRotation} rotationSnap={rotationSnap} selectedJoint={selectedJoint} transformMode={transformMode} /></Canvas><div className="pose-designer__canvas-status"><span>Selected: <strong>{selectedJoint.replace("_", " ")}</strong></span><span>{transformMode === "rotate" ? "Drag a colored ring to rotate the limb" : "Drag an axis to position the joint"}</span><span>{Object.keys(pose).length} points · {LINKS.length} fixed bones</span></div></div><aside className="pose-designer__inspector"><section><header>Outliner <span>Pose</span></header><div className="pose-designer__joint-list">{Object.keys(pose).map((joint) => <button className={selectedJoint === joint ? "is-selected" : ""} key={joint} onClick={() => setSelectedJoint(joint)} type="button"><i />{joint.replaceAll("_", " ")}</button>)}</div></section><section><header>Transform <span>{transformMode === "translate" ? "Location" : "Rotation"}</span></header>{transformMode === "translate" ? <><div className="pose-designer__rig-lock pose-designer__rig-lock--fixed"><span aria-hidden="true">●</span> All bone lengths fixed</div>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<input onChange={(event) => updateCoordinate(index, event.target.value)} step=".01" type="number" value={pose[selectedJoint][index]} /></label>)}</> : <><label className="pose-designer__rig-lock"><input checked={rotationSnap} onChange={(event) => setRotationSnap(event.target.checked)} type="checkbox" /> Snap to 5°</label>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<span className="pose-designer__degree-input"><input onChange={(event) => updateRotation(index, event.target.value)} step="1" type="number" value={Number(THREE.MathUtils.radToDeg(selectedRotation[index]).toFixed(1))} /><span>°</span></span></label>)}{!(CHILD_JOINTS[selectedJoint] || []).length ? <p className="pose-designer__rotation-hint">This end joint has no downstream limb to rotate.</p> : null}</>}</section></aside></div><div className="pose-designer__angles pose-designer__angles--dock"><div className="pose-designer__angles-heading"><label>Angle tolerance ±<input max="45" min="1" onChange={(event) => setTolerance(Number(event.target.value))} type="number" value={tolerance} />°</label><label>Position tolerance<input max=".5" min=".01" onChange={(event) => setPositionTolerance(Number(event.target.value))} step=".01" type="number" value={positionTolerance} /></label><button className="btn btn--light btn--small" onClick={apply} type="button">Apply pose and ranges</button></div><div className="pose-designer__angle-list">{calculated.map((item) => <div key={item.body_part}><span>{item.label}</span><strong>{item.target_angle}°</strong></div>)}</div></div></section>;
+  return <section className="pose-designer pose-designer--workbench" ref={workbenchRef}><div className="pose-designer__toolbar"><div><span className="catalog-admin__eyebrow">Pose workbench</span><strong>Object mode · {transformMode === "translate" ? "Move" : "Rotate"}</strong><div className="pose-designer__mode-switch" aria-label="Transform mode"><button className={transformMode === "translate" ? "is-active" : ""} onClick={() => setTransformMode("translate")} title="Move (G)" type="button">Move <kbd>G</kbd></button><button className={transformMode === "rotate" ? "is-active" : ""} onClick={() => setTransformMode("rotate")} title="Rotate (R)" type="button">Rotate <kbd>R</kbd></button></div></div><span>Orbit: drag · Pan: right drag · Zoom: wheel</span><div className="pose-designer__toolbar-actions"><button className="btn btn--ghost btn--small" onClick={loadCurrentRanges} type="button">Load step pose</button><button className="btn btn--ghost btn--small" onClick={toggleFullscreen} type="button">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</button><button className="btn btn--ghost btn--small" onClick={resetPose} type="button">Reset pose</button></div></div><div className="pose-designer__workbench"><div className="pose-designer__viewport"><div className="pose-designer__viewport-bar"><span>Perspective</span><span>Pose collection / {selectedJoint}</span></div><Canvas camera={{ fov: 32, position: [2.8, 1.3, 5.1] }}><color attach="background" args={["#0c121b"]} /><PoseScene onMoveJoint={moveJoint} onRotateJoint={rotateJoint} onSelectJoint={setSelectedJoint} pose={pose} poseScale={1.35} rotation={selectedRotation} rotationSnap={rotationSnap} selectedJoint={selectedJoint} transformMode={transformMode} /></Canvas><div className="pose-designer__canvas-status"><span>Selected: <strong>{selectedJoint.replace("_", " ")}</strong></span><span>{transformMode === "rotate" ? "Drag a colored ring to rotate the limb" : "Drag an axis to position the joint"}</span><span>{Object.keys(pose).length} points · {LINKS.length} fixed bones</span></div></div><aside className="pose-designer__inspector"><section><header>Outliner <span>Pose</span></header><div className="pose-designer__joint-list">{Object.keys(pose).map((joint) => <button className={selectedJoint === joint ? "is-selected" : ""} key={joint} onClick={() => setSelectedJoint(joint)} type="button"><i />{joint.replaceAll("_", " ")}</button>)}</div></section><section><header>Transform <span>{transformMode === "translate" ? "Location" : "Rotation"}</span></header>{transformMode === "translate" ? <><div className="pose-designer__rig-lock pose-designer__rig-lock--fixed"><span aria-hidden="true">●</span> All bone lengths fixed</div>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<input onChange={(event) => updateCoordinate(index, event.target.value)} step=".01" type="number" value={pose[selectedJoint][index]} /></label>)}</> : <><label className="pose-designer__rig-lock"><input checked={rotationSnap} onChange={(event) => setRotationSnap(event.target.checked)} type="checkbox" /> Snap to 5°</label>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<span className="pose-designer__degree-input"><input onChange={(event) => updateRotation(index, event.target.value)} step="1" type="number" value={Number(THREE.MathUtils.radToDeg(selectedRotation[index]).toFixed(1))} /><span>°</span></span></label>)}{!(CHILD_JOINTS[selectedJoint] || []).length ? <p className="pose-designer__rotation-hint">This end joint has no downstream limb to rotate.</p> : null}</>}</section></aside></div><div className="pose-designer__angles pose-designer__angles--dock"><div className="pose-designer__angles-heading"><label>Angle tolerance ±<input max="45" min="1" onChange={(event) => setTolerance(Number(event.target.value))} type="number" value={tolerance} />°</label><label>Position tolerance<input max=".5" min=".01" onChange={(event) => setPositionTolerance(Number(event.target.value))} step=".01" type="number" value={positionTolerance} /></label><button className="btn btn--light btn--small" onClick={apply} type="button">Apply pose and ranges</button></div><div className="pose-designer__angle-list">{calculated.map((item) => <div key={item.body_part}><span>{item.label}</span><label className="pose-designer__angle-input"><input max="180" min="0" onBlur={() => commitAngleTarget(item.body_part)} onChange={(event) => { updateAngleDraft(item.body_part, event.target.value); applyAngleTarget(item.body_part, event.target.value); }} onFocus={() => setActiveAngleInput(item.body_part)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitAngleTarget(item.body_part); } }} step="1" type="number" value={draftAngleValues[item.body_part] ?? ""} /><span>°</span></label></div>)}</div></div></section>;
 }
