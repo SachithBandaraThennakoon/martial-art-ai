@@ -69,6 +69,8 @@ function buildTechniqueCatalog({
       step_name: step.step_name || `Step ${index + 1}`,
       counts_rep: Boolean(step.counts_rep),
       angle_targets: angleTargets,
+      reference_pose: step.reference_pose || null,
+      pose_optimization: step.pose_optimization || null,
       difficulty_profiles: step.difficulty_profiles || null,
       non_angle_features: step.non_angle_features || [],
       quality_targets: step.quality_targets || [],

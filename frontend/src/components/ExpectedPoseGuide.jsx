@@ -18,8 +18,10 @@ const CONNECTIONS = [
   ["hip_left", "hip_right"],
   ["hip_left", "knee_left"],
   ["knee_left", "ankle_left"],
+  ["ankle_left", "foot_left"],
   ["hip_right", "knee_right"],
-  ["knee_right", "ankle_right"]
+  ["knee_right", "ankle_right"],
+  ["ankle_right", "foot_right"]
 ];
 
 const VIEW_OPTIONS = [
@@ -32,21 +34,37 @@ const VIEW_OPTIONS = [
 export default function ExpectedPoseGuide({
   mirrored = false,
   onViewChange,
+  referencePose = null,
   requiredParts = [],
   stepName = "",
   viewDegrees = 30
 }) {
-  const pose = useMemo(
-    () => buildExpectedPose(requiredParts, stepName),
-    [requiredParts, stepName]
-  );
+  const pose = useMemo(() => {
+    if (!referencePose?.landmarks) return buildExpectedPose(requiredParts, stepName);
+    const radians = viewDegrees * Math.PI / 180;
+    const rotated = Object.fromEntries(Object.entries(referencePose.landmarks).map(([name, point]) => {
+      const x = Number(point[0]); const y = Number(point[1]); const z = Number(point[2]);
+      return [name, { x: x * Math.cos(radians) + z * Math.sin(radians), y }];
+    }));
+    const values = Object.values(rotated);
+    const minX = Math.min(...values.map((point) => point.x)); const maxX = Math.max(...values.map((point) => point.x));
+    const minY = Math.min(...values.map((point) => point.y)); const maxY = Math.max(...values.map((point) => point.y));
+    const scale = Math.min(72 / Math.max(.001, maxX - minX), 108 / Math.max(.001, maxY - minY));
+    const centerX = (minX + maxX) / 2; const centerY = (minY + maxY) / 2;
+    return Object.fromEntries(Object.entries(rotated).map(([name, point]) => [name, {
+      x: 50 + (point.x - centerX) * scale,
+      y: 56 - (point.y - centerY) * scale
+    }]));
+  }, [referencePose, requiredParts, stepName, viewDegrees]);
   const qualityCues = requiredParts.filter((target) => target.feature);
   const projectedPose = useMemo(
-    () => projectExpectedPose(pose, viewDegrees, mirrored),
-    [mirrored, pose, viewDegrees]
+    () => referencePose?.landmarks
+      ? Object.fromEntries(Object.entries(pose).map(([name, point]) => [name, { ...point, x: mirrored ? 100 - point.x : point.x }]))
+      : projectExpectedPose(pose, viewDegrees, mirrored),
+    [mirrored, pose, referencePose, viewDegrees]
   );
 
-  if (!requiredParts.length) return null;
+  if (!requiredParts.length && !referencePose?.landmarks) return null;
 
   return (
     <aside className="expected-pose-guide" aria-label={`Expected body shape for ${stepName || "this step"}`}>
@@ -64,6 +82,7 @@ export default function ExpectedPoseGuide({
           {CONNECTIONS.map(([fromName, toName]) => {
             const from = projectedPose[fromName];
             const to = projectedPose[toName];
+            if (!from || !to) return null;
             return (
               <line
                 key={`${fromName}-${toName}`}
@@ -101,7 +120,7 @@ export default function ExpectedPoseGuide({
           ))}
         </div>
       ) : null}
-      <small>Bone guide · match the shape, not body size</small>
+      <small>{referencePose?.landmarks ? "Saved optimal skeleton · match the normalized shape" : "Bone guide · match the shape, not body size"}</small>
     </aside>
   );
 }

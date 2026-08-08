@@ -1132,6 +1132,7 @@ export default function TrainMode({
           onStanceTargetChange={onStanceTargetChange}
           currentStepId={currentStep?.id}
           currentStepName={currentStep?.step_name}
+          referencePose={currentStep?.reference_pose || null}
           sessionConfig={sessionConfig}
           coachCommand={coachCommand}
           requiredParts={requiredParts}

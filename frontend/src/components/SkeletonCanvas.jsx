@@ -727,6 +727,7 @@ export default function SkeletonCanvas({
   skeletonLayers = {},
   currentStepId,
   currentStepName,
+  referencePose,
   sessionConfig,
   coachCommand,
   requiredParts,
@@ -2272,6 +2273,7 @@ export default function SkeletonCanvas({
         <ExpectedPoseGuide
           mirrored={displayMirrored}
           onViewChange={onStanceTargetChange}
+          referencePose={referencePose}
           requiredParts={expectedParts || requiredParts}
           stepName={currentStepName}
           viewDegrees={stanceTargetDegrees}

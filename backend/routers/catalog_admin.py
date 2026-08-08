@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth_context import require_admin_user
@@ -12,6 +12,10 @@ import logging
 from database import get_db
 from models.user import User
 from services.catalog_sync import sync_technique_catalog
+from services.pose_optimization_schema import normalize_reference_pose, validate_pose_optimization
+from services.pose_biomechanics import evaluate_pose
+from services.pose_optimizer import optimize_pose_variables
+from services.pose_search_ranges import generate_search_ranges
 from services.technique_package_loader import TECHNIQUE_ROOT, TRACKING_FILES
 
 
@@ -28,23 +32,27 @@ SENSOR_OR_ESTIMATE_ONLY = {
     "joint_torque", "ground_reaction_force", "center_of_pressure",
     "impulse", "collision_impact", "friction", "force",
 }
-POSE_BONES = (
-    ("head", "shoulder_left"), ("head", "shoulder_right"),
-    ("shoulder_left", "shoulder_right"), ("shoulder_left", "elbow_left"),
-    ("elbow_left", "wrist_left"), ("shoulder_right", "elbow_right"),
-    ("elbow_right", "wrist_right"), ("shoulder_left", "hip_left"),
-    ("shoulder_right", "hip_right"), ("hip_left", "hip_right"),
-    ("hip_left", "knee_left"), ("knee_left", "ankle_left"),
-    ("ankle_left", "foot_left"), ("hip_right", "knee_right"),
-    ("knee_right", "ankle_right"), ("ankle_right", "foot_right"),
-)
-POSE_LANDMARKS = {joint for bone in POSE_BONES for joint in bone}
-
-
 class PackagePayload(BaseModel):
     catalog: dict
     training_steps: dict
     enabled: bool = True
+
+
+class PoseRangePayload(BaseModel):
+    pose_a: dict
+    pose_b: dict
+    margin: dict = Field(default_factory=dict)
+
+
+class PoseEvaluationPayload(BaseModel):
+    pose: dict
+
+
+class PoseOptimizationPayload(PoseRangePayload):
+    objective_weights: dict = Field(default_factory=dict)
+    seed: int = 42
+    population_size: int = 48
+    generations: int = 60
 
 
 def _read_index():
@@ -137,50 +145,11 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
 
         reference_pose = step.get("reference_pose")
         if reference_pose is not None:
-            if not isinstance(reference_pose, dict):
-                raise HTTPException(400, f"Step {index} reference pose must be an object")
-            coordinate_space = str(reference_pose.get("coordinate_space") or "")
-            if coordinate_space != "body_normalized_v1":
-                raise HTTPException(400, f"Step {index} reference pose must use body_normalized_v1")
-            landmarks = reference_pose.get("landmarks")
-            if not isinstance(landmarks, dict) or not landmarks:
-                raise HTTPException(400, f"Step {index} reference pose needs landmarks")
-            try:
-                position_tolerance = float(reference_pose.get("tolerance", 0.12))
-            except (TypeError, ValueError):
-                raise HTTPException(400, f"Step {index} has an invalid position tolerance") from None
-            if not 0.01 <= position_tolerance <= 0.5:
-                raise HTTPException(400, f"Step {index} position tolerance must be between 0.01 and 0.5")
-            normalized_landmarks = {}
-            for body_part, position in landmarks.items():
-                body_part = str(body_part).strip()
-                if not body_part or not isinstance(position, list) or len(position) != 3:
-                    raise HTTPException(400, f"Step {index} has an invalid position for {body_part or 'unknown joint'}")
-                try:
-                    coordinates = [float(value) for value in position]
-                except (TypeError, ValueError):
-                    raise HTTPException(400, f"Step {index} has non-numeric position data for {body_part}") from None
-                if any(abs(value) > 5 for value in coordinates):
-                    raise HTTPException(400, f"Step {index} position for {body_part} is outside the normalized body space")
-                normalized_landmarks[body_part] = coordinates
-            missing_landmarks = sorted(POSE_LANDMARKS - normalized_landmarks.keys())
-            if missing_landmarks:
-                raise HTTPException(400, f"Step {index} reference pose is missing: {', '.join(missing_landmarks)}")
-            normalized_bones = []
-            for first, second in POSE_BONES:
-                first_position = normalized_landmarks[first]
-                second_position = normalized_landmarks[second]
-                length = sum((value - second_position[axis]) ** 2 for axis, value in enumerate(first_position)) ** 0.5
-                normalized_bones.append({"from": first, "to": second, "length": round(length, 4)})
-            step["reference_pose"] = {
-                "schema_version": str(reference_pose.get("schema_version") or "1.0"),
-                "coordinate_space": coordinate_space,
-                "origin": "hip_center",
-                "scale_basis": "torso_length",
-                "tolerance": position_tolerance,
-                "landmarks": normalized_landmarks,
-                "bones": normalized_bones,
-            }
+            step["reference_pose"] = normalize_reference_pose(reference_pose, index)
+
+        pose_optimization = step.get("pose_optimization")
+        if pose_optimization is not None:
+            step["pose_optimization"] = validate_pose_optimization(pose_optimization, index)
 
     biomechanics = training_steps.get("biomechanics")
     if biomechanics is not None:
@@ -284,6 +253,73 @@ def _save_package(package_id, catalog, training_steps, enabled, creating):
 @router.get("")
 def list_packages(_admin: User = Depends(require_admin_user)):
     return {"techniques": [_package_payload(item) for item in _load_all_packages()]}
+
+
+@router.post("/pose-optimization/ranges")
+def generate_pose_optimization_ranges(
+    payload: PoseRangePayload,
+    _admin: User = Depends(require_admin_user),
+):
+    pose_a = normalize_reference_pose(payload.pose_a, "preview", "Pose A")
+    pose_b = normalize_reference_pose(payload.pose_b, "preview", "Pose B")
+    settings = validate_pose_optimization({
+        "status": "READY",
+        "pose_a": pose_a,
+        "pose_b": pose_b,
+        "margin": payload.margin,
+    }, "preview")
+    return generate_search_ranges(pose_a, pose_b, settings["margin"])
+
+
+@router.post("/pose-optimization/evaluate")
+def evaluate_pose_optimization(
+    payload: PoseEvaluationPayload,
+    _admin: User = Depends(require_admin_user),
+):
+    pose = normalize_reference_pose(payload.pose, "preview", "pose")
+    return evaluate_pose(pose)
+
+
+@router.post("/pose-optimization/run")
+def run_pose_optimization(
+    payload: dict,
+    _admin: User = Depends(require_admin_user),
+):
+    if not isinstance(payload, dict):
+        raise HTTPException(400, "Pose optimization request must be a JSON object")
+    try:
+        population_size = int(payload.get("population_size", 48))
+        generations = int(payload.get("generations", 60))
+        seed = int(payload.get("seed", 42))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Seed, population size, and generations must be integers") from None
+    if not 16 <= population_size <= 300:
+        raise HTTPException(400, "Population size must be between 16 and 300")
+    if not 5 <= generations <= 500:
+        raise HTTPException(400, "Generations must be between 5 and 500")
+    settings = validate_pose_optimization({
+        "status": "READY",
+        "pose_a": payload.get("pose_a"),
+        "pose_b": payload.get("pose_b"),
+        "margin": payload.get("margin") or {},
+        "objective_weights": payload.get("objective_weights") or None,
+        "seed": seed,
+    }, "preview")
+    ranges = generate_search_ranges(
+        settings["pose_a"],
+        settings["pose_b"],
+        settings["margin"],
+    )
+    optimization = optimize_pose_variables(
+        ranges,
+        settings["objective_weights"],
+        pose_a=settings["pose_a"],
+        pose_b=settings["pose_b"],
+        seed=settings["seed"],
+        population_size=population_size,
+        generations=generations,
+    )
+    return {"search": ranges, "optimization": optimization}
 
 
 @router.get("/{technique_id}")
