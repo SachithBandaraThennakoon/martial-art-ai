@@ -19,6 +19,7 @@ const BONE_LENGTHS = Object.fromEntries(Object.entries(PARENT_JOINTS).map(([join
 const LINK_LENGTHS = Object.fromEntries(LINKS.map(([first, second]) => [`${first}:${second}`, Math.hypot(...DEFAULT_POSE[first].map((value, index) => value - DEFAULT_POSE[second][index]))]));
 const ANGLE_JOINTS = Object.fromEntries(ANGLES.map(([id, , first, center, end]) => [id, { first, center, end }]));
 const STUDIO_OFFSETS = { pose_a: [-2.35, 0, 0], optimal: [0, 0, 0], pose_b: [2.35, 0, 0] };
+const TWO_POSE_OFFSETS = { pose_a: [-1.45, 0, 0], optimal: [1.45, 0, 0] };
 const FLOOR_Y = -1.75;
 const FOOT_CONTACT_Y = FLOOR_Y + .135;
 
@@ -176,7 +177,8 @@ const ComparisonSkeleton = memo(function ComparisonSkeleton({ color, label, offs
 function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, rotationSnap, onSelectJoint, onMoveJoint, onRotateJoint }) {
   const studio = useContext(PoseStudioContext);
   const { camera } = useThree();
-  const activeOffset = studio ? STUDIO_OFFSETS[studio.activeEndpoint] : STUDIO_OFFSETS.optimal;
+  const studioOffsets = studio?.singlePoseMode ? TWO_POSE_OFFSETS : STUDIO_OFFSETS;
+  const activeOffset = studio ? studioOffsets[studio.activeEndpoint] : STUDIO_OFFSETS.optimal;
   const studioPoseA = studio?.poseA;
   const studioPoseB = studio?.poseB;
   const studioOptimalPose = studio?.optimalPose;
@@ -219,16 +221,23 @@ function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, ro
   return <>
     <ambientLight intensity={1.8} /><directionalLight intensity={2.4} position={[3, 5, 4]} />
     <GizmoHelper alignment="bottom-right" margin={[80, 80]}><GizmoViewport axisColors={["#ef5350", "#60d394", "#6aa8ff"]} labelColor="white" /></GizmoHelper>
-    <mesh position={[0, FLOOR_Y - .012, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, 8]} /><meshStandardMaterial color="#111c27" metalness={.08} roughness={.92} /></mesh>
-    <Grid args={[9, 9]} cellColor="#31506f" cellSize={.5} fadeDistance={9} infiniteGrid sectionColor="#68a8ff" sectionSize={2} position={[0, FLOOR_Y, 0]} />
-    {studio && studio.activeEndpoint !== "pose_a" ? <ComparisonSkeleton color="#6aa8ff" label="POSE A" offset={STUDIO_OFFSETS.pose_a} pose={poseA} /> : null}
-    {studio ? <ComparisonSkeleton color={studio.optimalPose ? "#60d394" : "#68717e"} label={studio.optimalPose ? "OPTIMAL" : "OPTIMAL · PENDING"} offset={STUDIO_OFFSETS.optimal} opacity={studio.optimalPose ? .82 : .32} pose={optimalPose} /> : null}
-    {studio && studio.activeEndpoint !== "pose_b" ? <ComparisonSkeleton color="#d69bff" label="POSE B" offset={STUDIO_OFFSETS.pose_b} pose={poseB} /> : null}
+    {studio?.singlePoseMode ? <>
+      <mesh position={[-1.55, FLOOR_Y - .012, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[2.75, 5.8]} /><meshStandardMaterial color="#11212a" metalness={.08} roughness={.92} /></mesh>
+      <Grid args={[2.7, 5.7]} cellColor="#315d67" cellSize={.35} fadeDistance={7} sectionColor="#58c7ad" sectionSize={1.4} position={[-1.55, FLOOR_Y, 0]} />
+      <mesh position={[1.55, FLOOR_Y - .012, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[2.75, 5.8]} /><meshStandardMaterial color="#17202b" metalness={.08} roughness={.92} /></mesh>
+      <Grid args={[2.7, 5.7]} cellColor="#3e5268" cellSize={.35} fadeDistance={7} sectionColor="#60d394" sectionSize={1.4} position={[1.55, FLOOR_Y, 0]} />
+    </> : <>
+      <mesh position={[0, FLOOR_Y - .012, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, 8]} /><meshStandardMaterial color="#111c27" metalness={.08} roughness={.92} /></mesh>
+      <Grid args={[9, 9]} cellColor="#31506f" cellSize={.5} fadeDistance={9} infiniteGrid sectionColor="#68a8ff" sectionSize={2} position={[0, FLOOR_Y, 0]} />
+    </>}
+    {studio && !studio.singlePoseMode && studio.activeEndpoint !== "pose_a" ? <ComparisonSkeleton color="#6aa8ff" label="POSE A" offset={STUDIO_OFFSETS.pose_a} pose={poseA} /> : null}
+    {studio ? <ComparisonSkeleton color={studio.optimalPose ? "#60d394" : "#68717e"} label={studio.optimalPose ? "OPTIMIZED" : "OPTIMIZED · PENDING"} offset={studioOffsets.optimal} opacity={studio.optimalPose ? .82 : .32} pose={optimalPose} /> : null}
+    {studio && !studio.singlePoseMode && studio.activeEndpoint !== "pose_b" ? <ComparisonSkeleton color="#d69bff" label="POSE B" offset={STUDIO_OFFSETS.pose_b} pose={poseB} /> : null}
     <group position={activeOffset} scale={studio ? 1 : poseScale}>
       <primitive object={transformTarget} />
       {LINKS.map(([from, to]) => <Bone from={pose[from]} key={`${from}-${to}`} to={pose[to]} />)}
       {Object.entries(pose).map(([name, position]) => <mesh key={name} onClick={(event) => chooseJoint(event, name)} position={position}><sphereGeometry args={[name === "head" ? .23 : .135, 24, 24]} /><meshStandardMaterial color={selectedJoint === name ? "#60d394" : "#f4f4f4"} emissive={selectedJoint === name ? "#256e4c" : "#111111"} /></mesh>)}
-      {studio ? <Html center position={[0, 2.12, 0]}><span className={`pose-designer__scene-label is-${studio.activeEndpoint}`}>{studio.activeEndpoint === "pose_a" ? "POSE A · EDITING" : "POSE B · EDITING"}</span></Html> : null}
+      {studio ? <Html center position={[0, 2.12, 0]}><span className={`pose-designer__scene-label is-${studio.activeEndpoint}`}>{studio.singlePoseMode ? "INITIAL · EDITING" : studio.activeEndpoint === "pose_a" ? "POSE A · EDITING" : "POSE B · EDITING"}</span></Html> : null}
     </group>
     <TransformControls
       mode={transformMode}
@@ -245,6 +254,7 @@ function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, ro
 }
 
 export default function PoseRangeDesigner({
+  initialAngleTolerance = 12,
   onApply,
   onPoseChange,
   rangeTargets = [],
@@ -256,8 +266,9 @@ export default function PoseRangeDesigner({
   const studio = useContext(PoseStudioContext);
   const [pose, setPose] = useState(() => groundPose(poseFromReferencePose(referencePose) || (rangeTargets.length ? poseFromRanges(rangeTargets) : freshPose())));
   const [selectedJoint, setSelectedJoint] = useState("elbow_left");
-  const [tolerance, setTolerance] = useState(12);
-  const [positionTolerance, setPositionTolerance] = useState(() => Number(referencePose?.tolerance) || .12);
+  const [tolerance, setTolerance] = useState(initialAngleTolerance);
+  const [positionTolerance, setPositionTolerance] = useState(() => Number(referencePose?.tolerance) || .03);
+  const positionToleranceRef = useRef(positionTolerance);
   const [transformMode, setTransformMode] = useState("translate");
   const [rotationSnap, setRotationSnap] = useState(false);
   const [jointRotations, setJointRotations] = useState({});
@@ -356,10 +367,21 @@ export default function PoseRangeDesigner({
     applyAngleTarget(bodyPart, draftAngleValues[bodyPart]);
     setActiveAngleInput(null);
   };
-  const apply = () => onApply(calculated.map((item) => ({ ...item, min: Math.max(0, item.target_angle - tolerance), max: Math.min(180, item.target_angle + tolerance), role: "supporting", weight: 1 })), referencePoseFromPose(pose, positionTolerance));
+  const apply = () => {
+    const safeAngleTolerance = Math.min(30, Math.max(1, tolerance));
+    const safePositionTolerance = Math.max(.01, positionTolerance);
+    setTolerance(safeAngleTolerance);
+    setPositionTolerance(safePositionTolerance);
+    onApply(
+      calculated.map((item) => ({ ...item, min: Math.max(0, item.target_angle - safeAngleTolerance), max: Math.min(180, item.target_angle + safeAngleTolerance), role: "supporting", weight: 1 })),
+      referencePoseFromPose(pose, Math.min(.5, safePositionTolerance)),
+      { angle_degrees: safeAngleTolerance, position_normalized: safePositionTolerance }
+    );
+  };
+  useEffect(() => { positionToleranceRef.current = positionTolerance; }, [positionTolerance]);
   useEffect(() => {
-    onPoseChange?.(referencePoseFromPose(pose, positionTolerance));
-  }, [onPoseChange, pose, positionTolerance]);
+    onPoseChange?.(referencePoseFromPose(pose, positionToleranceRef.current));
+  }, [onPoseChange, pose]);
   const loadCurrentRanges = () => { const nextPose = groundPose(poseFromReferencePose(referencePose) || poseFromRanges(rangeTargets)); setPose(nextPose); syncAngleDrafts(nextPose); setPositionTolerance(Number(referencePose?.tolerance) || .12); setJointRotations({}); };
   const toggleFullscreen = async () => {
     if (document.fullscreenElement) await document.exitFullscreen();

@@ -1,6 +1,7 @@
 """Validation and normalization for static-pose optimization configuration."""
 
 from copy import deepcopy
+from math import isfinite
 
 from fastapi import HTTPException
 
@@ -108,8 +109,8 @@ def validate_pose_optimization(configuration, step_index):
     position_margin = _number(margin.get("position_normalized", 0), f"Step {step_index} has an invalid position margin")
     if not 0 <= angle_margin <= 30:
         raise HTTPException(400, f"Step {step_index} angle margin must be between 0 and 30 degrees")
-    if not 0 <= position_margin <= 0.25:
-        raise HTTPException(400, f"Step {step_index} position margin must be between 0 and 0.25")
+    if not isfinite(position_margin) or position_margin < 0:
+        raise HTTPException(400, f"Step {step_index} position margin must be a finite non-negative number")
 
     weights = configuration.get("objective_weights") or DEFAULT_OBJECTIVE_WEIGHTS
     if not isinstance(weights, dict):

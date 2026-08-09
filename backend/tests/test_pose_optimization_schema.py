@@ -51,6 +51,13 @@ class PoseOptimizationSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(HTTPException, "must be between 0 and 10"):
             validate_pose_optimization({"objective_weights": {"joint_safety": 11}}, 1)
 
+    def test_position_margin_has_no_artificial_upper_limit(self):
+        result = validate_pose_optimization({"margin": {"position_normalized": 5.0}}, 1)
+        self.assertEqual(result["margin"]["position_normalized"], 5.0)
+
+        with self.assertRaisesRegex(HTTPException, "finite non-negative"):
+            validate_pose_optimization({"margin": {"position_normalized": -0.01}}, 1)
+
     def test_existing_result_fields_survive_normalization(self):
         result = validate_pose_optimization({
             "status": "COMPLETED",

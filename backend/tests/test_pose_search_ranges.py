@@ -54,6 +54,14 @@ class PoseSearchRangeTests(unittest.TestCase):
             self.assertGreaterEqual(variable["search_min"], variable["constraint_min"])
             self.assertLessEqual(variable["search_max"], variable["constraint_max"])
 
+    def test_large_position_margin_is_clipped_to_safe_constraints(self):
+        result = generate_search_ranges(
+            pose(BASE), pose(BASE), {"angle_degrees": 3, "position_normalized": 5.0}
+        )
+        for variable in result["ranges"].values():
+            self.assertGreaterEqual(variable["search_min"], variable["constraint_min"])
+            self.assertLessEqual(variable["search_max"], variable["constraint_max"])
+
     def test_range_generation_is_deterministic(self):
         first = generate_search_ranges(pose(BASE), pose(BASE), {"angle_degrees": 3})
         second = generate_search_ranges(pose(BASE), pose(BASE), {"angle_degrees": 3})

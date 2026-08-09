@@ -69,111 +69,93 @@
       "angle_targets": [
         {
           "body_part": "elbow_left",
-          "label": "Lead elbow guard bend",
-          "target_angle": 110,
-          "min": 98.0,
-          "max": 122.0,
-          "role": "primary",
-          "weight": 2
+          "label": "Left elbow",
+          "target_angle": 92.090485,
+          "min": 89.563883,
+          "max": 93.203235,
+          "role": "supporting",
+          "weight": 1
         },
         {
           "body_part": "elbow_right",
-          "label": "Rear elbow guard bend",
-          "target_angle": 103,
-          "min": 91.0,
-          "max": 115.0,
-          "role": "primary",
-          "weight": 2
+          "label": "Right elbow",
+          "target_angle": 98.240515,
+          "min": 86.988772,
+          "max": 98.230022,
+          "role": "supporting",
+          "weight": 1
         },
         {
           "body_part": "shoulder_left",
-          "label": "Lead shoulder guard position",
-          "target_angle": 75,
-          "min": 63.0,
-          "max": 87.0,
+          "label": "Left shoulder",
+          "target_angle": 80.999606,
+          "min": 81.593759,
+          "max": 84.88594,
           "role": "supporting",
-          "weight": 1.5
+          "weight": 1
         },
         {
           "body_part": "shoulder_right",
-          "label": "Rear shoulder guard position",
-          "target_angle": 74,
-          "min": 62.0,
-          "max": 86.0,
+          "label": "Right shoulder",
+          "target_angle": 81.32747,
+          "min": 81.709545,
+          "max": 92.601844,
           "role": "supporting",
-          "weight": 1.5
+          "weight": 1
         },
         {
           "body_part": "hip_left",
-          "label": "Front-stance lead hip",
-          "target_angle": 136,
-          "min": 124.0,
-          "max": 148.0,
+          "label": "Left hip",
+          "target_angle": 127.640653,
+          "min": 116.473802,
+          "max": 133.889429,
           "role": "supporting",
-          "weight": 1.5
+          "weight": 1
         },
         {
           "body_part": "hip_right",
-          "label": "Front-stance rear hip",
-          "target_angle": 147,
-          "min": 135.0,
-          "max": 159.0,
+          "label": "Right hip",
+          "target_angle": 131.989632,
+          "min": 126.9578,
+          "max": 131.757203,
           "role": "supporting",
-          "weight": 1.5
+          "weight": 1
         },
         {
           "body_part": "knee_left",
-          "label": "Bent front knee",
-          "target_angle": 135,
-          "min": 123.0,
-          "max": 147.0,
+          "label": "Left knee",
+          "target_angle": 133.395425,
+          "min": 136.049723,
+          "max": 152.240911,
           "role": "supporting",
-          "weight": 1.75
+          "weight": 1
         },
         {
           "body_part": "knee_right",
-          "label": "Long rear leg",
-          "target_angle": 172,
-          "min": 160.0,
-          "max": 180.0,
+          "label": "Right knee",
+          "target_angle": 152.441643,
+          "min": 152.2123,
+          "max": 158.041837,
           "role": "supporting",
-          "weight": 1.75
+          "weight": 1
         },
         {
           "body_part": "ankle_left",
-          "label": "Front foot support",
-          "target_angle": 92,
-          "min": 80.0,
-          "max": 104.0,
+          "label": "Left ankle",
+          "target_angle": 94.857532,
+          "min": 94.444193,
+          "max": 106.574896,
           "role": "supporting",
-          "weight": 1.25
+          "weight": 1
         },
         {
           "body_part": "ankle_right",
-          "label": "Rear foot support",
-          "target_angle": 58,
-          "min": 46.0,
-          "max": 70.0,
+          "label": "Right ankle",
+          "target_angle": 78.203501,
+          "min": 72.279273,
+          "max": 77.692078,
           "role": "supporting",
-          "weight": 1.25
-        },
-        {
-          "body_part": "wrist_left",
-          "label": "Lead wrist alignment",
-          "target_angle": 160,
-          "min": 140.0,
-          "max": 180.0,
-          "role": "supporting",
-          "weight": 1.25
-        },
-        {
-          "body_part": "wrist_right",
-          "label": "Rear wrist alignment",
-          "target_angle": 160,
-          "min": 140.0,
-          "max": 180.0,
-          "role": "supporting",
-          "weight": 1.25
+          "weight": 1
         }
       ],
       "quality_targets": [
@@ -289,166 +271,3770 @@
         "coordinate_space": "body_normalized_v1",
         "origin": "hip_center",
         "scale_basis": "torso_length",
-        "tolerance": 0.12,
+        "tolerance": 0.5,
         "landmarks": {
-          "head": [
-            0.0076,
-            1.465,
-            0.1015
-          ],
-          "shoulder_left": [
-            -0.4812,
-            0.9819,
-            0.1034
-          ],
-          "shoulder_right": [
-            0.4869,
-            1.0181,
-            -0.1053
-          ],
-          "elbow_left": [
-            -0.4088,
-            0.8475,
-            0.6322
-          ],
-          "elbow_right": [
-            0.464,
-            0.8714,
-            0.4245
-          ],
-          "wrist_left": [
-            -0.2306,
-            1.2534,
-            0.8895
-          ],
-          "wrist_right": [
-            0.5269,
-            1.3182,
-            0.6684
-          ],
-          "hip_left": [
-            -0.3478,
-            -0.0186,
-            0.0986
-          ],
-          "hip_right": [
-            0.3478,
-            0.0186,
-            -0.0986
-          ],
-          "knee_left": [
-            -0.4383,
-            -0.6465,
-            0.6503
-          ],
-          "knee_right": [
-            0.3792,
-            -0.6999,
-            -0.5341
-          ],
           "ankle_left": [
-            -0.4002,
-            -1.4278,
-            0.6141
+            -0.3999969118016578,
+            -1.3868207843724074,
+            0.7016735364439163
           ],
           "ankle_right": [
-            0.3497,
-            -1.3154,
-            -1.0171
+            0.401009165239207,
+            -1.2832494866478634,
+            -1.0183822592516378
+          ],
+          "elbow_left": [
+            -0.39639617695045287,
+            0.8522688147448485,
+            0.7455076325708683
+          ],
+          "elbow_right": [
+            0.46996673936519795,
+            0.9294837091285585,
+            0.4230103543045853
           ],
           "foot_left": [
-            -0.4059,
-            -1.4545,
-            0.9666
+            -0.40737118949865087,
+            -1.4189079586047986,
+            1.0532393999592444
           ],
           "foot_right": [
-            0.3078,
-            -1.3478,
-            -0.6675
+            0.32847798203314155,
+            -1.3485856489060755,
+            -0.6781932801712097
+          ],
+          "head": [
+            0.012458243514899124,
+            1.4697658807703582,
+            0.10543559003508325
+          ],
+          "hip_left": [
+            -0.3420364122016824,
+            -0.014837676702484499,
+            0.11838910350574304
+          ],
+          "hip_right": [
+            0.3406919903082427,
+            0.011663378723335338,
+            -0.11969503980686562
+          ],
+          "knee_left": [
+            -0.45867520321898236,
+            -0.605266931104285,
+            0.7051165890922275
+          ],
+          "knee_right": [
+            0.5108243341095884,
+            -0.579424695623327,
+            -0.6932528223397105
+          ],
+          "shoulder_left": [
+            -0.4602858711242861,
+            0.9833676408618682,
+            0.21586001941234612
+          ],
+          "shoulder_right": [
+            0.4712381680607929,
+            1.0117745640554028,
+            -0.12226324215463649
+          ],
+          "wrist_left": [
+            -0.2096644883658421,
+            1.3158714284089659,
+            0.8571097364318611
+          ],
+          "wrist_right": [
+            0.5355710831003532,
+            1.416097273701687,
+            0.5709349507819501
           ]
         },
         "bones": [
           {
             "from": "head",
             "to": "shoulder_left",
-            "length": 0.6873
+            "length": 0.6872
           },
           {
             "from": "head",
             "to": "shoulder_right",
-            "length": 0.6872
+            "length": 0.6871
           },
           {
             "from": "shoulder_left",
             "to": "shoulder_right",
-            "length": 0.991
+            "length": 0.9914
           },
           {
             "from": "shoulder_left",
             "to": "elbow_left",
-            "length": 0.5504
+            "length": 0.5494
           },
           {
             "from": "elbow_left",
             "to": "wrist_left",
-            "length": 0.5126
+            "length": 0.5121
           },
           {
             "from": "shoulder_right",
             "to": "elbow_right",
-            "length": 0.5502
+            "length": 0.5514
           },
           {
             "from": "elbow_right",
             "to": "wrist_right",
-            "length": 0.5129
+            "length": 0.5128
           },
           {
             "from": "shoulder_left",
             "to": "hip_left",
-            "length": 1.0094
+            "length": 1.0099
           },
           {
             "from": "shoulder_right",
             "to": "hip_right",
-            "length": 1.0092
+            "length": 1.0086
           },
           {
             "from": "hip_left",
             "to": "hip_right",
-            "length": 0.724
+            "length": 0.7235
           },
           {
             "from": "hip_left",
             "to": "knee_left",
-            "length": 0.8407
+            "length": 0.8405
           },
           {
             "from": "knee_left",
             "to": "ankle_left",
-            "length": 0.7831
+            "length": 0.7838
           },
           {
             "from": "ankle_left",
             "to": "foot_left",
-            "length": 0.3536
+            "length": 0.3531
           },
           {
             "from": "hip_right",
             "to": "knee_right",
-            "length": 0.8408
+            "length": 0.841
           },
           {
             "from": "knee_right",
             "to": "ankle_right",
-            "length": 0.7829
+            "length": 0.783
           },
           {
             "from": "ankle_right",
             "to": "foot_right",
-            "length": 0.3536
+            "length": 0.3539
           }
         ]
+      },
+      "pose_optimization": {
+        "schema_version": "1.0",
+        "workflow": "initial_tolerance_v1",
+        "status": "COMPLETED",
+        "initial_pose": {
+          "schema_version": "1.0",
+          "coordinate_space": "body_normalized_v1",
+          "origin": "hip_center",
+          "scale_basis": "torso_length",
+          "tolerance": 0.5,
+          "landmarks": {
+            "head": [
+              0.0076,
+              1.4648,
+              0.1019
+            ],
+            "shoulder_left": [
+              -0.481,
+              0.9819,
+              0.1038
+            ],
+            "shoulder_right": [
+              0.4867,
+              1.0181,
+              -0.1057
+            ],
+            "elbow_left": [
+              -0.4086,
+              0.8476,
+              0.6324
+            ],
+            "elbow_right": [
+              0.4638,
+              0.8714,
+              0.4248
+            ],
+            "wrist_left": [
+              -0.2305,
+              1.2533,
+              0.8895
+            ],
+            "wrist_right": [
+              0.5267,
+              1.3181,
+              0.6686
+            ],
+            "hip_left": [
+              -0.3476,
+              -0.019,
+              0.099
+            ],
+            "hip_right": [
+              0.3476,
+              0.019,
+              -0.099
+            ],
+            "knee_left": [
+              -0.4381,
+              -0.6467,
+              0.6505
+            ],
+            "knee_right": [
+              0.379,
+              -0.7,
+              -0.5343
+            ],
+            "ankle_left": [
+              -0.4,
+              -1.4276,
+              0.6143
+            ],
+            "ankle_right": [
+              0.3495,
+              -1.3152,
+              -1.0171
+            ],
+            "foot_left": [
+              -0.4057,
+              -1.4543,
+              0.9667
+            ],
+            "foot_right": [
+              0.3076,
+              -1.3476,
+              -0.6676
+            ]
+          },
+          "bones": [
+            {
+              "from": "head",
+              "to": "shoulder_left",
+              "length": 0.687
+            },
+            {
+              "from": "head",
+              "to": "shoulder_right",
+              "length": 0.6872
+            },
+            {
+              "from": "shoulder_left",
+              "to": "shoulder_right",
+              "length": 0.9908
+            },
+            {
+              "from": "shoulder_left",
+              "to": "elbow_left",
+              "length": 0.5502
+            },
+            {
+              "from": "elbow_left",
+              "to": "wrist_left",
+              "length": 0.5123
+            },
+            {
+              "from": "shoulder_right",
+              "to": "elbow_right",
+              "length": 0.5509
+            },
+            {
+              "from": "elbow_right",
+              "to": "wrist_right",
+              "length": 0.5128
+            },
+            {
+              "from": "shoulder_left",
+              "to": "hip_left",
+              "length": 1.0098
+            },
+            {
+              "from": "shoulder_right",
+              "to": "hip_right",
+              "length": 1.0088
+            },
+            {
+              "from": "hip_left",
+              "to": "hip_right",
+              "length": 0.7238
+            },
+            {
+              "from": "hip_left",
+              "to": "knee_left",
+              "length": 0.8404
+            },
+            {
+              "from": "knee_left",
+              "to": "ankle_left",
+              "length": 0.7827
+            },
+            {
+              "from": "ankle_left",
+              "to": "foot_left",
+              "length": 0.3535
+            },
+            {
+              "from": "hip_right",
+              "to": "knee_right",
+              "length": 0.8411
+            },
+            {
+              "from": "knee_right",
+              "to": "ankle_right",
+              "length": 0.7826
+            },
+            {
+              "from": "ankle_right",
+              "to": "foot_right",
+              "length": 0.3535
+            }
+          ]
+        },
+        "pose_a": {
+          "schema_version": "1.0",
+          "coordinate_space": "body_normalized_v1",
+          "origin": "hip_center",
+          "scale_basis": "torso_length",
+          "tolerance": 0.5,
+          "landmarks": {
+            "head": [
+              0.0076,
+              1.4648,
+              0.1019
+            ],
+            "shoulder_left": [
+              -0.481,
+              0.9819,
+              0.1038
+            ],
+            "shoulder_right": [
+              0.4867,
+              1.0181,
+              -0.1057
+            ],
+            "elbow_left": [
+              -0.4086,
+              0.8476,
+              0.6324
+            ],
+            "elbow_right": [
+              0.4638,
+              0.8714,
+              0.4248
+            ],
+            "wrist_left": [
+              -0.2305,
+              1.2533,
+              0.8895
+            ],
+            "wrist_right": [
+              0.5267,
+              1.3181,
+              0.6686
+            ],
+            "hip_left": [
+              -0.3476,
+              -0.019,
+              0.099
+            ],
+            "hip_right": [
+              0.3476,
+              0.019,
+              -0.099
+            ],
+            "knee_left": [
+              -0.4381,
+              -0.6467,
+              0.6505
+            ],
+            "knee_right": [
+              0.379,
+              -0.7,
+              -0.5343
+            ],
+            "ankle_left": [
+              -0.4,
+              -1.4276,
+              0.6143
+            ],
+            "ankle_right": [
+              0.3495,
+              -1.3152,
+              -1.0171
+            ],
+            "foot_left": [
+              -0.4057,
+              -1.4543,
+              0.9667
+            ],
+            "foot_right": [
+              0.3076,
+              -1.3476,
+              -0.6676
+            ]
+          },
+          "bones": [
+            {
+              "from": "head",
+              "to": "shoulder_left",
+              "length": 0.687
+            },
+            {
+              "from": "head",
+              "to": "shoulder_right",
+              "length": 0.6872
+            },
+            {
+              "from": "shoulder_left",
+              "to": "shoulder_right",
+              "length": 0.9908
+            },
+            {
+              "from": "shoulder_left",
+              "to": "elbow_left",
+              "length": 0.5502
+            },
+            {
+              "from": "elbow_left",
+              "to": "wrist_left",
+              "length": 0.5123
+            },
+            {
+              "from": "shoulder_right",
+              "to": "elbow_right",
+              "length": 0.5509
+            },
+            {
+              "from": "elbow_right",
+              "to": "wrist_right",
+              "length": 0.5128
+            },
+            {
+              "from": "shoulder_left",
+              "to": "hip_left",
+              "length": 1.0098
+            },
+            {
+              "from": "shoulder_right",
+              "to": "hip_right",
+              "length": 1.0088
+            },
+            {
+              "from": "hip_left",
+              "to": "hip_right",
+              "length": 0.7238
+            },
+            {
+              "from": "hip_left",
+              "to": "knee_left",
+              "length": 0.8404
+            },
+            {
+              "from": "knee_left",
+              "to": "ankle_left",
+              "length": 0.7827
+            },
+            {
+              "from": "ankle_left",
+              "to": "foot_left",
+              "length": 0.3535
+            },
+            {
+              "from": "hip_right",
+              "to": "knee_right",
+              "length": 0.8411
+            },
+            {
+              "from": "knee_right",
+              "to": "ankle_right",
+              "length": 0.7826
+            },
+            {
+              "from": "ankle_right",
+              "to": "foot_right",
+              "length": 0.3535
+            }
+          ]
+        },
+        "pose_b": {
+          "schema_version": "1.0",
+          "coordinate_space": "body_normalized_v1",
+          "origin": "hip_center",
+          "scale_basis": "torso_length",
+          "tolerance": 0.5,
+          "landmarks": {
+            "head": [
+              0.0076,
+              1.4648,
+              0.1019
+            ],
+            "shoulder_left": [
+              -0.481,
+              0.9819,
+              0.1038
+            ],
+            "shoulder_right": [
+              0.4867,
+              1.0181,
+              -0.1057
+            ],
+            "elbow_left": [
+              -0.4086,
+              0.8476,
+              0.6324
+            ],
+            "elbow_right": [
+              0.4638,
+              0.8714,
+              0.4248
+            ],
+            "wrist_left": [
+              -0.2305,
+              1.2533,
+              0.8895
+            ],
+            "wrist_right": [
+              0.5267,
+              1.3181,
+              0.6686
+            ],
+            "hip_left": [
+              -0.3476,
+              -0.019,
+              0.099
+            ],
+            "hip_right": [
+              0.3476,
+              0.019,
+              -0.099
+            ],
+            "knee_left": [
+              -0.4381,
+              -0.6467,
+              0.6505
+            ],
+            "knee_right": [
+              0.379,
+              -0.7,
+              -0.5343
+            ],
+            "ankle_left": [
+              -0.4,
+              -1.4276,
+              0.6143
+            ],
+            "ankle_right": [
+              0.3495,
+              -1.3152,
+              -1.0171
+            ],
+            "foot_left": [
+              -0.4057,
+              -1.4543,
+              0.9667
+            ],
+            "foot_right": [
+              0.3076,
+              -1.3476,
+              -0.6676
+            ]
+          },
+          "bones": [
+            {
+              "from": "head",
+              "to": "shoulder_left",
+              "length": 0.687
+            },
+            {
+              "from": "head",
+              "to": "shoulder_right",
+              "length": 0.6872
+            },
+            {
+              "from": "shoulder_left",
+              "to": "shoulder_right",
+              "length": 0.9908
+            },
+            {
+              "from": "shoulder_left",
+              "to": "elbow_left",
+              "length": 0.5502
+            },
+            {
+              "from": "elbow_left",
+              "to": "wrist_left",
+              "length": 0.5123
+            },
+            {
+              "from": "shoulder_right",
+              "to": "elbow_right",
+              "length": 0.5509
+            },
+            {
+              "from": "elbow_right",
+              "to": "wrist_right",
+              "length": 0.5128
+            },
+            {
+              "from": "shoulder_left",
+              "to": "hip_left",
+              "length": 1.0098
+            },
+            {
+              "from": "shoulder_right",
+              "to": "hip_right",
+              "length": 1.0088
+            },
+            {
+              "from": "hip_left",
+              "to": "hip_right",
+              "length": 0.7238
+            },
+            {
+              "from": "hip_left",
+              "to": "knee_left",
+              "length": 0.8404
+            },
+            {
+              "from": "knee_left",
+              "to": "ankle_left",
+              "length": 0.7827
+            },
+            {
+              "from": "ankle_left",
+              "to": "foot_left",
+              "length": 0.3535
+            },
+            {
+              "from": "hip_right",
+              "to": "knee_right",
+              "length": 0.8411
+            },
+            {
+              "from": "knee_right",
+              "to": "ankle_right",
+              "length": 0.7826
+            },
+            {
+              "from": "ankle_right",
+              "to": "foot_right",
+              "length": 0.3535
+            }
+          ]
+        },
+        "margin": {
+          "angle_degrees": 20.0,
+          "position_normalized": 10.0
+        },
+        "objective_weights": {
+          "energy_efficiency_proxy": 1.0,
+          "static_stability": 1.0,
+          "defense": 1.0,
+          "readiness": 1.0,
+          "power_potential_proxy": 1.0,
+          "mobility": 1.0,
+          "structural_efficiency": 1.0,
+          "joint_safety": 1.0
+        },
+        "seed": 42,
+        "search": {
+          "schema_version": "1.0",
+          "variables_a": {
+            "left_elbow_flexion": 109.550334,
+            "right_elbow_flexion": 102.754604,
+            "left_shoulder_angle": 75.239566,
+            "right_shoulder_angle": 73.985743,
+            "left_hip_angle": 136.299851,
+            "right_hip_angle": 146.937115,
+            "left_knee_flexion": 135.201323,
+            "right_knee_flexion": 171.843628,
+            "left_ankle_angle": 91.63145,
+            "right_ankle_angle": 57.761485,
+            "torso_lean": 0.172125,
+            "pelvis_rotation": -15.89749,
+            "shoulder_rotation": -12.215603,
+            "stance_width": 0.749497,
+            "stance_depth": 1.631393,
+            "guard_width": 0.791418,
+            "guard_height": 1.285694
+          },
+          "variables_b": {
+            "left_elbow_flexion": 109.550334,
+            "right_elbow_flexion": 102.754604,
+            "left_shoulder_angle": 75.239566,
+            "right_shoulder_angle": 73.985743,
+            "left_hip_angle": 136.299851,
+            "right_hip_angle": 146.937115,
+            "left_knee_flexion": 135.201323,
+            "right_knee_flexion": 171.843628,
+            "left_ankle_angle": 91.63145,
+            "right_ankle_angle": 57.761485,
+            "torso_lean": 0.172125,
+            "pelvis_rotation": -15.89749,
+            "shoulder_rotation": -12.215603,
+            "stance_width": 0.749497,
+            "stance_depth": 1.631393,
+            "guard_width": 0.791418,
+            "guard_height": 1.285694
+          },
+          "ranges": {
+            "left_elbow_flexion": {
+              "label": "Left elbow",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 109.550334,
+              "pose_b_value": 109.550334,
+              "search_min": 89.550334,
+              "search_max": 129.550334,
+              "constraint_min": 5,
+              "constraint_max": 180
+            },
+            "right_elbow_flexion": {
+              "label": "Right elbow",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 102.754604,
+              "pose_b_value": 102.754604,
+              "search_min": 82.754604,
+              "search_max": 122.754604,
+              "constraint_min": 5,
+              "constraint_max": 180
+            },
+            "left_shoulder_angle": {
+              "label": "Left shoulder",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 75.239566,
+              "pose_b_value": 75.239566,
+              "search_min": 55.239566,
+              "search_max": 95.239566,
+              "constraint_min": 5,
+              "constraint_max": 180
+            },
+            "right_shoulder_angle": {
+              "label": "Right shoulder",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 73.985743,
+              "pose_b_value": 73.985743,
+              "search_min": 53.985743,
+              "search_max": 93.985743,
+              "constraint_min": 5,
+              "constraint_max": 180
+            },
+            "left_hip_angle": {
+              "label": "Left hip",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 136.299851,
+              "pose_b_value": 136.299851,
+              "search_min": 116.299851,
+              "search_max": 156.299851,
+              "constraint_min": 15,
+              "constraint_max": 180
+            },
+            "right_hip_angle": {
+              "label": "Right hip",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 146.937115,
+              "pose_b_value": 146.937115,
+              "search_min": 126.937115,
+              "search_max": 166.937115,
+              "constraint_min": 15,
+              "constraint_max": 180
+            },
+            "left_knee_flexion": {
+              "label": "Left knee",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 135.201323,
+              "pose_b_value": 135.201323,
+              "search_min": 115.201323,
+              "search_max": 155.201323,
+              "constraint_min": 5,
+              "constraint_max": 180
+            },
+            "right_knee_flexion": {
+              "label": "Right knee",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 171.843628,
+              "pose_b_value": 171.843628,
+              "search_min": 151.843628,
+              "search_max": 180,
+              "constraint_min": 5,
+              "constraint_max": 180
+            },
+            "left_ankle_angle": {
+              "label": "Left ankle",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 91.63145,
+              "pose_b_value": 91.63145,
+              "search_min": 71.63145,
+              "search_max": 111.63145,
+              "constraint_min": 20,
+              "constraint_max": 170
+            },
+            "right_ankle_angle": {
+              "label": "Right ankle",
+              "unit": "degrees",
+              "group": "joint_angle",
+              "pose_a_value": 57.761485,
+              "pose_b_value": 57.761485,
+              "search_min": 37.761485,
+              "search_max": 77.761485,
+              "constraint_min": 20,
+              "constraint_max": 170
+            },
+            "torso_lean": {
+              "label": "Torso lean",
+              "unit": "degrees",
+              "group": "orientation",
+              "pose_a_value": 0.172125,
+              "pose_b_value": 0.172125,
+              "search_min": 0,
+              "search_max": 20.172125,
+              "constraint_min": 0,
+              "constraint_max": 70
+            },
+            "pelvis_rotation": {
+              "label": "Pelvis rotation",
+              "unit": "degrees",
+              "group": "orientation",
+              "pose_a_value": -15.89749,
+              "pose_b_value": -15.89749,
+              "search_min": -35.89749,
+              "search_max": 4.10251,
+              "constraint_min": -90,
+              "constraint_max": 90
+            },
+            "shoulder_rotation": {
+              "label": "Shoulder rotation",
+              "unit": "degrees",
+              "group": "orientation",
+              "pose_a_value": -12.215603,
+              "pose_b_value": -12.215603,
+              "search_min": -32.215603,
+              "search_max": 7.784397,
+              "constraint_min": -90,
+              "constraint_max": 90
+            },
+            "stance_width": {
+              "label": "Stance width",
+              "unit": "torso_lengths",
+              "group": "stance",
+              "pose_a_value": 0.749497,
+              "pose_b_value": 0.749497,
+              "search_min": 0.1,
+              "search_max": 3,
+              "constraint_min": 0.1,
+              "constraint_max": 3
+            },
+            "stance_depth": {
+              "label": "Stance depth",
+              "unit": "torso_lengths",
+              "group": "stance",
+              "pose_a_value": 1.631393,
+              "pose_b_value": 1.631393,
+              "search_min": 0,
+              "search_max": 3,
+              "constraint_min": 0,
+              "constraint_max": 3
+            },
+            "guard_width": {
+              "label": "Guard width",
+              "unit": "torso_lengths",
+              "group": "guard",
+              "pose_a_value": 0.791418,
+              "pose_b_value": 0.791418,
+              "search_min": 0.05,
+              "search_max": 3,
+              "constraint_min": 0.05,
+              "constraint_max": 3
+            },
+            "guard_height": {
+              "label": "Guard height",
+              "unit": "torso_lengths",
+              "group": "guard",
+              "pose_a_value": 1.285694,
+              "pose_b_value": 1.285694,
+              "search_min": -1.5,
+              "search_max": 2.5,
+              "constraint_min": -1.5,
+              "constraint_max": 2.5
+            }
+          }
+        },
+        "optimization": {
+          "schema_version": "1.0",
+          "optimizer_version": "1.1.0",
+          "evaluator_version": "1.0.0",
+          "kinematics_version": "1.1.0",
+          "analysis_version": "1.0.0",
+          "algorithm": "pymoo_nsga2",
+          "seed": 42,
+          "population_size": 48,
+          "generations": 60,
+          "objective_ids": [
+            "energy_efficiency_proxy",
+            "static_stability",
+            "defense",
+            "readiness",
+            "power_potential_proxy",
+            "mobility",
+            "structural_efficiency",
+            "joint_safety"
+          ],
+          "decision_variable_ids": [
+            "left_elbow_flexion",
+            "right_elbow_flexion",
+            "left_shoulder_angle",
+            "right_shoulder_angle",
+            "left_hip_angle",
+            "right_hip_angle",
+            "left_knee_flexion",
+            "right_knee_flexion",
+            "left_ankle_angle",
+            "right_ankle_angle",
+            "torso_lean",
+            "pelvis_rotation",
+            "shoulder_rotation",
+            "stance_width",
+            "stance_depth",
+            "guard_width",
+            "guard_height"
+          ],
+          "representative_policy": "weighted_normalized_distance_to_ideal",
+          "pareto_solution_count": 48,
+          "pareto_solutions": [
+            {
+              "id": "pareto-7",
+              "variables": {
+                "left_elbow_flexion": 89.845722,
+                "right_elbow_flexion": 87.371247,
+                "left_shoulder_angle": 81.593759,
+                "right_shoulder_angle": 81.79688,
+                "left_hip_angle": 131.644113,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 152.231778,
+                "right_knee_flexion": 152.251489,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 76.117291,
+                "torso_lean": 0.518444,
+                "pelvis_rotation": -25.82562,
+                "shoulder_rotation": -9.461474,
+                "stance_width": 1.372743,
+                "stance_depth": 0.864946,
+                "guard_width": 0.504938,
+                "guard_height": 1.190653
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 96.85,
+                "static_stability": 99.99,
+                "defense": 100,
+                "readiness": 97.64,
+                "power_potential_proxy": 100,
+                "mobility": 90.72,
+                "structural_efficiency": 99.87,
+                "joint_safety": 72.05
+              },
+              "ideal_distance": 0.10504939,
+              "representative": false
+            },
+            {
+              "id": "pareto-9",
+              "variables": {
+                "left_elbow_flexion": 89.845659,
+                "right_elbow_flexion": 87.422916,
+                "left_shoulder_angle": 81.593759,
+                "right_shoulder_angle": 81.709545,
+                "left_hip_angle": 131.644113,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 152.231778,
+                "right_knee_flexion": 152.251489,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 76.133603,
+                "torso_lean": 1.194046,
+                "pelvis_rotation": -25.82562,
+                "shoulder_rotation": -9.132722,
+                "stance_width": 1.372743,
+                "stance_depth": 0.838138,
+                "guard_width": 0.155917,
+                "guard_height": 1.190653
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 95.81,
+                "static_stability": 99.99,
+                "defense": 96.86,
+                "readiness": 96.87,
+                "power_potential_proxy": 100,
+                "mobility": 90.72,
+                "structural_efficiency": 99.9,
+                "joint_safety": 72.05
+              },
+              "ideal_distance": 0.10633341,
+              "representative": false
+            },
+            {
+              "id": "pareto-42",
+              "variables": {
+                "left_elbow_flexion": 89.695851,
+                "right_elbow_flexion": 87.202817,
+                "left_shoulder_angle": 81.593759,
+                "right_shoulder_angle": 81.960326,
+                "left_hip_angle": 131.651157,
+                "right_hip_angle": 131.567351,
+                "left_knee_flexion": 137.958849,
+                "right_knee_flexion": 152.251489,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 76.133864,
+                "torso_lean": 1.131443,
+                "pelvis_rotation": -25.82562,
+                "shoulder_rotation": -9.132722,
+                "stance_width": 1.372743,
+                "stance_depth": 0.838138,
+                "guard_width": 0.153787,
+                "guard_height": 1.134046
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 91.62,
+                "static_stability": 93.5,
+                "defense": 96.79,
+                "readiness": 93.93,
+                "power_potential_proxy": 100,
+                "mobility": 92.08,
+                "structural_efficiency": 93.33,
+                "joint_safety": 73.69
+              },
+              "ideal_distance": 0.10949057,
+              "representative": false
+            },
+            {
+              "id": "pareto-8",
+              "variables": {
+                "left_elbow_flexion": 89.845722,
+                "right_elbow_flexion": 86.988772,
+                "left_shoulder_angle": 81.593759,
+                "right_shoulder_angle": 81.79688,
+                "left_hip_angle": 131.650398,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 152.240911,
+                "right_knee_flexion": 152.251489,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 72.279273,
+                "torso_lean": 0.518443,
+                "pelvis_rotation": -25.825611,
+                "shoulder_rotation": -9.466343,
+                "stance_width": 1.372743,
+                "stance_depth": 0.922152,
+                "guard_width": 0.324955,
+                "guard_height": 0.270713
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 96.79,
+                "static_stability": 100,
+                "defense": 92.53,
+                "readiness": 95.75,
+                "power_potential_proxy": 100,
+                "mobility": 90.6,
+                "structural_efficiency": 99.87,
+                "joint_safety": 71.49
+              },
+              "ideal_distance": 0.11098223,
+              "representative": false
+            },
+            {
+              "id": "pareto-38",
+              "variables": {
+                "left_elbow_flexion": 89.845722,
+                "right_elbow_flexion": 97.758115,
+                "left_shoulder_angle": 81.677591,
+                "right_shoulder_angle": 92.601844,
+                "left_hip_angle": 131.650398,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 152.240911,
+                "right_knee_flexion": 152.251489,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 72.409819,
+                "torso_lean": 4.529613,
+                "pelvis_rotation": -25.728116,
+                "shoulder_rotation": -9.858319,
+                "stance_width": 1.372743,
+                "stance_depth": 1.475254,
+                "guard_width": 0.270649,
+                "guard_height": 0.270713
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 94.35,
+                "static_stability": 96.08,
+                "defense": 92.53,
+                "readiness": 93.85,
+                "power_potential_proxy": 94.78,
+                "mobility": 90.72,
+                "structural_efficiency": 96.05,
+                "joint_safety": 72.76
+              },
+              "ideal_distance": 0.11246662,
+              "representative": false
+            },
+            {
+              "id": "pareto-27",
+              "variables": {
+                "left_elbow_flexion": 91.980596,
+                "right_elbow_flexion": 88.371418,
+                "left_shoulder_angle": 84.88594,
+                "right_shoulder_angle": 83.591688,
+                "left_hip_angle": 125.720104,
+                "right_hip_angle": 126.9578,
+                "left_knee_flexion": 136.049723,
+                "right_knee_flexion": 152.771374,
+                "left_ankle_angle": 106.574896,
+                "right_ankle_angle": 77.529476,
+                "torso_lean": 0.486269,
+                "pelvis_rotation": -30.870699,
+                "shoulder_rotation": -20.841893,
+                "stance_width": 0.911463,
+                "stance_depth": 0.859748,
+                "guard_width": 0.050672,
+                "guard_height": 1.209968
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 89.58,
+                "static_stability": 92.4,
+                "defense": 92.94,
+                "readiness": 92.32,
+                "power_potential_proxy": 98.12,
+                "mobility": 92.55,
+                "structural_efficiency": 91.37,
+                "joint_safety": 74.85
+              },
+              "ideal_distance": 0.11408323,
+              "representative": false
+            },
+            {
+              "id": "pareto-29",
+              "variables": {
+                "left_elbow_flexion": 91.911551,
+                "right_elbow_flexion": 88.372422,
+                "left_shoulder_angle": 84.88594,
+                "right_shoulder_angle": 85.188746,
+                "left_hip_angle": 125.720104,
+                "right_hip_angle": 126.9578,
+                "left_knee_flexion": 136.049723,
+                "right_knee_flexion": 158.041837,
+                "left_ankle_angle": 106.574896,
+                "right_ankle_angle": 77.529476,
+                "torso_lean": 2.601897,
+                "pelvis_rotation": -28.573808,
+                "shoulder_rotation": -20.841893,
+                "stance_width": 0.911463,
+                "stance_depth": 0.859748,
+                "guard_width": 0.521864,
+                "guard_height": 1.209968
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 90.27,
+                "static_stability": 90,
+                "defense": 99.58,
+                "readiness": 92.68,
+                "power_potential_proxy": 95.94,
+                "mobility": 91.78,
+                "structural_efficiency": 89.33,
+                "joint_safety": 74.42
+              },
+              "ideal_distance": 0.11729605,
+              "representative": false
+            },
+            {
+              "id": "pareto-36",
+              "variables": {
+                "left_elbow_flexion": 89.563883,
+                "right_elbow_flexion": 98.009126,
+                "left_shoulder_angle": 84.556366,
+                "right_shoulder_angle": 92.036433,
+                "left_hip_angle": 128.227277,
+                "right_hip_angle": 127.122757,
+                "left_knee_flexion": 151.573813,
+                "right_knee_flexion": 152.2123,
+                "left_ankle_angle": 95.705168,
+                "right_ankle_angle": 77.454267,
+                "torso_lean": 0.970223,
+                "pelvis_rotation": -25.863105,
+                "shoulder_rotation": -21.021914,
+                "stance_width": 1.163487,
+                "stance_depth": 1.636176,
+                "guard_width": 0.575959,
+                "guard_height": 0.390074
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 92.96,
+                "static_stability": 90.77,
+                "defense": 97.5,
+                "readiness": 94.03,
+                "power_potential_proxy": 81.26,
+                "mobility": 91.33,
+                "structural_efficiency": 96.54,
+                "joint_safety": 74.75
+              },
+              "ideal_distance": 0.12512674,
+              "representative": false
+            },
+            {
+              "id": "pareto-44",
+              "variables": {
+                "left_elbow_flexion": 93.203235,
+                "right_elbow_flexion": 87.174292,
+                "left_shoulder_angle": 81.623017,
+                "right_shoulder_angle": 81.989197,
+                "left_hip_angle": 116.473802,
+                "right_hip_angle": 127.130659,
+                "left_knee_flexion": 138.192005,
+                "right_knee_flexion": 152.253972,
+                "left_ankle_angle": 94.444193,
+                "right_ankle_angle": 76.139174,
+                "torso_lean": 0.513339,
+                "pelvis_rotation": -25.947681,
+                "shoulder_rotation": -20.31249,
+                "stance_width": 0.684553,
+                "stance_depth": 0.040581,
+                "guard_width": 0.327027,
+                "guard_height": 0.278229
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 89.27,
+                "static_stability": 87.06,
+                "defense": 92.84,
+                "readiness": 90.33,
+                "power_potential_proxy": 85.21,
+                "mobility": 92.77,
+                "structural_efficiency": 88.63,
+                "joint_safety": 76.34
+              },
+              "ideal_distance": 0.13169285,
+              "representative": false
+            },
+            {
+              "id": "pareto-35",
+              "variables": {
+                "left_elbow_flexion": 91.911919,
+                "right_elbow_flexion": 98.230022,
+                "left_shoulder_angle": 81.843345,
+                "right_shoulder_angle": 91.369897,
+                "left_hip_angle": 133.889429,
+                "right_hip_angle": 127.154116,
+                "left_knee_flexion": 137.733067,
+                "right_knee_flexion": 152.255172,
+                "left_ankle_angle": 95.833621,
+                "right_ankle_angle": 77.692078,
+                "torso_lean": 0.837601,
+                "pelvis_rotation": -26.042661,
+                "shoulder_rotation": -28.652309,
+                "stance_width": 0.913494,
+                "stance_depth": 0.030972,
+                "guard_width": 0.333038,
+                "guard_height": 1.17613
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 88.44,
+                "static_stability": 86.55,
+                "defense": 100,
+                "readiness": 91.45,
+                "power_potential_proxy": 81.93,
+                "mobility": 92.33,
+                "structural_efficiency": 86.94,
+                "joint_safety": 75.51
+              },
+              "ideal_distance": 0.13889367,
+              "representative": false
+            },
+            {
+              "id": "pareto-31",
+              "variables": {
+                "left_elbow_flexion": 93.166242,
+                "right_elbow_flexion": 97.68476,
+                "left_shoulder_angle": 81.024436,
+                "right_shoulder_angle": 81.797514,
+                "left_hip_angle": 119.610044,
+                "right_hip_angle": 127.319977,
+                "left_knee_flexion": 137.713373,
+                "right_knee_flexion": 153.962716,
+                "left_ankle_angle": 94.230882,
+                "right_ankle_angle": 77.733646,
+                "torso_lean": 1.58972,
+                "pelvis_rotation": -25.34517,
+                "shoulder_rotation": -19.818612,
+                "stance_width": 0.686498,
+                "stance_depth": 1.585837,
+                "guard_width": 0.070202,
+                "guard_height": 1.197473
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 86.68,
+                "static_stability": 85.24,
+                "defense": 94.01,
+                "readiness": 90.15,
+                "power_potential_proxy": 84.01,
+                "mobility": 92.52,
+                "structural_efficiency": 88.83,
+                "joint_safety": 75.91
+              },
+              "ideal_distance": 0.13896538,
+              "representative": true
+            },
+            {
+              "id": "pareto-39",
+              "variables": {
+                "left_elbow_flexion": 89.845722,
+                "right_elbow_flexion": 91.900914,
+                "left_shoulder_angle": 81.593759,
+                "right_shoulder_angle": 92.720619,
+                "left_hip_angle": 131.74797,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 152.268351,
+                "right_knee_flexion": 152.251489,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 72.279273,
+                "torso_lean": 0.518443,
+                "pelvis_rotation": -31.265595,
+                "shoulder_rotation": -9.411598,
+                "stance_width": 1.372743,
+                "stance_depth": 0.922152,
+                "guard_width": 0.324955,
+                "guard_height": -0.267778
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 95.69,
+                "static_stability": 99.99,
+                "defense": 70.09,
+                "readiness": 89.21,
+                "power_potential_proxy": 100,
+                "mobility": 90.76,
+                "structural_efficiency": 96.01,
+                "joint_safety": 73.23
+              },
+              "ideal_distance": 0.15196788,
+              "representative": false
+            },
+            {
+              "id": "pareto-47",
+              "variables": {
+                "left_elbow_flexion": 89.723339,
+                "right_elbow_flexion": 88.187908,
+                "left_shoulder_angle": 81.593866,
+                "right_shoulder_angle": 92.720619,
+                "left_hip_angle": 116.836955,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 150.07403,
+                "right_knee_flexion": 152.255394,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 72.066628,
+                "torso_lean": 0.625862,
+                "pelvis_rotation": -31.265595,
+                "shoulder_rotation": -9.411598,
+                "stance_width": 1.372743,
+                "stance_depth": 0.922147,
+                "guard_width": 0.324955,
+                "guard_height": -0.267778
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 92.96,
+                "static_stability": 99.01,
+                "defense": 70.09,
+                "readiness": 87.21,
+                "power_potential_proxy": 100,
+                "mobility": 91.48,
+                "structural_efficiency": 88.25,
+                "joint_safety": 74.83
+              },
+              "ideal_distance": 0.15624163,
+              "representative": false
+            },
+            {
+              "id": "pareto-34",
+              "variables": {
+                "left_elbow_flexion": 89.848847,
+                "right_elbow_flexion": 88.502798,
+                "left_shoulder_angle": 81.409103,
+                "right_shoulder_angle": 81.760553,
+                "left_hip_angle": 132.516746,
+                "right_hip_angle": 128.23742,
+                "left_knee_flexion": 119.78947,
+                "right_knee_flexion": 152.274972,
+                "left_ankle_angle": 92.909661,
+                "right_ankle_angle": 76.092399,
+                "torso_lean": 0.980806,
+                "pelvis_rotation": -26.033617,
+                "shoulder_rotation": -31.411009,
+                "stance_width": 1.227451,
+                "stance_depth": 1.617046,
+                "guard_width": 0.072592,
+                "guard_height": 0.239508
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 82.05,
+                "static_stability": 76.89,
+                "defense": 85.32,
+                "readiness": 84.59,
+                "power_potential_proxy": 82.57,
+                "mobility": 93,
+                "structural_efficiency": 83.16,
+                "joint_safety": 76.03
+              },
+              "ideal_distance": 0.17748931,
+              "representative": false
+            },
+            {
+              "id": "pareto-40",
+              "variables": {
+                "left_elbow_flexion": 89.866173,
+                "right_elbow_flexion": 89.421613,
+                "left_shoulder_angle": 85.127283,
+                "right_shoulder_angle": 83.565983,
+                "left_hip_angle": 131.689347,
+                "right_hip_angle": 132.134998,
+                "left_knee_flexion": 143.731148,
+                "right_knee_flexion": 152.691208,
+                "left_ankle_angle": 94.230372,
+                "right_ankle_angle": 77.338081,
+                "torso_lean": 0.51862,
+                "pelvis_rotation": -31.09547,
+                "shoulder_rotation": -19.82579,
+                "stance_width": 2.668349,
+                "stance_depth": 0.957909,
+                "guard_width": 0.079884,
+                "guard_height": -0.013854
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 83.91,
+                "static_stability": 70.93,
+                "defense": 75,
+                "readiness": 83.19,
+                "power_potential_proxy": 99.3,
+                "mobility": 91.67,
+                "structural_efficiency": 95.17,
+                "joint_safety": 73.95
+              },
+              "ideal_distance": 0.18652545,
+              "representative": false
+            },
+            {
+              "id": "pareto-41",
+              "variables": {
+                "left_elbow_flexion": 92.756834,
+                "right_elbow_flexion": 89.09106,
+                "left_shoulder_angle": 85.141129,
+                "right_shoulder_angle": 82.598887,
+                "left_hip_angle": 117.222883,
+                "right_hip_angle": 129.587784,
+                "left_knee_flexion": 143.242573,
+                "right_knee_flexion": 152.171686,
+                "left_ankle_angle": 94.197355,
+                "right_ankle_angle": 75.422182,
+                "torso_lean": 16.093626,
+                "pelvis_rotation": -31.032934,
+                "shoulder_rotation": -20.649074,
+                "stance_width": 1.425715,
+                "stance_depth": 1.947204,
+                "guard_width": 0.197102,
+                "guard_height": -0.013854
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 85.64,
+                "static_stability": 77.28,
+                "defense": 78.91,
+                "readiness": 84.48,
+                "power_potential_proxy": 73.58,
+                "mobility": 92.33,
+                "structural_efficiency": 89.41,
+                "joint_safety": 75.99
+              },
+              "ideal_distance": 0.18886305,
+              "representative": false
+            },
+            {
+              "id": "pareto-25",
+              "variables": {
+                "left_elbow_flexion": 92.756208,
+                "right_elbow_flexion": 89.09106,
+                "left_shoulder_angle": 85.127283,
+                "right_shoulder_angle": 82.598887,
+                "left_hip_angle": 131.302712,
+                "right_hip_angle": 127.268106,
+                "left_knee_flexion": 143.581564,
+                "right_knee_flexion": 152.174151,
+                "left_ankle_angle": 94.197355,
+                "right_ankle_angle": 75.259805,
+                "torso_lean": 0.477543,
+                "pelvis_rotation": -31.032934,
+                "shoulder_rotation": -20.810833,
+                "stance_width": 1.425715,
+                "stance_depth": 2.005256,
+                "guard_width": 0.204671,
+                "guard_height": -0.013854
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 86.32,
+                "static_stability": 75.62,
+                "defense": 79.16,
+                "readiness": 85.02,
+                "power_potential_proxy": 71,
+                "mobility": 91.93,
+                "structural_efficiency": 93.36,
+                "joint_safety": 74.5
+              },
+              "ideal_distance": 0.19495824,
+              "representative": false
+            },
+            {
+              "id": "pareto-48",
+              "variables": {
+                "left_elbow_flexion": 90.62361,
+                "right_elbow_flexion": 87.429191,
+                "left_shoulder_angle": 86.479042,
+                "right_shoulder_angle": 86.297088,
+                "left_hip_angle": 117.352617,
+                "right_hip_angle": 128.296533,
+                "left_knee_flexion": 115.353501,
+                "right_knee_flexion": 153.140912,
+                "left_ankle_angle": 95.995484,
+                "right_ankle_angle": 76.005219,
+                "torso_lean": 1.224477,
+                "pelvis_rotation": -27.592806,
+                "shoulder_rotation": -18.212543,
+                "stance_width": 1.369371,
+                "stance_depth": 1.639392,
+                "guard_width": 0.557368,
+                "guard_height": -0.294088
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 81.57,
+                "static_stability": 73.78,
+                "defense": 69,
+                "readiness": 78.55,
+                "power_potential_proxy": 85.45,
+                "mobility": 93.64,
+                "structural_efficiency": 77.78,
+                "joint_safety": 79.46
+              },
+              "ideal_distance": 0.21260374,
+              "representative": false
+            },
+            {
+              "id": "pareto-4",
+              "variables": {
+                "left_elbow_flexion": 91.785936,
+                "right_elbow_flexion": 88.248086,
+                "left_shoulder_angle": 81.641882,
+                "right_shoulder_angle": 93.933521,
+                "left_hip_angle": 117.640747,
+                "right_hip_angle": 131.651223,
+                "left_knee_flexion": 119.490942,
+                "right_knee_flexion": 152.25538,
+                "left_ankle_angle": 95.107384,
+                "right_ankle_angle": 77.747328,
+                "torso_lean": 0.62699,
+                "pelvis_rotation": -25.840976,
+                "shoulder_rotation": -21.469322,
+                "stance_width": 1.352678,
+                "stance_depth": 0.929477,
+                "guard_width": 2.788997,
+                "guard_height": 1.198043
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 73.07,
+                "static_stability": 85.11,
+                "defense": 66.67,
+                "readiness": 79.92,
+                "power_potential_proxy": 92.73,
+                "mobility": 93.56,
+                "structural_efficiency": 74.35,
+                "joint_safety": 79.22
+              },
+              "ideal_distance": 0.21345637,
+              "representative": false
+            },
+            {
+              "id": "pareto-13",
+              "variables": {
+                "left_elbow_flexion": 91.885151,
+                "right_elbow_flexion": 91.803561,
+                "left_shoulder_angle": 85.506099,
+                "right_shoulder_angle": 93.405681,
+                "left_hip_angle": 116.333017,
+                "right_hip_angle": 129.725223,
+                "left_knee_flexion": 143.269786,
+                "right_knee_flexion": 153.077502,
+                "left_ankle_angle": 94.520715,
+                "right_ankle_angle": 77.612583,
+                "torso_lean": 0.566075,
+                "pelvis_rotation": -30.966347,
+                "shoulder_rotation": -29.769155,
+                "stance_width": 2.950449,
+                "stance_depth": 1.631876,
+                "guard_width": 0.458816,
+                "guard_height": 0.000368
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 80.31,
+                "static_stability": 61.73,
+                "defense": 81.27,
+                "readiness": 80.51,
+                "power_potential_proxy": 77.97,
+                "mobility": 92.41,
+                "structural_efficiency": 86.63,
+                "joint_safety": 77.65
+              },
+              "ideal_distance": 0.21806451,
+              "representative": false
+            },
+            {
+              "id": "pareto-26",
+              "variables": {
+                "left_elbow_flexion": 89.845659,
+                "right_elbow_flexion": 87.422916,
+                "left_shoulder_angle": 81.593759,
+                "right_shoulder_angle": 81.814246,
+                "left_hip_angle": 131.163918,
+                "right_hip_angle": 131.757203,
+                "left_knee_flexion": 152.231778,
+                "right_knee_flexion": 152.718472,
+                "left_ankle_angle": 95.968694,
+                "right_ankle_angle": 76.133603,
+                "torso_lean": 0.951378,
+                "pelvis_rotation": -25.82562,
+                "shoulder_rotation": -9.370885,
+                "stance_width": 2.262638,
+                "stance_depth": 1.919872,
+                "guard_width": 0.155917,
+                "guard_height": 1.207731
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 81.32,
+                "static_stability": 56.97,
+                "defense": 96.54,
+                "readiness": 85.91,
+                "power_potential_proxy": 76.26,
+                "mobility": 90.68,
+                "structural_efficiency": 99.43,
+                "joint_safety": 72.06
+              },
+              "ideal_distance": 0.21915866,
+              "representative": false
+            },
+            {
+              "id": "pareto-16",
+              "variables": {
+                "left_elbow_flexion": 89.731564,
+                "right_elbow_flexion": 98.435887,
+                "left_shoulder_angle": 90.722031,
+                "right_shoulder_angle": 92.636578,
+                "left_hip_angle": 117.317744,
+                "right_hip_angle": 127.108605,
+                "left_knee_flexion": 115.258525,
+                "right_knee_flexion": 151.972406,
+                "left_ankle_angle": 95.539146,
+                "right_ankle_angle": 77.760378,
+                "torso_lean": 0.9593,
+                "pelvis_rotation": -25.729109,
+                "shoulder_rotation": -20.136401,
+                "stance_width": 2.527436,
+                "stance_depth": 1.438668,
+                "guard_width": 0.126531,
+                "guard_height": 0.101425
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 74.43,
+                "static_stability": 55.54,
+                "defense": 81.36,
+                "readiness": 77.26,
+                "power_potential_proxy": 90.2,
+                "mobility": 93.98,
+                "structural_efficiency": 78.18,
+                "joint_safety": 81.03
+              },
+              "ideal_distance": 0.23620244,
+              "representative": false
+            },
+            {
+              "id": "pareto-23",
+              "variables": {
+                "left_elbow_flexion": 91.834176,
+                "right_elbow_flexion": 98.766952,
+                "left_shoulder_angle": 83.57342,
+                "right_shoulder_angle": 84.276602,
+                "left_hip_angle": 129.637832,
+                "right_hip_angle": 127.176561,
+                "left_knee_flexion": 150.226946,
+                "right_knee_flexion": 152.250207,
+                "left_ankle_angle": 95.18423,
+                "right_ankle_angle": 77.636984,
+                "torso_lean": 2.540899,
+                "pelvis_rotation": -25.926608,
+                "shoulder_rotation": -18.74014,
+                "stance_width": 1.41803,
+                "stance_depth": 1.999149,
+                "guard_width": 2.233146,
+                "guard_height": 0.320918
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 78.17,
+                "static_stability": 78.79,
+                "defense": 61.29,
+                "readiness": 82.29,
+                "power_potential_proxy": 68.37,
+                "mobility": 91.36,
+                "structural_efficiency": 97.71,
+                "joint_safety": 73.99
+              },
+              "ideal_distance": 0.23704936,
+              "representative": false
+            },
+            {
+              "id": "pareto-18",
+              "variables": {
+                "left_elbow_flexion": 90.62361,
+                "right_elbow_flexion": 87.425298,
+                "left_shoulder_angle": 86.479042,
+                "right_shoulder_angle": 86.297088,
+                "left_hip_angle": 117.157466,
+                "right_hip_angle": 128.296533,
+                "left_knee_flexion": 115.353437,
+                "right_knee_flexion": 153.140912,
+                "left_ankle_angle": 96.025912,
+                "right_ankle_angle": 77.529288,
+                "torso_lean": 16.188151,
+                "pelvis_rotation": -27.592806,
+                "shoulder_rotation": -20.797604,
+                "stance_width": 1.369371,
+                "stance_depth": 1.838824,
+                "guard_width": 0.556509,
+                "guard_height": -0.309867
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 79.49,
+                "static_stability": 67.55,
+                "defense": 68.34,
+                "readiness": 76.82,
+                "power_potential_proxy": 74.68,
+                "mobility": 93.69,
+                "structural_efficiency": 77.7,
+                "joint_safety": 79.68
+              },
+              "ideal_distance": 0.23990731,
+              "representative": false
+            },
+            {
+              "id": "pareto-19",
+              "variables": {
+                "left_elbow_flexion": 89.595996,
+                "right_elbow_flexion": 88.665613,
+                "left_shoulder_angle": 83.933248,
+                "right_shoulder_angle": 83.56051,
+                "left_hip_angle": 129.731732,
+                "right_hip_angle": 127.079136,
+                "left_knee_flexion": 115.898831,
+                "right_knee_flexion": 152.665243,
+                "left_ankle_angle": 94.230372,
+                "right_ankle_angle": 77.745432,
+                "torso_lean": 0.51862,
+                "pelvis_rotation": -26.36796,
+                "shoulder_rotation": -19.928174,
+                "stance_width": 1.149069,
+                "stance_depth": 2.961588,
+                "guard_width": 0.254238,
+                "guard_height": 0.356571
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 77.61,
+                "static_stability": 58.29,
+                "defense": 96.11,
+                "readiness": 82.42,
+                "power_potential_proxy": 61.37,
+                "mobility": 93.33,
+                "structural_efficiency": 81.95,
+                "joint_safety": 77.78
+              },
+              "ideal_distance": 0.24803028,
+              "representative": false
+            },
+            {
+              "id": "pareto-37",
+              "variables": {
+                "left_elbow_flexion": 94.482518,
+                "right_elbow_flexion": 88.390186,
+                "left_shoulder_angle": 85.6083,
+                "right_shoulder_angle": 85.096857,
+                "left_hip_angle": 125.720721,
+                "right_hip_angle": 127.114715,
+                "left_knee_flexion": 135.248653,
+                "right_knee_flexion": 152.842915,
+                "left_ankle_angle": 94.55229,
+                "right_ankle_angle": 77.741352,
+                "torso_lean": 1.278635,
+                "pelvis_rotation": -24.719175,
+                "shoulder_rotation": -21.100708,
+                "stance_width": 0.97391,
+                "stance_depth": 0.86569,
+                "guard_width": 2.521943,
+                "guard_height": -0.292804
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 80.68,
+                "static_stability": 92,
+                "defense": 35.72,
+                "readiness": 77.91,
+                "power_potential_proxy": 92.02,
+                "mobility": 92.75,
+                "structural_efficiency": 91.19,
+                "joint_safety": 76.52
+              },
+              "ideal_distance": 0.26931205,
+              "representative": false
+            },
+            {
+              "id": "pareto-33",
+              "variables": {
+                "left_elbow_flexion": 92.785972,
+                "right_elbow_flexion": 89.067204,
+                "left_shoulder_angle": 86.632371,
+                "right_shoulder_angle": 93.714881,
+                "left_hip_angle": 116.592292,
+                "right_hip_angle": 127.021606,
+                "left_knee_flexion": 146.451843,
+                "right_knee_flexion": 152.743323,
+                "left_ankle_angle": 95.168502,
+                "right_ankle_angle": 77.52526,
+                "torso_lean": 15.635943,
+                "pelvis_rotation": -25.606715,
+                "shoulder_rotation": -30.090669,
+                "stance_width": 2.370307,
+                "stance_depth": 2.768228,
+                "guard_width": 0.396787,
+                "guard_height": 0.219869
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 76.5,
+                "static_stability": 47.14,
+                "defense": 90.41,
+                "readiness": 79.92,
+                "power_potential_proxy": 59.51,
+                "mobility": 92.25,
+                "structural_efficiency": 89.87,
+                "joint_safety": 77.47
+              },
+              "ideal_distance": 0.27729327,
+              "representative": false
+            },
+            {
+              "id": "pareto-32",
+              "variables": {
+                "left_elbow_flexion": 92.009585,
+                "right_elbow_flexion": 88.338828,
+                "left_shoulder_angle": 86.632371,
+                "right_shoulder_angle": 93.534352,
+                "left_hip_angle": 116.592292,
+                "right_hip_angle": 127.064891,
+                "left_knee_flexion": 146.748197,
+                "right_knee_flexion": 152.760851,
+                "left_ankle_angle": 95.168502,
+                "right_ankle_angle": 77.759205,
+                "torso_lean": 15.635943,
+                "pelvis_rotation": -25.606715,
+                "shoulder_rotation": -29.49171,
+                "stance_width": 2.385859,
+                "stance_depth": 2.874291,
+                "guard_width": 0.433134,
+                "guard_height": 0.220647
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 76.59,
+                "static_stability": 47.27,
+                "defense": 90.44,
+                "readiness": 79.99,
+                "power_potential_proxy": 58.94,
+                "mobility": 92.22,
+                "structural_efficiency": 90.04,
+                "joint_safety": 77.37
+              },
+              "ideal_distance": 0.27789488,
+              "representative": false
+            },
+            {
+              "id": "pareto-21",
+              "variables": {
+                "left_elbow_flexion": 91.909917,
+                "right_elbow_flexion": 100.168888,
+                "left_shoulder_angle": 83.894444,
+                "right_shoulder_angle": 86.327784,
+                "left_hip_angle": 125.890459,
+                "right_hip_angle": 128.705668,
+                "left_knee_flexion": 136.06874,
+                "right_knee_flexion": 157.838554,
+                "left_ankle_angle": 94.571923,
+                "right_ankle_angle": 77.529614,
+                "torso_lean": 15.74733,
+                "pelvis_rotation": -30.883449,
+                "shoulder_rotation": -20.797283,
+                "stance_width": 2.460859,
+                "stance_depth": 0.843852,
+                "guard_width": 1.679889,
+                "guard_height": -0.404756
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 76.28,
+                "static_stability": 65.1,
+                "defense": 45.67,
+                "readiness": 72.65,
+                "power_potential_proxy": 98.18,
+                "mobility": 91.85,
+                "structural_efficiency": 87.96,
+                "joint_safety": 75.31
+              },
+              "ideal_distance": 0.28072924,
+              "representative": false
+            },
+            {
+              "id": "pareto-46",
+              "variables": {
+                "left_elbow_flexion": 91.505193,
+                "right_elbow_flexion": 89.07172,
+                "left_shoulder_angle": 85.127283,
+                "right_shoulder_angle": 83.565983,
+                "left_hip_angle": 129.971299,
+                "right_hip_angle": 132.134998,
+                "left_knee_flexion": 115.79488,
+                "right_knee_flexion": 152.706215,
+                "left_ankle_angle": 94.230372,
+                "right_ankle_angle": 77.426239,
+                "torso_lean": 0.51862,
+                "pelvis_rotation": -31.09547,
+                "shoulder_rotation": -19.82579,
+                "stance_width": 0.656186,
+                "stance_depth": 1.72749,
+                "guard_width": 2.695464,
+                "guard_height": -0.013854
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 70.76,
+                "static_stability": 71.43,
+                "defense": 47.34,
+                "readiness": 73.4,
+                "power_potential_proxy": 83.58,
+                "mobility": 93.13,
+                "structural_efficiency": 81.68,
+                "joint_safety": 77.51
+              },
+              "ideal_distance": 0.28084902,
+              "representative": false
+            },
+            {
+              "id": "pareto-24",
+              "variables": {
+                "left_elbow_flexion": 89.759903,
+                "right_elbow_flexion": 99.777248,
+                "left_shoulder_angle": 83.894444,
+                "right_shoulder_angle": 86.327784,
+                "left_hip_angle": 128.136556,
+                "right_hip_angle": 129.405055,
+                "left_knee_flexion": 153.502901,
+                "right_knee_flexion": 152.600328,
+                "left_ankle_angle": 94.814902,
+                "right_ankle_angle": 77.758965,
+                "torso_lean": 15.208733,
+                "pelvis_rotation": -25.83752,
+                "shoulder_rotation": -20.797283,
+                "stance_width": 2.491036,
+                "stance_depth": 0.919755,
+                "guard_width": 2.369962,
+                "guard_height": -0.404756
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 76.85,
+                "static_stability": 74.59,
+                "defense": 33.33,
+                "readiness": 74.24,
+                "power_potential_proxy": 93.37,
+                "mobility": 90.87,
+                "structural_efficiency": 98.14,
+                "joint_safety": 73.42
+              },
+              "ideal_distance": 0.29848214,
+              "representative": false
+            },
+            {
+              "id": "pareto-2",
+              "variables": {
+                "left_elbow_flexion": 92.010386,
+                "right_elbow_flexion": 99.552707,
+                "left_shoulder_angle": 83.880597,
+                "right_shoulder_angle": 86.327784,
+                "left_hip_angle": 130.761116,
+                "right_hip_angle": 127.098099,
+                "left_knee_flexion": 153.834882,
+                "right_knee_flexion": 152.602793,
+                "left_ankle_angle": 94.814902,
+                "right_ankle_angle": 77.552528,
+                "torso_lean": 0.150299,
+                "pelvis_rotation": -23.913449,
+                "shoulder_rotation": -28.946348,
+                "stance_width": 2.429747,
+                "stance_depth": 0.975361,
+                "guard_width": 2.383561,
+                "guard_height": -0.404705
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 76.4,
+                "static_stability": 74.44,
+                "defense": 33.33,
+                "readiness": 73.88,
+                "power_potential_proxy": 93.36,
+                "mobility": 90.83,
+                "structural_efficiency": 96.9,
+                "joint_safety": 73.6
+              },
+              "ideal_distance": 0.29941955,
+              "representative": false
+            },
+            {
+              "id": "pareto-28",
+              "variables": {
+                "left_elbow_flexion": 92.011012,
+                "right_elbow_flexion": 99.552707,
+                "left_shoulder_angle": 83.894444,
+                "right_shoulder_angle": 86.327784,
+                "left_hip_angle": 116.524547,
+                "right_hip_angle": 129.406413,
+                "left_knee_flexion": 153.502901,
+                "right_knee_flexion": 152.600328,
+                "left_ankle_angle": 94.814902,
+                "right_ankle_angle": 77.758965,
+                "torso_lean": 15.208733,
+                "pelvis_rotation": -23.913449,
+                "shoulder_rotation": -28.784607,
+                "stance_width": 2.429747,
+                "stance_depth": 0.91731,
+                "guard_width": 2.370507,
+                "guard_height": -0.404705
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 75.28,
+                "static_stability": 74.59,
+                "defense": 33.33,
+                "readiness": 73.01,
+                "power_potential_proxy": 93.21,
+                "mobility": 91.24,
+                "structural_efficiency": 92.87,
+                "joint_safety": 75.11
+              },
+              "ideal_distance": 0.30048474,
+              "representative": false
+            },
+            {
+              "id": "pareto-12",
+              "variables": {
+                "left_elbow_flexion": 89.878446,
+                "right_elbow_flexion": 88.380384,
+                "left_shoulder_angle": 81.776243,
+                "right_shoulder_angle": 85.133126,
+                "left_hip_angle": 130.737323,
+                "right_hip_angle": 127.165474,
+                "left_knee_flexion": 119.892471,
+                "right_knee_flexion": 152.259175,
+                "left_ankle_angle": 95.963954,
+                "right_ankle_angle": 77.437561,
+                "torso_lean": 0.932309,
+                "pelvis_rotation": -25.746661,
+                "shoulder_rotation": -10.595424,
+                "stance_width": 2.385324,
+                "stance_depth": 1.639298,
+                "guard_width": 2.376612,
+                "guard_height": 0.241587
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 64.25,
+                "static_stability": 51.25,
+                "defense": 57.98,
+                "readiness": 71.23,
+                "power_potential_proxy": 87.95,
+                "mobility": 93.21,
+                "structural_efficiency": 82.47,
+                "joint_safety": 77.11
+              },
+              "ideal_distance": 0.30146679,
+              "representative": false
+            },
+            {
+              "id": "pareto-17",
+              "variables": {
+                "left_elbow_flexion": 92.148373,
+                "right_elbow_flexion": 88.390186,
+                "left_shoulder_angle": 85.533087,
+                "right_shoulder_angle": 91.653693,
+                "left_hip_angle": 116.383134,
+                "right_hip_angle": 127.134215,
+                "left_knee_flexion": 118.306108,
+                "right_knee_flexion": 152.805173,
+                "left_ankle_angle": 96.338476,
+                "right_ankle_angle": 77.740366,
+                "torso_lean": 0.940827,
+                "pelvis_rotation": -25.50464,
+                "shoulder_rotation": -26.185181,
+                "stance_width": 2.941049,
+                "stance_depth": 1.930136,
+                "guard_width": 0.510564,
+                "guard_height": 0.129594
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 70.63,
+                "static_stability": 41.19,
+                "defense": 86.65,
+                "readiness": 74.72,
+                "power_potential_proxy": 65.05,
+                "mobility": 93.79,
+                "structural_efficiency": 77.25,
+                "joint_safety": 80.4
+              },
+              "ideal_distance": 0.30208242,
+              "representative": false
+            },
+            {
+              "id": "pareto-5",
+              "variables": {
+                "left_elbow_flexion": 89.727607,
+                "right_elbow_flexion": 98.14725,
+                "left_shoulder_angle": 91.864676,
+                "right_shoulder_angle": 92.636578,
+                "left_hip_angle": 117.317744,
+                "right_hip_angle": 127.108605,
+                "left_knee_flexion": 115.258525,
+                "right_knee_flexion": 151.972406,
+                "left_ankle_angle": 95.539146,
+                "right_ankle_angle": 77.760378,
+                "torso_lean": 0.95844,
+                "pelvis_rotation": -25.729109,
+                "shoulder_rotation": -20.136401,
+                "stance_width": 2.483655,
+                "stance_depth": 1.438668,
+                "guard_width": 2.72642,
+                "guard_height": 0.095136
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 64.84,
+                "static_stability": 55.54,
+                "defense": 51.88,
+                "readiness": 70,
+                "power_potential_proxy": 90.2,
+                "mobility": 93.99,
+                "structural_efficiency": 78.59,
+                "joint_safety": 81.19
+              },
+              "ideal_distance": 0.30357898,
+              "representative": false
+            },
+            {
+              "id": "pareto-15",
+              "variables": {
+                "left_elbow_flexion": 91.696169,
+                "right_elbow_flexion": 88.410361,
+                "left_shoulder_angle": 83.609347,
+                "right_shoulder_angle": 85.202882,
+                "left_hip_angle": 124.642624,
+                "right_hip_angle": 127.098793,
+                "left_knee_flexion": 115.539479,
+                "right_knee_flexion": 152.186988,
+                "left_ankle_angle": 95.074601,
+                "right_ankle_angle": 77.626889,
+                "torso_lean": 1.151869,
+                "pelvis_rotation": -25.926089,
+                "shoulder_rotation": -28.247036,
+                "stance_width": 2.497994,
+                "stance_depth": 1.997569,
+                "guard_width": 0.209147,
+                "guard_height": 0.180653
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 70.46,
+                "static_stability": 38.11,
+                "defense": 87.42,
+                "readiness": 75.2,
+                "power_potential_proxy": 63.8,
+                "mobility": 93.63,
+                "structural_efficiency": 81.66,
+                "joint_safety": 78.93
+              },
+              "ideal_distance": 0.30837472,
+              "representative": false
+            },
+            {
+              "id": "pareto-20",
+              "variables": {
+                "left_elbow_flexion": 89.731588,
+                "right_elbow_flexion": 98.148142,
+                "left_shoulder_angle": 81.820951,
+                "right_shoulder_angle": 92.408213,
+                "left_hip_angle": 116.576817,
+                "right_hip_angle": 127.15638,
+                "left_knee_flexion": 115.25812,
+                "right_knee_flexion": 151.985198,
+                "left_ankle_angle": 95.539146,
+                "right_ankle_angle": 77.431444,
+                "torso_lean": 0.479971,
+                "pelvis_rotation": -25.735847,
+                "shoulder_rotation": -20.136401,
+                "stance_width": 2.403353,
+                "stance_depth": 1.438668,
+                "guard_width": 2.387505,
+                "guard_height": 0.045457
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 63.43,
+                "static_stability": 55.53,
+                "defense": 49.81,
+                "readiness": 68.49,
+                "power_potential_proxy": 90.21,
+                "mobility": 93.89,
+                "structural_efficiency": 74.72,
+                "joint_safety": 80.09
+              },
+              "ideal_distance": 0.3161393,
+              "representative": false
+            },
+            {
+              "id": "pareto-43",
+              "variables": {
+                "left_elbow_flexion": 92.135206,
+                "right_elbow_flexion": 88.449841,
+                "left_shoulder_angle": 83.462332,
+                "right_shoulder_angle": 86.145833,
+                "left_hip_angle": 116.735596,
+                "right_hip_angle": 126.967011,
+                "left_knee_flexion": 149.134971,
+                "right_knee_flexion": 152.800901,
+                "left_ankle_angle": 94.230832,
+                "right_ankle_angle": 77.735043,
+                "torso_lean": 1.530304,
+                "pelvis_rotation": -24.052758,
+                "shoulder_rotation": -26.329913,
+                "stance_width": 1.365033,
+                "stance_depth": 2.889711,
+                "guard_width": 2.398385,
+                "guard_height": -0.292305
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 74.92,
+                "static_stability": 73.33,
+                "defense": 35.74,
+                "readiness": 73.42,
+                "power_potential_proxy": 57.41,
+                "mobility": 91.87,
+                "structural_efficiency": 92.72,
+                "joint_safety": 76.06
+              },
+              "ideal_distance": 0.32943638,
+              "representative": false
+            },
+            {
+              "id": "pareto-11",
+              "variables": {
+                "left_elbow_flexion": 91.89883,
+                "right_elbow_flexion": 88.379672,
+                "left_shoulder_angle": 82.414622,
+                "right_shoulder_angle": 81.656526,
+                "left_hip_angle": 131.219353,
+                "right_hip_angle": 130.071531,
+                "left_knee_flexion": 119.295319,
+                "right_knee_flexion": 153.330803,
+                "left_ankle_angle": 95.949211,
+                "right_ankle_angle": 77.632219,
+                "torso_lean": 0.968526,
+                "pelvis_rotation": -25.164604,
+                "shoulder_rotation": -20.706225,
+                "stance_width": 2.403479,
+                "stance_depth": 0.260175,
+                "guard_width": 2.376672,
+                "guard_height": -0.289064
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 67.38,
+                "static_stability": 59.53,
+                "defense": 35.87,
+                "readiness": 68.02,
+                "power_potential_proxy": 92.82,
+                "mobility": 92.94,
+                "structural_efficiency": 83.74,
+                "joint_safety": 76.58
+              },
+              "ideal_distance": 0.33074806,
+              "representative": false
+            },
+            {
+              "id": "pareto-3",
+              "variables": {
+                "left_elbow_flexion": 91.911551,
+                "right_elbow_flexion": 88.372422,
+                "left_shoulder_angle": 84.888809,
+                "right_shoulder_angle": 85.187527,
+                "left_hip_angle": 125.833618,
+                "right_hip_angle": 126.966698,
+                "left_knee_flexion": 117.82824,
+                "right_knee_flexion": 157.996208,
+                "left_ankle_angle": 106.574896,
+                "right_ankle_angle": 77.529476,
+                "torso_lean": 2.633186,
+                "pelvis_rotation": -27.910119,
+                "shoulder_rotation": -27.851582,
+                "stance_width": 2.315799,
+                "stance_depth": 2.941411,
+                "guard_width": 0.521864,
+                "guard_height": 1.209968
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 68.34,
+                "static_stability": 31.74,
+                "defense": 99.58,
+                "readiness": 76.25,
+                "power_potential_proxy": 55.29,
+                "mobility": 92.54,
+                "structural_efficiency": 81.12,
+                "joint_safety": 76.5
+              },
+              "ideal_distance": 0.33892039,
+              "representative": false
+            },
+            {
+              "id": "pareto-30",
+              "variables": {
+                "left_elbow_flexion": 90.516855,
+                "right_elbow_flexion": 88.390186,
+                "left_shoulder_angle": 86.440044,
+                "right_shoulder_angle": 91.469048,
+                "left_hip_angle": 125.834235,
+                "right_hip_angle": 127.076092,
+                "left_knee_flexion": 115.294402,
+                "right_knee_flexion": 153.143563,
+                "left_ankle_angle": 94.537733,
+                "right_ankle_angle": 77.740533,
+                "torso_lean": 1.224481,
+                "pelvis_rotation": -24.055486,
+                "shoulder_rotation": -19.964915,
+                "stance_width": 2.352676,
+                "stance_depth": 1.870639,
+                "guard_width": 2.545672,
+                "guard_height": 0.144311
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 60.61,
+                "static_stability": 41.53,
+                "defense": 53.93,
+                "readiness": 67.36,
+                "power_potential_proxy": 70.77,
+                "mobility": 93.56,
+                "structural_efficiency": 80.44,
+                "joint_safety": 79.58
+              },
+              "ideal_distance": 0.3509552,
+              "representative": false
+            },
+            {
+              "id": "pareto-1",
+              "variables": {
+                "left_elbow_flexion": 91.80421,
+                "right_elbow_flexion": 92.736314,
+                "left_shoulder_angle": 83.606244,
+                "right_shoulder_angle": 92.768688,
+                "left_hip_angle": 116.36456,
+                "right_hip_angle": 127.13606,
+                "left_knee_flexion": 115.391328,
+                "right_knee_flexion": 152.73955,
+                "left_ankle_angle": 95.107384,
+                "right_ankle_angle": 77.747189,
+                "torso_lean": 1.089773,
+                "pelvis_rotation": -25.729109,
+                "shoulder_rotation": -19.930343,
+                "stance_width": 2.483786,
+                "stance_depth": 2.93252,
+                "guard_width": 2.763749,
+                "guard_height": 1.062681
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 56.09,
+                "static_stability": 33.02,
+                "defense": 66.67,
+                "readiness": 67.11,
+                "power_potential_proxy": 60.76,
+                "mobility": 93.9,
+                "structural_efficiency": 74.86,
+                "joint_safety": 81.15
+              },
+              "ideal_distance": 0.37368736,
+              "representative": false
+            },
+            {
+              "id": "pareto-14",
+              "variables": {
+                "left_elbow_flexion": 94.482518,
+                "right_elbow_flexion": 88.389216,
+                "left_shoulder_angle": 86.195805,
+                "right_shoulder_angle": 85.060122,
+                "left_hip_angle": 125.612164,
+                "right_hip_angle": 127.123547,
+                "left_knee_flexion": 117.593718,
+                "right_knee_flexion": 153.611056,
+                "left_ankle_angle": 106.845401,
+                "right_ankle_angle": 77.741352,
+                "torso_lean": 1.309924,
+                "pelvis_rotation": -23.935429,
+                "shoulder_rotation": -28.110397,
+                "stance_width": 2.364486,
+                "stance_depth": 1.976216,
+                "guard_width": 2.521943,
+                "guard_height": -0.101895
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 60.2,
+                "static_stability": 39.06,
+                "defense": 43.67,
+                "readiness": 64.62,
+                "power_potential_proxy": 66.46,
+                "mobility": 93.22,
+                "structural_efficiency": 82.54,
+                "joint_safety": 77
+              },
+              "ideal_distance": 0.38287218,
+              "representative": false
+            },
+            {
+              "id": "pareto-45",
+              "variables": {
+                "left_elbow_flexion": 94.482518,
+                "right_elbow_flexion": 88.390186,
+                "left_shoulder_angle": 85.720048,
+                "right_shoulder_angle": 91.868944,
+                "left_hip_angle": 125.834235,
+                "right_hip_angle": 127.123547,
+                "left_knee_flexion": 117.031613,
+                "right_knee_flexion": 152.79672,
+                "left_ankle_angle": 94.55229,
+                "right_ankle_angle": 77.741705,
+                "torso_lean": 1.309924,
+                "pelvis_rotation": -24.055486,
+                "shoulder_rotation": -19.964915,
+                "stance_width": 2.369348,
+                "stance_depth": 2.977977,
+                "guard_width": 2.521943,
+                "guard_height": 0.144311
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 58.17,
+                "static_stability": 33.74,
+                "defense": 53.93,
+                "readiness": 65.55,
+                "power_potential_proxy": 59.13,
+                "mobility": 93.55,
+                "structural_efficiency": 80.96,
+                "joint_safety": 79.38
+              },
+              "ideal_distance": 0.38647525,
+              "representative": false
+            },
+            {
+              "id": "pareto-22",
+              "variables": {
+                "left_elbow_flexion": 94.482518,
+                "right_elbow_flexion": 92.796247,
+                "left_shoulder_angle": 85.140647,
+                "right_shoulder_angle": 91.80432,
+                "left_hip_angle": 123.71396,
+                "right_hip_angle": 127.514842,
+                "left_knee_flexion": 117.031613,
+                "right_knee_flexion": 152.416094,
+                "left_ankle_angle": 94.55229,
+                "right_ankle_angle": 77.741705,
+                "torso_lean": 1.309924,
+                "pelvis_rotation": -30.432505,
+                "shoulder_rotation": -19.929122,
+                "stance_width": 2.369348,
+                "stance_depth": 2.977977,
+                "guard_width": 2.476204,
+                "guard_height": 0.005098
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 57.91,
+                "static_stability": 33.92,
+                "defense": 48.13,
+                "readiness": 63.89,
+                "power_potential_proxy": 65.24,
+                "mobility": 93.69,
+                "structural_efficiency": 79.81,
+                "joint_safety": 79.99
+              },
+              "ideal_distance": 0.39033116,
+              "representative": false
+            },
+            {
+              "id": "pareto-10",
+              "variables": {
+                "left_elbow_flexion": 93.421622,
+                "right_elbow_flexion": 92.731947,
+                "left_shoulder_angle": 85.129477,
+                "right_shoulder_angle": 93.057642,
+                "left_hip_angle": 116.36456,
+                "right_hip_angle": 127.13606,
+                "left_knee_flexion": 115.391328,
+                "right_knee_flexion": 152.414407,
+                "left_ankle_angle": 95.156356,
+                "right_ankle_angle": 77.747189,
+                "torso_lean": 1.089773,
+                "pelvis_rotation": -30.879484,
+                "shoulder_rotation": -19.92738,
+                "stance_width": 2.483786,
+                "stance_depth": 2.947783,
+                "guard_width": 2.837001,
+                "guard_height": 0.007976
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 56.35,
+                "static_stability": 33.17,
+                "defense": 48.25,
+                "readiness": 62.7,
+                "power_potential_proxy": 65.67,
+                "mobility": 93.95,
+                "structural_efficiency": 75.44,
+                "joint_safety": 81.3
+              },
+              "ideal_distance": 0.39700376,
+              "representative": false
+            },
+            {
+              "id": "pareto-6",
+              "variables": {
+                "left_elbow_flexion": 94.482518,
+                "right_elbow_flexion": 88.390186,
+                "left_shoulder_angle": 85.611169,
+                "right_shoulder_angle": 85.095639,
+                "left_hip_angle": 125.834235,
+                "right_hip_angle": 127.123547,
+                "left_knee_flexion": 117.010072,
+                "right_knee_flexion": 152.79672,
+                "left_ankle_angle": 94.55229,
+                "right_ankle_angle": 77.741352,
+                "torso_lean": 1.309924,
+                "pelvis_rotation": -24.055486,
+                "shoulder_rotation": -28.110397,
+                "stance_width": 2.378247,
+                "stance_depth": 2.974399,
+                "guard_width": 2.521943,
+                "guard_height": -0.292804
+              },
+              "target_scores": {
+                "energy_efficiency_proxy": 58.74,
+                "static_stability": 33.73,
+                "defense": 35.72,
+                "readiness": 61.47,
+                "power_potential_proxy": 59.1,
+                "mobility": 93.48,
+                "structural_efficiency": 82.96,
+                "joint_safety": 78.59
+              },
+              "ideal_distance": 0.42093126,
+              "representative": false
+            }
+          ],
+          "pareto_ranges": {
+            "left_elbow_flexion": {
+              "optimal_min": 89.563883,
+              "optimal_max": 94.482518,
+              "representative_value": 93.166242
+            },
+            "right_elbow_flexion": {
+              "optimal_min": 86.988772,
+              "optimal_max": 100.168888,
+              "representative_value": 97.68476
+            },
+            "left_shoulder_angle": {
+              "optimal_min": 81.024436,
+              "optimal_max": 91.864676,
+              "representative_value": 81.024436
+            },
+            "right_shoulder_angle": {
+              "optimal_min": 81.656526,
+              "optimal_max": 93.933521,
+              "representative_value": 81.797514
+            },
+            "left_hip_angle": {
+              "optimal_min": 116.333017,
+              "optimal_max": 133.889429,
+              "representative_value": 119.610044
+            },
+            "right_hip_angle": {
+              "optimal_min": 126.9578,
+              "optimal_max": 132.134998,
+              "representative_value": 127.319977
+            },
+            "left_knee_flexion": {
+              "optimal_min": 115.25812,
+              "optimal_max": 153.834882,
+              "representative_value": 137.713373
+            },
+            "right_knee_flexion": {
+              "optimal_min": 151.972406,
+              "optimal_max": 158.041837,
+              "representative_value": 153.962716
+            },
+            "left_ankle_angle": {
+              "optimal_min": 92.909661,
+              "optimal_max": 106.845401,
+              "representative_value": 94.230882
+            },
+            "right_ankle_angle": {
+              "optimal_min": 72.066628,
+              "optimal_max": 77.760378,
+              "representative_value": 77.733646
+            },
+            "torso_lean": {
+              "optimal_min": 0.150299,
+              "optimal_max": 16.188151,
+              "representative_value": 1.58972
+            },
+            "pelvis_rotation": {
+              "optimal_min": -31.265595,
+              "optimal_max": -23.913449,
+              "representative_value": -25.34517
+            },
+            "shoulder_rotation": {
+              "optimal_min": -31.411009,
+              "optimal_max": -9.132722,
+              "representative_value": -19.818612
+            },
+            "stance_width": {
+              "optimal_min": 0.656186,
+              "optimal_max": 2.950449,
+              "representative_value": 0.686498
+            },
+            "stance_depth": {
+              "optimal_min": 0.030972,
+              "optimal_max": 2.977977,
+              "representative_value": 1.585837
+            },
+            "guard_width": {
+              "optimal_min": 0.050672,
+              "optimal_max": 2.837001,
+              "representative_value": 0.070202
+            },
+            "guard_height": {
+              "optimal_min": -0.404756,
+              "optimal_max": 1.209968,
+              "representative_value": 1.197473
+            }
+          },
+          "optimal_ranges": {
+            "left_elbow_flexion": {
+              "optimal_min": 89.563883,
+              "optimal_max": 93.203235,
+              "representative_value": 92.090485,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "right_elbow_flexion": {
+              "optimal_min": 86.988772,
+              "optimal_max": 98.230022,
+              "representative_value": 98.240515,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "left_shoulder_angle": {
+              "optimal_min": 81.593759,
+              "optimal_max": 84.88594,
+              "representative_value": 80.999606,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "right_shoulder_angle": {
+              "optimal_min": 81.709545,
+              "optimal_max": 92.601844,
+              "representative_value": 81.32747,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "left_hip_angle": {
+              "optimal_min": 116.473802,
+              "optimal_max": 133.889429,
+              "representative_value": 127.640653,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "right_hip_angle": {
+              "optimal_min": 126.9578,
+              "optimal_max": 131.757203,
+              "representative_value": 131.989632,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "left_knee_flexion": {
+              "optimal_min": 136.049723,
+              "optimal_max": 152.240911,
+              "representative_value": 133.395425,
+              "sensitivity": "Medium",
+              "robustness": "High"
+            },
+            "right_knee_flexion": {
+              "optimal_min": 152.2123,
+              "optimal_max": 158.041837,
+              "representative_value": 152.441643,
+              "sensitivity": "Medium",
+              "robustness": "High"
+            },
+            "left_ankle_angle": {
+              "optimal_min": 94.444193,
+              "optimal_max": 106.574896,
+              "representative_value": 94.857532,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "right_ankle_angle": {
+              "optimal_min": 72.279273,
+              "optimal_max": 77.692078,
+              "representative_value": 78.203501,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "torso_lean": {
+              "optimal_min": 0.486269,
+              "optimal_max": 4.529613,
+              "representative_value": 2.741705,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "pelvis_rotation": {
+              "optimal_min": -30.870699,
+              "optimal_max": -25.728116,
+              "representative_value": -19.224917,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "shoulder_rotation": {
+              "optimal_min": -28.652309,
+              "optimal_max": -9.132722,
+              "representative_value": -19.949812,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "stance_width": {
+              "optimal_min": 0.684553,
+              "optimal_max": 1.372743,
+              "representative_value": 0.800763,
+              "sensitivity": "Low",
+              "robustness": "High"
+            },
+            "stance_depth": {
+              "optimal_min": 0.030972,
+              "optimal_max": 1.636176,
+              "representative_value": 1.719534,
+              "sensitivity": "High",
+              "robustness": "High"
+            },
+            "guard_width": {
+              "optimal_min": 0.050672,
+              "optimal_max": 0.575959,
+              "representative_value": 0.804316,
+              "sensitivity": "High",
+              "robustness": "High"
+            },
+            "guard_height": {
+              "optimal_min": 0.270713,
+              "optimal_max": 1.209968,
+              "representative_value": 1.367157,
+              "sensitivity": "Medium",
+              "robustness": "High"
+            }
+          },
+          "representative_variables": {
+            "left_elbow_flexion": 92.090485,
+            "right_elbow_flexion": 98.240515,
+            "left_shoulder_angle": 80.999606,
+            "right_shoulder_angle": 81.32747,
+            "left_hip_angle": 127.640653,
+            "right_hip_angle": 131.989632,
+            "left_knee_flexion": 133.395425,
+            "right_knee_flexion": 152.441643,
+            "left_ankle_angle": 94.857532,
+            "right_ankle_angle": 78.203501,
+            "torso_lean": 2.741705,
+            "pelvis_rotation": -19.224917,
+            "shoulder_rotation": -19.949812,
+            "stance_width": 0.800763,
+            "stance_depth": 1.719534,
+            "guard_width": 0.804316,
+            "guard_height": 1.367157
+          },
+          "representative_requested_variables": {
+            "left_elbow_flexion": 93.166242,
+            "right_elbow_flexion": 97.68476,
+            "left_shoulder_angle": 81.024436,
+            "right_shoulder_angle": 81.797514,
+            "left_hip_angle": 119.610044,
+            "right_hip_angle": 127.319977,
+            "left_knee_flexion": 137.713373,
+            "right_knee_flexion": 153.962716,
+            "left_ankle_angle": 94.230882,
+            "right_ankle_angle": 77.733646,
+            "torso_lean": 1.58972,
+            "pelvis_rotation": -25.34517,
+            "shoulder_rotation": -19.818612,
+            "stance_width": 0.686498,
+            "stance_depth": 1.585837,
+            "guard_width": 0.070202,
+            "guard_height": 1.197473
+          },
+          "representative_requested_scores": {
+            "energy_efficiency_proxy": 86.68,
+            "static_stability": 85.24,
+            "defense": 94.01,
+            "readiness": 90.15,
+            "power_potential_proxy": 84.01,
+            "mobility": 92.52,
+            "structural_efficiency": 88.83,
+            "joint_safety": 75.91
+          },
+          "representative_scores": {
+            "energy_efficiency_proxy": 86.91,
+            "static_stability": 79.79,
+            "defense": 93.04,
+            "readiness": 88.65,
+            "power_potential_proxy": 73.86,
+            "mobility": 92.54,
+            "structural_efficiency": 89.25,
+            "joint_safety": 75.09
+          },
+          "representative_pose": {
+            "schema_version": "1.0",
+            "coordinate_space": "body_normalized_v1",
+            "origin": "hip_center",
+            "scale_basis": "torso_length",
+            "tolerance": 0.5,
+            "landmarks": {
+              "ankle_left": [
+                -0.3999969118016578,
+                -1.3868207843724074,
+                0.7016735364439163
+              ],
+              "ankle_right": [
+                0.401009165239207,
+                -1.2832494866478634,
+                -1.0183822592516378
+              ],
+              "elbow_left": [
+                -0.39639617695045287,
+                0.8522688147448485,
+                0.7455076325708683
+              ],
+              "elbow_right": [
+                0.46996673936519795,
+                0.9294837091285585,
+                0.4230103543045853
+              ],
+              "foot_left": [
+                -0.40737118949865087,
+                -1.4189079586047986,
+                1.0532393999592444
+              ],
+              "foot_right": [
+                0.32847798203314155,
+                -1.3485856489060755,
+                -0.6781932801712097
+              ],
+              "head": [
+                0.012458243514899124,
+                1.4697658807703582,
+                0.10543559003508325
+              ],
+              "hip_left": [
+                -0.3420364122016824,
+                -0.014837676702484499,
+                0.11838910350574304
+              ],
+              "hip_right": [
+                0.3406919903082427,
+                0.011663378723335338,
+                -0.11969503980686562
+              ],
+              "knee_left": [
+                -0.45867520321898236,
+                -0.605266931104285,
+                0.7051165890922275
+              ],
+              "knee_right": [
+                0.5108243341095884,
+                -0.579424695623327,
+                -0.6932528223397105
+              ],
+              "shoulder_left": [
+                -0.4602858711242861,
+                0.9833676408618682,
+                0.21586001941234612
+              ],
+              "shoulder_right": [
+                0.4712381680607929,
+                1.0117745640554028,
+                -0.12226324215463649
+              ],
+              "wrist_left": [
+                -0.2096644883658421,
+                1.3158714284089659,
+                0.8571097364318611
+              ],
+              "wrist_right": [
+                0.5355710831003532,
+                1.416097273701687,
+                0.5709349507819501
+              ]
+            },
+            "bones": [
+              {
+                "from": "head",
+                "to": "shoulder_left",
+                "length": 0.6872
+              },
+              {
+                "from": "head",
+                "to": "shoulder_right",
+                "length": 0.6871
+              },
+              {
+                "from": "shoulder_left",
+                "to": "shoulder_right",
+                "length": 0.9914
+              },
+              {
+                "from": "shoulder_left",
+                "to": "elbow_left",
+                "length": 0.5494
+              },
+              {
+                "from": "elbow_left",
+                "to": "wrist_left",
+                "length": 0.5121
+              },
+              {
+                "from": "shoulder_right",
+                "to": "elbow_right",
+                "length": 0.5514
+              },
+              {
+                "from": "elbow_right",
+                "to": "wrist_right",
+                "length": 0.5128
+              },
+              {
+                "from": "shoulder_left",
+                "to": "hip_left",
+                "length": 1.0099
+              },
+              {
+                "from": "shoulder_right",
+                "to": "hip_right",
+                "length": 1.0086
+              },
+              {
+                "from": "hip_left",
+                "to": "hip_right",
+                "length": 0.7235
+              },
+              {
+                "from": "hip_left",
+                "to": "knee_left",
+                "length": 0.8405
+              },
+              {
+                "from": "knee_left",
+                "to": "ankle_left",
+                "length": 0.7838
+              },
+              {
+                "from": "ankle_left",
+                "to": "foot_left",
+                "length": 0.3531
+              },
+              {
+                "from": "hip_right",
+                "to": "knee_right",
+                "length": 0.841
+              },
+              {
+                "from": "knee_right",
+                "to": "ankle_right",
+                "length": 0.783
+              },
+              {
+                "from": "ankle_right",
+                "to": "foot_right",
+                "length": 0.3539
+              }
+            ]
+          },
+          "representative_reconstruction": {
+            "schema_version": "1.0",
+            "kinematics_version": "1.1.0",
+            "feasible": true,
+            "target_within_tolerance": false,
+            "projected": true,
+            "projection_rmse": 2.41895652,
+            "solver_success": true,
+            "solver_status": 3,
+            "solver_evaluations": 25,
+            "cost": 50.05031631,
+            "max_bone_relative_error": 0.00144825,
+            "variable_errors": {
+              "left_elbow_flexion": {
+                "target": 93.166242,
+                "actual": 92.090485,
+                "absolute_error": 1.075757,
+                "within_tolerance": true
+              },
+              "right_elbow_flexion": {
+                "target": 97.68476,
+                "actual": 98.240515,
+                "absolute_error": 0.555755,
+                "within_tolerance": true
+              },
+              "left_shoulder_angle": {
+                "target": 81.024436,
+                "actual": 80.999606,
+                "absolute_error": 0.02483,
+                "within_tolerance": true
+              },
+              "right_shoulder_angle": {
+                "target": 81.797514,
+                "actual": 81.32747,
+                "absolute_error": 0.470044,
+                "within_tolerance": true
+              },
+              "left_hip_angle": {
+                "target": 119.610044,
+                "actual": 127.640653,
+                "absolute_error": 8.030609,
+                "within_tolerance": false
+              },
+              "right_hip_angle": {
+                "target": 127.319977,
+                "actual": 131.989632,
+                "absolute_error": 4.669655,
+                "within_tolerance": true
+              },
+              "left_knee_flexion": {
+                "target": 137.713373,
+                "actual": 133.395425,
+                "absolute_error": 4.317948,
+                "within_tolerance": true
+              },
+              "right_knee_flexion": {
+                "target": 153.962716,
+                "actual": 152.441643,
+                "absolute_error": 1.521073,
+                "within_tolerance": true
+              },
+              "left_ankle_angle": {
+                "target": 94.230882,
+                "actual": 94.857532,
+                "absolute_error": 0.62665,
+                "within_tolerance": true
+              },
+              "right_ankle_angle": {
+                "target": 77.733646,
+                "actual": 78.203501,
+                "absolute_error": 0.469855,
+                "within_tolerance": true
+              },
+              "torso_lean": {
+                "target": 1.58972,
+                "actual": 2.741705,
+                "absolute_error": 1.151985,
+                "within_tolerance": true
+              },
+              "pelvis_rotation": {
+                "target": -25.34517,
+                "actual": -19.224917,
+                "absolute_error": 6.120253,
+                "within_tolerance": false
+              },
+              "shoulder_rotation": {
+                "target": -19.818612,
+                "actual": -19.949812,
+                "absolute_error": 0.1312,
+                "within_tolerance": true
+              },
+              "stance_width": {
+                "target": 0.686498,
+                "actual": 0.800763,
+                "absolute_error": 0.114265,
+                "within_tolerance": false
+              },
+              "stance_depth": {
+                "target": 1.585837,
+                "actual": 1.719534,
+                "absolute_error": 0.133697,
+                "within_tolerance": false
+              },
+              "guard_width": {
+                "target": 0.070202,
+                "actual": 0.804316,
+                "absolute_error": 0.734114,
+                "within_tolerance": false
+              },
+              "guard_height": {
+                "target": 1.197473,
+                "actual": 1.367157,
+                "absolute_error": 0.169684,
+                "within_tolerance": false
+              }
+            },
+            "actual_variables": {
+              "left_elbow_flexion": 92.090485,
+              "right_elbow_flexion": 98.240515,
+              "left_shoulder_angle": 80.999606,
+              "right_shoulder_angle": 81.32747,
+              "left_hip_angle": 127.640653,
+              "right_hip_angle": 131.989632,
+              "left_knee_flexion": 133.395425,
+              "right_knee_flexion": 152.441643,
+              "left_ankle_angle": 94.857532,
+              "right_ankle_angle": 78.203501,
+              "torso_lean": 2.741705,
+              "pelvis_rotation": -19.224917,
+              "shoulder_rotation": -19.949812,
+              "stance_width": 0.800763,
+              "stance_depth": 1.719534,
+              "guard_width": 0.804316,
+              "guard_height": 1.367157
+            },
+            "reference_pose": {
+              "schema_version": "1.0",
+              "coordinate_space": "body_normalized_v1",
+              "origin": "hip_center",
+              "scale_basis": "torso_length",
+              "tolerance": 0.5,
+              "landmarks": {
+                "ankle_left": [
+                  -0.3999969118016578,
+                  -1.3868207843724074,
+                  0.7016735364439163
+                ],
+                "ankle_right": [
+                  0.401009165239207,
+                  -1.2832494866478634,
+                  -1.0183822592516378
+                ],
+                "elbow_left": [
+                  -0.39639617695045287,
+                  0.8522688147448485,
+                  0.7455076325708683
+                ],
+                "elbow_right": [
+                  0.46996673936519795,
+                  0.9294837091285585,
+                  0.4230103543045853
+                ],
+                "foot_left": [
+                  -0.40737118949865087,
+                  -1.4189079586047986,
+                  1.0532393999592444
+                ],
+                "foot_right": [
+                  0.32847798203314155,
+                  -1.3485856489060755,
+                  -0.6781932801712097
+                ],
+                "head": [
+                  0.012458243514899124,
+                  1.4697658807703582,
+                  0.10543559003508325
+                ],
+                "hip_left": [
+                  -0.3420364122016824,
+                  -0.014837676702484499,
+                  0.11838910350574304
+                ],
+                "hip_right": [
+                  0.3406919903082427,
+                  0.011663378723335338,
+                  -0.11969503980686562
+                ],
+                "knee_left": [
+                  -0.45867520321898236,
+                  -0.605266931104285,
+                  0.7051165890922275
+                ],
+                "knee_right": [
+                  0.5108243341095884,
+                  -0.579424695623327,
+                  -0.6932528223397105
+                ],
+                "shoulder_left": [
+                  -0.4602858711242861,
+                  0.9833676408618682,
+                  0.21586001941234612
+                ],
+                "shoulder_right": [
+                  0.4712381680607929,
+                  1.0117745640554028,
+                  -0.12226324215463649
+                ],
+                "wrist_left": [
+                  -0.2096644883658421,
+                  1.3158714284089659,
+                  0.8571097364318611
+                ],
+                "wrist_right": [
+                  0.5355710831003532,
+                  1.416097273701687,
+                  0.5709349507819501
+                ]
+              },
+              "bones": [
+                {
+                  "from": "head",
+                  "to": "shoulder_left",
+                  "length": 0.6872
+                },
+                {
+                  "from": "head",
+                  "to": "shoulder_right",
+                  "length": 0.6871
+                },
+                {
+                  "from": "shoulder_left",
+                  "to": "shoulder_right",
+                  "length": 0.9914
+                },
+                {
+                  "from": "shoulder_left",
+                  "to": "elbow_left",
+                  "length": 0.5494
+                },
+                {
+                  "from": "elbow_left",
+                  "to": "wrist_left",
+                  "length": 0.5121
+                },
+                {
+                  "from": "shoulder_right",
+                  "to": "elbow_right",
+                  "length": 0.5514
+                },
+                {
+                  "from": "elbow_right",
+                  "to": "wrist_right",
+                  "length": 0.5128
+                },
+                {
+                  "from": "shoulder_left",
+                  "to": "hip_left",
+                  "length": 1.0099
+                },
+                {
+                  "from": "shoulder_right",
+                  "to": "hip_right",
+                  "length": 1.0086
+                },
+                {
+                  "from": "hip_left",
+                  "to": "hip_right",
+                  "length": 0.7235
+                },
+                {
+                  "from": "hip_left",
+                  "to": "knee_left",
+                  "length": 0.8405
+                },
+                {
+                  "from": "knee_left",
+                  "to": "ankle_left",
+                  "length": 0.7838
+                },
+                {
+                  "from": "ankle_left",
+                  "to": "foot_left",
+                  "length": 0.3531
+                },
+                {
+                  "from": "hip_right",
+                  "to": "knee_right",
+                  "length": 0.841
+                },
+                {
+                  "from": "knee_right",
+                  "to": "ankle_right",
+                  "length": 0.783
+                },
+                {
+                  "from": "ankle_right",
+                  "to": "foot_right",
+                  "length": 0.3539
+                }
+              ]
+            }
+          },
+          "sensitivity_and_robustness": {
+            "schema_version": "1.0",
+            "analysis_version": "1.0.0",
+            "method": "central_finite_difference_and_seeded_sobol",
+            "seed": 42,
+            "robustness_samples": 32,
+            "region_solution_ids": [
+              "pareto-7",
+              "pareto-9",
+              "pareto-42",
+              "pareto-8",
+              "pareto-38",
+              "pareto-27",
+              "pareto-29",
+              "pareto-36",
+              "pareto-44",
+              "pareto-35"
+            ],
+            "optimal_region": {
+              "left_elbow_flexion": {
+                "optimal_min": 89.563883,
+                "optimal_max": 93.203235
+              },
+              "right_elbow_flexion": {
+                "optimal_min": 86.988772,
+                "optimal_max": 98.230022
+              },
+              "left_shoulder_angle": {
+                "optimal_min": 81.593759,
+                "optimal_max": 84.88594
+              },
+              "right_shoulder_angle": {
+                "optimal_min": 81.709545,
+                "optimal_max": 92.601844
+              },
+              "left_hip_angle": {
+                "optimal_min": 116.473802,
+                "optimal_max": 133.889429
+              },
+              "right_hip_angle": {
+                "optimal_min": 126.9578,
+                "optimal_max": 131.757203
+              },
+              "left_knee_flexion": {
+                "optimal_min": 136.049723,
+                "optimal_max": 152.240911
+              },
+              "right_knee_flexion": {
+                "optimal_min": 152.2123,
+                "optimal_max": 158.041837
+              },
+              "left_ankle_angle": {
+                "optimal_min": 94.444193,
+                "optimal_max": 106.574896
+              },
+              "right_ankle_angle": {
+                "optimal_min": 72.279273,
+                "optimal_max": 77.692078
+              },
+              "torso_lean": {
+                "optimal_min": 0.486269,
+                "optimal_max": 4.529613
+              },
+              "pelvis_rotation": {
+                "optimal_min": -30.870699,
+                "optimal_max": -25.728116
+              },
+              "shoulder_rotation": {
+                "optimal_min": -28.652309,
+                "optimal_max": -9.132722
+              },
+              "stance_width": {
+                "optimal_min": 0.684553,
+                "optimal_max": 1.372743
+              },
+              "stance_depth": {
+                "optimal_min": 0.030972,
+                "optimal_max": 1.636176
+              },
+              "guard_width": {
+                "optimal_min": 0.050672,
+                "optimal_max": 0.575959
+              },
+              "guard_height": {
+                "optimal_min": 0.270713,
+                "optimal_max": 1.209968
+              }
+            },
+            "variables": {
+              "left_elbow_flexion": {
+                "label": "Left elbow",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0.4,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 0,
+                  "mobility": 0.2,
+                  "structural_efficiency": 0,
+                  "joint_safety": 3
+                },
+                "sensitivity_score": 0.45,
+                "sensitivity": "Low",
+                "robustness_score": 99.85,
+                "robustness": "High"
+              },
+              "right_elbow_flexion": {
+                "label": "Right elbow",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0.6,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 0,
+                  "mobility": 0.4,
+                  "structural_efficiency": 0,
+                  "joint_safety": 4.6
+                },
+                "sensitivity_score": 0.7,
+                "sensitivity": "Low",
+                "robustness_score": 99.8,
+                "robustness": "High"
+              },
+              "left_shoulder_angle": {
+                "label": "Left shoulder",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 4.2,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 2.8,
+                  "power_potential_proxy": 0,
+                  "mobility": 0.6,
+                  "structural_efficiency": 11,
+                  "joint_safety": 4.6
+                },
+                "sensitivity_score": 2.9,
+                "sensitivity": "Low",
+                "robustness_score": 99.55,
+                "robustness": "High"
+              },
+              "right_shoulder_angle": {
+                "label": "Right shoulder",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 3.2,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 2.8,
+                  "power_potential_proxy": 0,
+                  "mobility": 0.4,
+                  "structural_efficiency": 11,
+                  "joint_safety": 4.6
+                },
+                "sensitivity_score": 2.75,
+                "sensitivity": "Low",
+                "robustness_score": 97.81,
+                "robustness": "High"
+              },
+              "left_hip_angle": {
+                "label": "Left hip",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 5.4,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 4.4,
+                  "power_potential_proxy": 0,
+                  "mobility": 1,
+                  "structural_efficiency": 18.2,
+                  "joint_safety": 5
+                },
+                "sensitivity_score": 4.25,
+                "sensitivity": "Low",
+                "robustness_score": 98.32,
+                "robustness": "High"
+              },
+              "right_hip_angle": {
+                "label": "Right hip",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 6.652869,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 4.917338,
+                  "power_potential_proxy": 0,
+                  "mobility": 1.446276,
+                  "structural_efficiency": 18.223076,
+                  "joint_safety": 4.917338
+                },
+                "sensitivity_score": 4.519612,
+                "sensitivity": "Low",
+                "robustness_score": 98.03,
+                "robustness": "High"
+              },
+              "left_knee_flexion": {
+                "label": "Left knee",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 11.6,
+                  "static_stability": 18.2,
+                  "defense": 0,
+                  "readiness": 8.4,
+                  "power_potential_proxy": 0,
+                  "mobility": 2.6,
+                  "structural_efficiency": 18.2,
+                  "joint_safety": 4.6
+                },
+                "sensitivity_score": 7.95,
+                "sensitivity": "Medium",
+                "robustness_score": 95.2,
+                "robustness": "High"
+              },
+              "right_knee_flexion": {
+                "label": "Right knee",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 8.869257,
+                  "static_stability": 12.811149,
+                  "defense": 0,
+                  "readiness": 7.320657,
+                  "power_potential_proxy": 0,
+                  "mobility": 3.80111,
+                  "structural_efficiency": 12.811149,
+                  "joint_safety": 3.237983
+                },
+                "sensitivity_score": 6.106413,
+                "sensitivity": "Medium",
+                "robustness_score": 95.96,
+                "robustness": "High"
+              },
+              "left_ankle_angle": {
+                "label": "Left ankle",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0.4,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 0,
+                  "mobility": 0.2,
+                  "structural_efficiency": 0,
+                  "joint_safety": 4.2
+                },
+                "sensitivity_score": 0.6,
+                "sensitivity": "Low",
+                "robustness_score": 99.14,
+                "robustness": "High"
+              },
+              "right_ankle_angle": {
+                "label": "Right ankle",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0.389166,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0.389166,
+                  "power_potential_proxy": 0,
+                  "mobility": 1.167498,
+                  "structural_efficiency": 0,
+                  "joint_safety": 5.448324
+                },
+                "sensitivity_score": 0.924269,
+                "sensitivity": "Low",
+                "robustness_score": 99.53,
+                "robustness": "High"
+              },
+              "torso_lean": {
+                "label": "Torso lean",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 0,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 0,
+                "sensitivity": "Low",
+                "robustness_score": 100,
+                "robustness": "High"
+              },
+              "pelvis_rotation": {
+                "label": "Pelvis rotation",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 38,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 4.75,
+                "sensitivity": "Low",
+                "robustness_score": 98.92,
+                "robustness": "High"
+              },
+              "shoulder_rotation": {
+                "label": "Shoulder rotation",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 38,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 4.75,
+                "sensitivity": "Low",
+                "robustness_score": 96.57,
+                "robustness": "High"
+              },
+              "stance_width": {
+                "label": "Stance width",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0,
+                  "static_stability": 0,
+                  "defense": 0,
+                  "readiness": 0,
+                  "power_potential_proxy": 0,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 0,
+                "sensitivity": "Low",
+                "robustness_score": 100,
+                "robustness": "High"
+              },
+              "stance_depth": {
+                "label": "Stance depth",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 31.5,
+                  "static_stability": 93.5,
+                  "defense": 0,
+                  "readiness": 23.5,
+                  "power_potential_proxy": 125,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 34.1875,
+                "sensitivity": "High",
+                "robustness_score": 91.71,
+                "robustness": "High"
+              },
+              "guard_width": {
+                "label": "Guard width",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 32.644562,
+                  "static_stability": 0,
+                  "defense": 98.527222,
+                  "readiness": 24.928574,
+                  "power_potential_proxy": 0,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 19.512545,
+                "sensitivity": "High",
+                "robustness_score": 97.19,
+                "robustness": "High"
+              },
+              "guard_height": {
+                "label": "Guard height",
+                "target_sensitivity": {
+                  "energy_efficiency_proxy": 0,
+                  "static_stability": 0,
+                  "defense": 78,
+                  "readiness": 19.5,
+                  "power_potential_proxy": 0,
+                  "mobility": 0,
+                  "structural_efficiency": 0,
+                  "joint_safety": 0
+                },
+                "sensitivity_score": 12.1875,
+                "sensitivity": "Medium",
+                "robustness_score": 95.36,
+                "robustness": "High"
+              }
+            },
+            "targets": {
+              "energy_efficiency_proxy": {
+                "baseline_score": 86.68,
+                "mean_score": 91.61,
+                "standard_deviation": 1.4807,
+                "worst_drop": 0,
+                "robustness_score": 92.6,
+                "robustness": "High"
+              },
+              "static_stability": {
+                "baseline_score": 85.24,
+                "mean_score": 93.74,
+                "standard_deviation": 2.4889,
+                "worst_drop": 0,
+                "robustness_score": 87.56,
+                "robustness": "High"
+              },
+              "defense": {
+                "baseline_score": 94.01,
+                "mean_score": 98.01,
+                "standard_deviation": 2.5313,
+                "worst_drop": 1.23,
+                "robustness_score": 84.88,
+                "robustness": "High"
+              },
+              "readiness": {
+                "baseline_score": 90.15,
+                "mean_score": 93.56,
+                "standard_deviation": 1.1818,
+                "worst_drop": 0,
+                "robustness_score": 94.09,
+                "robustness": "High"
+              },
+              "power_potential_proxy": {
+                "baseline_score": 84.01,
+                "mean_score": 94.57,
+                "standard_deviation": 4.9392,
+                "worst_drop": 0,
+                "robustness_score": 75.3,
+                "robustness": "Medium"
+              },
+              "mobility": {
+                "baseline_score": 92.52,
+                "mean_score": 91.51,
+                "standard_deviation": 0.5256,
+                "worst_drop": 1.83,
+                "robustness_score": 93.71,
+                "robustness": "High"
+              },
+              "structural_efficiency": {
+                "baseline_score": 88.83,
+                "mean_score": 90.97,
+                "standard_deviation": 2.8058,
+                "worst_drop": 4.71,
+                "robustness_score": 76.55,
+                "robustness": "Medium"
+              },
+              "joint_safety": {
+                "baseline_score": 75.91,
+                "mean_score": 74.18,
+                "standard_deviation": 1.0613,
+                "worst_drop": 3.88,
+                "robustness_score": 86.93,
+                "robustness": "High"
+              }
+            }
+          }
+        }
       }
     },
     {

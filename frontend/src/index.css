@@ -11670,3 +11670,96 @@ select:focus {
     right: calc(32px + min(292px, 29vw));
   }
 }
+.pose-optimization .pose-designer__viewport {
+  position: relative;
+}
+
+.pose-optimization .pose-designer__viewport::after {
+  background: linear-gradient(180deg, transparent, rgba(110, 132, 158, .45) 12%, rgba(110, 132, 158, .45) 88%, transparent);
+  content: "";
+  inset: 42px auto 34px 50%;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+  z-index: 2;
+}
+
+.pose-optimization__endpoint-tabs > span {
+  align-items: center;
+  border-radius: 6px;
+  color: #9ca9b8;
+  display: inline-flex;
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+.pose-optimization__endpoint-tabs > span.is-active {
+  background: #264d43;
+  color: #e9fff8;
+}
+.catalog-admin__panel-view--pose .pose-designer__angles--dock {
+  border-top: 1px solid #3b4652;
+  box-shadow: none;
+  grid-template-rows: auto 1fr;
+}
+
+.catalog-admin__panel-view--pose .pose-designer__angles--dock::before {
+  background: #191f27;
+  color: #d5dde7;
+  content: "Initial pose — angles and tolerances";
+  font-size: 11px;
+  font-weight: 700;
+  grid-column: 1 / -1;
+  letter-spacing: 0;
+  padding: 7px 10px;
+}
+
+.catalog-admin__panel-view--pose .pose-optimization__controls {
+  border-left: 0;
+  border-top-color: #3b4652;
+  background: #171c23;
+}
+
+.catalog-admin__panel-view--pose .pose-optimization__controls > strong {
+  color: #d5dde7;
+}
+
+.catalog-admin__panel-view--pose .pose-optimization__controls > strong::after {
+  content: "";
+}
+
+.pose-optimization__range-summary {
+  align-self: center;
+  color: #9faab7;
+  font-size: 11px;
+  margin-right: auto;
+}
+
+.pose-optimization__validation {
+  align-self: center;
+  border: 1px solid #4a5562;
+  border-radius: 999px;
+  color: #aeb8c4;
+  font-size: 10px;
+  padding: 3px 7px;
+}
+
+.pose-optimization__validation.is-valid {
+  border-color: #3d765b;
+  color: #83cda5;
+}
+
+.catalog-admin__panel-view--pose .pose-optimization__analysis {
+  border-left: 0;
+  background: #11171e;
+}
+
+.catalog-admin__panel-view--pose .pose-optimization__analysis .pose-optimization__section-heading strong {
+  font-size: 0;
+}
+
+.catalog-admin__panel-view--pose .pose-optimization__analysis .pose-optimization__section-heading strong::after {
+  color: #d5dde7;
+  content: "Optimized pose — scores and decision";
+  font-size: 12px;
+}
