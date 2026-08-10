@@ -1,5 +1,5 @@
 import { Canvas, useThree } from "@react-three/fiber";
-import { GizmoHelper, GizmoViewport, Grid, Html, OrbitControls, TransformControls } from "@react-three/drei";
+import { GizmoHelper, GizmoViewport, Grid, Html, Line, OrbitControls, TransformControls } from "@react-three/drei";
 import { memo, useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import PoseStudioContext from "./PoseStudioContext";
@@ -41,6 +41,10 @@ function restorePlantedFootAndResolve(nextPose, previousPose, fallbackPinnedJoin
   const plantedFoot = plantedFootName(previousPose);
   const moved = Math.hypot(...nextPose[plantedFoot].map((value, index) => value - previousPose[plantedFoot][index])) > .0005;
   if (!moved) return enforceAllBoneLengths(nextPose, fallbackPinnedJoint);
+  // A foot selected by the user is an intentional endpoint edit. Keep that
+  // foot pinned at its new location and resolve the ankle/knee/hip chain around
+  // it instead of restoring the old planted position.
+  if (fallbackPinnedJoint === plantedFoot) return enforceAllBoneLengths(nextPose, plantedFoot);
   const restored = { ...nextPose, [plantedFoot]: [...previousPose[plantedFoot]] };
   return enforceAllBoneLengths(restored, plantedFoot);
 }
@@ -174,11 +178,44 @@ const ComparisonSkeleton = memo(function ComparisonSkeleton({ color, label, offs
   </group>;
 });
 
-function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, rotationSnap, onSelectJoint, onMoveJoint, onRotateJoint }) {
+const GuideVolume = memo(function GuideVolume() {
+  const positions = useMemo(() => {
+    const values = [];
+    const minimum = -2;
+    const maximum = 2;
+    const floor = FOOT_CONTACT_Y;
+    const ceiling = 2.25;
+    const step = .5;
+    const add = (from, to) => values.push(...from, ...to);
+    for (let y = floor; y <= ceiling + .001; y += step) {
+      for (let z = minimum; z <= maximum + .001; z += step) add([minimum, y, z], [maximum, y, z]);
+      for (let x = minimum; x <= maximum + .001; x += step) add([x, y, minimum], [x, y, maximum]);
+    }
+    for (let x = minimum; x <= maximum + .001; x += step) {
+      for (let z = minimum; z <= maximum + .001; z += step) add([x, floor, z], [x, ceiling, z]);
+    }
+    return new Float32Array(values);
+  }, []);
+  return <lineSegments frustumCulled={false}>
+    <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry>
+    <lineBasicMaterial color="#66839f" depthWrite={false} opacity={.14} transparent />
+  </lineSegments>;
+});
+
+function PoseScene({ guidesVisible, pose, poseScale, selectedJoint, transformMode, rotation, rotationSnap, onSelectJoint, onMoveJoint, onRotateJoint }) {
   const studio = useContext(PoseStudioContext);
   const { camera } = useThree();
   const studioOffsets = studio?.singlePoseMode ? TWO_POSE_OFFSETS : STUDIO_OFFSETS;
   const activeOffset = studio ? studioOffsets[studio.activeEndpoint] : STUDIO_OFFSETS.optimal;
+  const sceneScale = studio ? 1 : poseScale;
+  // Scale the standalone editor around the planted-foot contact plane instead
+  // of the world origin. Otherwise a scale above 1 pushes the feet through the
+  // unscaled floor even though the pose coordinates are correctly grounded.
+  const groundedActiveOffset = [
+    activeOffset[0],
+    activeOffset[1] + FOOT_CONTACT_Y * (1 - sceneScale),
+    activeOffset[2]
+  ];
   const studioPoseA = studio?.poseA;
   const studioPoseB = studio?.poseB;
   const studioOptimalPose = studio?.optimalPose;
@@ -188,6 +225,21 @@ function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, ro
   const transformTarget = useMemo(() => new THREE.Object3D(), []);
   const isTransforming = useRef(false);
   const transformFrame = useRef(null);
+  const guidePoints = useMemo(() => {
+    const shoulderCenter = pose.shoulder_left.map((value, index) => (value + pose.shoulder_right[index]) / 2);
+    const hipCenter = pose.hip_left.map((value, index) => (value + pose.hip_right[index]) / 2);
+    const bodyCenterX = (shoulderCenter[0] + hipCenter[0]) / 2;
+    const guideZ = Math.min(shoulderCenter[2], hipCenter[2]) - .08;
+    return {
+      center: [[bodyCenterX, FOOT_CONTACT_Y, guideZ], [bodyCenterX, pose.head[1] + .3, guideZ]],
+      xAxis: [[-2.25, FOOT_CONTACT_Y + .006, 0], [2.25, FOOT_CONTACT_Y + .006, 0]],
+      yAxis: [[0, FOOT_CONTACT_Y, 0], [0, pose.head[1] + .45, 0]],
+      zAxis: [[0, FOOT_CONTACT_Y + .006, -2.25], [0, FOOT_CONTACT_Y + .006, 2.25]],
+      shoulders: [pose.shoulder_left, pose.shoulder_right],
+      hips: [pose.hip_left, pose.hip_right],
+      feet: [[Math.min(pose.foot_left[0], pose.foot_right[0]) - .35, FOOT_CONTACT_Y, guideZ], [Math.max(pose.foot_left[0], pose.foot_right[0]) + .35, FOOT_CONTACT_Y, guideZ]]
+    };
+  }, [pose]);
   useEffect(() => {
     if (!studio) return;
     camera.position.set(0, 1.15, 9.4);
@@ -230,10 +282,20 @@ function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, ro
       <mesh position={[0, FLOOR_Y - .012, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[12, 8]} /><meshStandardMaterial color="#111c27" metalness={.08} roughness={.92} /></mesh>
       <Grid args={[9, 9]} cellColor="#31506f" cellSize={.5} fadeDistance={9} infiniteGrid sectionColor="#68a8ff" sectionSize={2} position={[0, FLOOR_Y, 0]} />
     </>}
+    {guidesVisible ? <group position={groundedActiveOffset} scale={sceneScale}>
+      <GuideVolume />
+      <Line color="#ef5350" lineWidth={1.7} opacity={.9} points={guidePoints.xAxis} transparent />
+      <Line color="#60d394" lineWidth={1.7} opacity={.9} points={guidePoints.yAxis} transparent />
+      <Line color="#6aa8ff" lineWidth={1.7} opacity={.9} points={guidePoints.zAxis} transparent />
+      <Line color="#91a8bf" dashed dashSize={.08} gapSize={.05} lineWidth={1} opacity={.42} points={guidePoints.center} transparent />
+      <Line color="#f0bd68" dashed dashSize={.08} gapSize={.04} lineWidth={1.25} opacity={.68} points={guidePoints.shoulders} transparent />
+      <Line color="#d69bff" dashed dashSize={.08} gapSize={.04} lineWidth={1.25} opacity={.62} points={guidePoints.hips} transparent />
+      <Line color="#60d394" dashed dashSize={.1} gapSize={.045} lineWidth={1.5} opacity={.8} points={guidePoints.feet} transparent />
+    </group> : null}
     {studio && !studio.singlePoseMode && studio.activeEndpoint !== "pose_a" ? <ComparisonSkeleton color="#6aa8ff" label="POSE A" offset={STUDIO_OFFSETS.pose_a} pose={poseA} /> : null}
     {studio ? <ComparisonSkeleton color={studio.optimalPose ? "#60d394" : "#68717e"} label={studio.optimalPose ? "OPTIMIZED" : "OPTIMIZED · PENDING"} offset={studioOffsets.optimal} opacity={studio.optimalPose ? .82 : .32} pose={optimalPose} /> : null}
     {studio && !studio.singlePoseMode && studio.activeEndpoint !== "pose_b" ? <ComparisonSkeleton color="#d69bff" label="POSE B" offset={STUDIO_OFFSETS.pose_b} pose={poseB} /> : null}
-    <group position={activeOffset} scale={studio ? 1 : poseScale}>
+    <group position={groundedActiveOffset} scale={sceneScale}>
       <primitive object={transformTarget} />
       {LINKS.map(([from, to]) => <Bone from={pose[from]} key={`${from}-${to}`} to={pose[to]} />)}
       {Object.entries(pose).map(([name, position]) => <mesh key={name} onClick={(event) => chooseJoint(event, name)} position={position}><sphereGeometry args={[name === "head" ? .23 : .135, 24, 24]} /><meshStandardMaterial color={selectedJoint === name ? "#60d394" : "#f4f4f4"} emissive={selectedJoint === name ? "#256e4c" : "#111111"} /></mesh>)}
@@ -254,6 +316,7 @@ function PoseScene({ pose, poseScale, selectedJoint, transformMode, rotation, ro
 }
 
 export default function PoseRangeDesigner({
+  emitInitialPoseChange = true,
   initialAngleTolerance = 12,
   onApply,
   onPoseChange,
@@ -268,7 +331,6 @@ export default function PoseRangeDesigner({
   const [selectedJoint, setSelectedJoint] = useState("elbow_left");
   const [tolerance, setTolerance] = useState(initialAngleTolerance);
   const [positionTolerance, setPositionTolerance] = useState(() => Number(referencePose?.tolerance) || .03);
-  const positionToleranceRef = useRef(positionTolerance);
   const [transformMode, setTransformMode] = useState("translate");
   const [rotationSnap, setRotationSnap] = useState(false);
   const [jointRotations, setJointRotations] = useState({});
@@ -277,6 +339,8 @@ export default function PoseRangeDesigner({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [anglesOpen, setAnglesOpen] = useState(true);
+  const [guidesVisible, setGuidesVisible] = useState(true);
+  const initialPoseStateSignature = useRef(JSON.stringify({ pose, positionTolerance, tolerance }));
   useEffect(() => {
     const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === workbenchRef.current);
     document.addEventListener("fullscreenchange", syncFullscreen);
@@ -378,10 +442,20 @@ export default function PoseRangeDesigner({
       { angle_degrees: safeAngleTolerance, position_normalized: safePositionTolerance }
     );
   };
-  useEffect(() => { positionToleranceRef.current = positionTolerance; }, [positionTolerance]);
   useEffect(() => {
-    onPoseChange?.(referencePoseFromPose(pose, positionToleranceRef.current));
-  }, [onPoseChange, pose]);
+    const currentSignature = JSON.stringify({ pose, positionTolerance, tolerance });
+    if (!emitInitialPoseChange && currentSignature === initialPoseStateSignature.current) return;
+    onPoseChange?.(
+      referencePoseFromPose(pose, positionTolerance),
+      calculated.map((item) => ({
+        ...item,
+        min: Math.max(0, item.target_angle - tolerance),
+        max: Math.min(180, item.target_angle + tolerance),
+        role: "supporting",
+        weight: 1
+      }))
+    );
+  }, [calculated, emitInitialPoseChange, onPoseChange, pose, positionTolerance, tolerance]);
   const loadCurrentRanges = () => { const nextPose = groundPose(poseFromReferencePose(referencePose) || poseFromRanges(rangeTargets)); setPose(nextPose); syncAngleDrafts(nextPose); setPositionTolerance(Number(referencePose?.tolerance) || .12); setJointRotations({}); };
   const toggleFullscreen = async () => {
     if (document.fullscreenElement) await document.exitFullscreen();
@@ -389,5 +463,5 @@ export default function PoseRangeDesigner({
   };
   const selectedRotation = jointRotations[selectedJoint] || [0, 0, 0];
   const resetPose = () => { const nextPose = groundPose(freshPose()); setPose(nextPose); syncAngleDrafts(nextPose); setSelectedJoint("elbow_left"); setJointRotations({}); };
-  return <section className="pose-designer pose-designer--workbench" ref={workbenchRef}><div className={`pose-designer__toolbar ${studio ? "is-studio-toolbar" : ""}`}><div>{studioLead || <span className="catalog-admin__eyebrow">Pose workbench</span>}<div className="pose-designer__mode-switch" aria-label="Transform mode"><button className={transformMode === "translate" ? "is-active" : ""} onClick={() => setTransformMode("translate")} title="Move joints (G)" type="button">Move <kbd>G</kbd></button><button className={transformMode === "rotate" ? "is-active" : ""} onClick={() => setTransformMode("rotate")} title="Rotate limbs (R)" type="button">Rotate <kbd>R</kbd></button></div></div><span className="pose-designer__navigation-help">Orbit: drag · Pan: right drag · Zoom: wheel</span><div className="pose-designer__toolbar-actions">{studioActions}<details className="pose-designer__panels-menu"><summary className="btn btn--ghost btn--small">Panels</summary><div><button aria-pressed={inspectorOpen} className={inspectorOpen ? "is-active" : ""} onClick={() => setInspectorOpen((value) => !value)} type="button">Inspector</button><button aria-pressed={anglesOpen} className={anglesOpen ? "is-active" : ""} onClick={() => setAnglesOpen((value) => !value)} type="button">Angles</button></div></details><button className="btn btn--ghost btn--small" onClick={loadCurrentRanges} title="Load saved step pose" type="button">Load</button>{!studio ? <button className="btn btn--ghost btn--small" onClick={toggleFullscreen} type="button">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</button> : null}<button className="btn btn--ghost btn--small" onClick={resetPose} title="Reset current endpoint" type="button">Reset</button></div></div><div className={`pose-designer__workbench ${inspectorOpen ? "" : "is-inspector-collapsed"}`}><div className="pose-designer__viewport"><div className="pose-designer__viewport-bar"><span>Perspective</span><span>Pose collection / {selectedJoint}</span></div><Canvas camera={{ fov: 32, position: [2.8, 1.3, 5.1] }}><color attach="background" args={["#0c121b"]} /><PoseScene onMoveJoint={moveJoint} onRotateJoint={rotateJoint} onSelectJoint={setSelectedJoint} pose={pose} poseScale={1.35} rotation={selectedRotation} rotationSnap={rotationSnap} selectedJoint={selectedJoint} transformMode={transformMode} /></Canvas><div className="pose-designer__canvas-status"><span>Selected: <strong>{selectedJoint.replace("_", " ")}</strong></span><span>{transformMode === "rotate" ? "Drag a colored ring to rotate the limb" : "Drag an axis to position the joint"}</span><span>{Object.keys(pose).length} points · {LINKS.length} fixed bones</span></div></div>{inspectorOpen ? <aside className="pose-designer__inspector"><section><header>Outliner <span>Pose</span></header><div className="pose-designer__joint-list">{Object.keys(pose).map((joint) => <button className={selectedJoint === joint ? "is-selected" : ""} key={joint} onClick={() => setSelectedJoint(joint)} type="button"><i />{joint.replaceAll("_", " ")}</button>)}</div></section><section><header>Transform <span>{transformMode === "translate" ? "Location" : "Rotation"}</span></header>{transformMode === "translate" ? <><div className="pose-designer__rig-lock pose-designer__rig-lock--fixed"><span aria-hidden="true">●</span> All bone lengths fixed</div>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<input onChange={(event) => updateCoordinate(index, event.target.value)} step=".01" type="number" value={pose[selectedJoint][index]} /></label>)}</> : <><label className="pose-designer__rig-lock"><input checked={rotationSnap} onChange={(event) => setRotationSnap(event.target.checked)} type="checkbox" /> Snap to 5°</label>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<span className="pose-designer__degree-input"><input onChange={(event) => updateRotation(index, event.target.value)} step="1" type="number" value={Number(THREE.MathUtils.radToDeg(selectedRotation[index]).toFixed(1))} /><span>°</span></span></label>)}{!(CHILD_JOINTS[selectedJoint] || []).length ? <p className="pose-designer__rotation-hint">This end joint has no downstream limb to rotate.</p> : null}</>}</section></aside> : null}</div>{anglesOpen ? <div className="pose-designer__angles pose-designer__angles--dock"><div className="pose-designer__angles-heading"><label>Angle ±<input max="45" min="1" onChange={(event) => setTolerance(Number(event.target.value))} type="number" value={tolerance} />°</label><label>Position ±<input max=".5" min=".01" onChange={(event) => setPositionTolerance(Number(event.target.value))} step=".01" type="number" value={positionTolerance} /></label><button className="btn btn--light btn--small" onClick={apply} type="button">Apply pose</button></div><div className="pose-designer__angle-list">{calculated.map((item) => <div key={item.body_part}><span>{item.label}</span><label className="pose-designer__angle-input"><input max="180" min="0" onBlur={() => commitAngleTarget(item.body_part)} onChange={(event) => { updateAngleDraft(item.body_part, event.target.value); applyAngleTarget(item.body_part, event.target.value); }} onFocus={() => setActiveAngleInput(item.body_part)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitAngleTarget(item.body_part); } }} step="1" type="number" value={draftAngleValues[item.body_part] ?? ""} /><span>°</span></label></div>)}</div></div> : null}</section>;
+  return <section className="pose-designer pose-designer--workbench" ref={workbenchRef}><div className={`pose-designer__toolbar ${studio ? "is-studio-toolbar" : ""}`}><div>{studioLead || <span className="catalog-admin__eyebrow">Pose workbench</span>}<div className="pose-designer__mode-switch" aria-label="Transform mode"><button className={transformMode === "translate" ? "is-active" : ""} onClick={() => setTransformMode("translate")} title="Move joints (G)" type="button">Move <kbd>G</kbd></button><button className={transformMode === "rotate" ? "is-active" : ""} onClick={() => setTransformMode("rotate")} title="Rotate limbs (R)" type="button">Rotate <kbd>R</kbd></button></div></div><span className="pose-designer__navigation-help">Orbit: drag · Pan: right drag · Zoom: wheel</span><div className="pose-designer__toolbar-actions">{studioActions}<button aria-pressed={guidesVisible} className={`btn btn--ghost btn--small ${guidesVisible ? "is-active" : ""}`} onClick={() => setGuidesVisible((value) => !value)} title="Toggle alignment grid and body guide lines" type="button">Guides</button><details className="pose-designer__panels-menu"><summary className="btn btn--ghost btn--small">Panels</summary><div><button aria-pressed={inspectorOpen} className={inspectorOpen ? "is-active" : ""} onClick={() => setInspectorOpen((value) => !value)} type="button">Inspector</button><button aria-pressed={anglesOpen} className={anglesOpen ? "is-active" : ""} onClick={() => setAnglesOpen((value) => !value)} type="button">Angles</button></div></details><button className="btn btn--ghost btn--small" onClick={loadCurrentRanges} title="Load saved step pose" type="button">Load</button>{!studio ? <button className="btn btn--ghost btn--small" onClick={toggleFullscreen} type="button">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</button> : null}<button className="btn btn--ghost btn--small" onClick={resetPose} title="Reset current endpoint" type="button">Reset</button></div></div><div className={`pose-designer__workbench ${inspectorOpen ? "" : "is-inspector-collapsed"}`}><div className="pose-designer__viewport"><div className="pose-designer__viewport-bar"><span>Perspective</span><span>Pose collection / {selectedJoint}</span></div><Canvas camera={{ fov: 32, position: [2.8, 1.3, 5.1] }}><color attach="background" args={["#0c121b"]} /><PoseScene guidesVisible={guidesVisible} onMoveJoint={moveJoint} onRotateJoint={rotateJoint} onSelectJoint={setSelectedJoint} pose={pose} poseScale={1.35} rotation={selectedRotation} rotationSnap={rotationSnap} selectedJoint={selectedJoint} transformMode={transformMode} /></Canvas><div className="pose-designer__canvas-status"><span>Selected: <strong>{selectedJoint.replace("_", " ")}</strong></span><span>{transformMode === "rotate" ? "Drag a colored ring to rotate the limb" : "Drag an axis to position the joint"}</span><span>{Object.keys(pose).length} points · {LINKS.length} fixed bones</span></div></div>{inspectorOpen ? <aside className="pose-designer__inspector"><section><header>Outliner <span>Pose</span></header><div className="pose-designer__joint-list">{Object.keys(pose).map((joint) => <button className={selectedJoint === joint ? "is-selected" : ""} key={joint} onClick={() => setSelectedJoint(joint)} type="button"><i />{joint.replaceAll("_", " ")}</button>)}</div></section><section><header>Transform <span>{transformMode === "translate" ? "Location" : "Rotation"}</span></header>{transformMode === "translate" ? <><div className="pose-designer__rig-lock pose-designer__rig-lock--fixed"><span aria-hidden="true">●</span> All bone lengths fixed</div>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<input onChange={(event) => updateCoordinate(index, event.target.value)} step=".01" type="number" value={pose[selectedJoint][index]} /></label>)}</> : <><label className="pose-designer__rig-lock"><input checked={rotationSnap} onChange={(event) => setRotationSnap(event.target.checked)} type="checkbox" /> Snap to 5°</label>{["X", "Y", "Z"].map((axis, index) => <label className={`pose-designer__axis pose-designer__axis--${axis.toLowerCase()}`} key={axis}>{axis}<span className="pose-designer__degree-input"><input onChange={(event) => updateRotation(index, event.target.value)} step="1" type="number" value={Number(THREE.MathUtils.radToDeg(selectedRotation[index]).toFixed(1))} /><span>°</span></span></label>)}{!(CHILD_JOINTS[selectedJoint] || []).length ? <p className="pose-designer__rotation-hint">This end joint has no downstream limb to rotate.</p> : null}</>}</section></aside> : null}</div>{anglesOpen ? <div className="pose-designer__angles pose-designer__angles--dock"><div className="pose-designer__angles-heading"><label>Angle ±<input max="45" min="1" onChange={(event) => setTolerance(Number(event.target.value))} type="number" value={tolerance} />°</label><label>Position ±<input max=".5" min=".01" onChange={(event) => setPositionTolerance(Number(event.target.value))} step=".01" type="number" value={positionTolerance} /></label><button className="btn btn--light btn--small" onClick={apply} type="button">Apply pose</button></div><div className="pose-designer__angle-list">{calculated.map((item) => <div key={item.body_part}><span>{item.label}</span><label className="pose-designer__angle-input"><input max="180" min="0" onBlur={() => commitAngleTarget(item.body_part)} onChange={(event) => { updateAngleDraft(item.body_part, event.target.value); applyAngleTarget(item.body_part, event.target.value); }} onFocus={() => setActiveAngleInput(item.body_part)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitAngleTarget(item.body_part); } }} step="1" type="number" value={draftAngleValues[item.body_part] ?? ""} /><span>°</span></label></div>)}</div></div> : null}</section>;
 }

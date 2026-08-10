@@ -1,6 +1,6 @@
 # Scientific Pose Optimization — Development Handoff
 
-Last updated: 2026-08-09
+Last updated: 2026-08-10
 
 ## How to continue on another computer
 
@@ -66,9 +66,35 @@ Pose Studio currently contains:
 - Initial-pose angle values and tolerances.
 - Generate ranges, then Run optimization workflow.
 - Objective weights, live/representative target scores, optimal ranges, sensitivity, robustness, overlay, and Accept optimal pose action.
+- Selectable Combat Guard anchor and guard-similarity objective.
+- Full-safe-range mode for expanding non-exempt variables to anatomical constraint envelopes.
+- Technique-specific variable exceptions that stay inside the selected tolerance and are omitted from guard/asymmetry penalties.
+- Separate left/right hand-to-head variables so a strike hand can be exempt while the opposite hand remains optimized for guard.
 - Compact/fullscreen/panel controls.
 
 The UI was intentionally changed from decorative styling to a neutral, useful engineering layout.
+
+## Manual catalog route
+
+Route: `/admin-manual-catalog`
+
+The optimizer catalog remains available unchanged for future development. The manual route reuses the catalog details, steps, archive and save workflows, but replaces the optimizer panel with a single manual skeleton workbench:
+
+- Move joints with fixed bone lengths.
+- Rotate limbs and edit XYZ coordinates.
+- Enter exact joint angles.
+- Configure angle and position tolerances.
+- **Apply pose** writes the landmark skeleton and calculated angle ranges directly to the selected step draft.
+- Applying a manual pose removes that step's `pose_optimization` payload so stale optimizer results cannot override manual data.
+- The catalog-level **Save** action persists the manual reference pose and angle targets through the existing admin API.
+
+Implementation files:
+
+- `frontend/src/components/ManualPosePanel.jsx`
+- `frontend/src/pages/ManualTechniqueCatalogAdmin.jsx`
+- `frontend/src/pages/TechniqueCatalogAdmin.jsx` (`manualMode`)
+- `frontend/src/App.jsx`
+- `frontend/src/components/Navbar.jsx`
 
 ## One-pose tolerance workflow
 
@@ -159,6 +185,8 @@ Backend:
   - Reconstruction of landmark skeletons from optimized variables.
 - `backend/services/pose_sensitivity.py`
   - Deterministic sensitivity and robustness analysis.
+- `backend/services/pose_guard_anchor.py`
+  - Versioned combat-guard target regions and exception-aware similarity scoring.
 
 Tests:
 
@@ -167,29 +195,41 @@ Tests:
 - `backend/tests/test_pose_optimizer.py`
 - `backend/tests/test_pose_biomechanics.py`
 - `backend/tests/test_pose_sensitivity.py`
+- `backend/tests/test_pose_guard_anchor.py`
 - Frontend Node tests under `frontend/tests/`
 
 ## Current modified working-tree files
 
-At handoff time these files were modified and uncommitted:
+At the 2026-08-10 handoff update, the structural-chain work is uncommitted in:
 
-- `backend/data/techniques/jab/training-steps.json`
+- `backend/services/pose_biomechanics.py`
+- `backend/services/pose_optimizer.py`
+- `backend/services/pose_guard_anchor.py`
 - `backend/services/pose_optimization_schema.py`
+- `backend/services/pose_search_ranges.py`
+- `backend/services/pose_sensitivity.py`
+- `backend/services/pose_variables.py`
+- `backend/services/pose_structural_chain.py`
+- `backend/tests/test_pose_biomechanics.py`
+- `backend/tests/test_pose_optimizer.py`
+- `backend/tests/test_pose_guard_anchor.py`
 - `backend/tests/test_pose_optimization_schema.py`
 - `backend/tests/test_pose_search_ranges.py`
+- `backend/tests/test_pose_sensitivity.py`
+- `backend/tests/test_pose_structural_chain.py`
 - `frontend/src/components/PoseOptimizationPanel.jsx`
-- `frontend/src/components/PoseRangeDesigner.jsx`
 - `frontend/src/index.css`
+- `other/private-notes/docs/POSE_OPTIMIZATION_HANDOFF.md`
 
-Treat the large `training-steps.json` change as user/catalog data. Do not overwrite or revert it without reviewing it first.
+The Jab `training-steps.json` catalog data is currently clean, but it contains the administrator-edited/saved pose data described above. Continue to treat it as user/catalog data and do not overwrite or revert it without reviewing it first.
 
 ## Last completed verification
 
-- Frontend ESLint passed.
-- Full frontend suite passed: 144 tests.
-- Backend pose suite passed; the latest focused run passed 16 tests.
+- Frontend ESLint passed for `PoseOptimizationPanel.jsx`.
 - Vite production build passed.
-- Manual large-margin NSGA-II smoke test passed with position margin `5.0`, population `16`, generations `5`, and produced a representative pose.
+- Focused backend pose suite passed: 36 tests, including broad-range guard convergence, directional guard reconstruction, dropped-hand rejection, jab-arm exceptions, NSGA-II, biomechanics, structural-chain, schema, ranges, kinematics, sensitivity and robustness.
+- Frontend suite ran 144 tests: 143 passed. One catalog-data assertion expects 12 Jab angle targets but the saved administrator data currently has 10; this was not changed because it is outside the structural-chain upgrade and the pose data must be preserved.
+- Earlier manual large-margin NSGA-II smoke testing passed with position margin `5.0`, population `16`, generations `5`, and produced a representative pose.
 
 Useful commands:
 
@@ -297,5 +337,27 @@ Only at this phase should the system make kinetic-chain claims.
 
 ## Best next coding task
 
-Implement a new `pose_structural_chain.py` backend module with deterministic, unit-tested shoulder-elbow-wrist and torso-support measurements. Integrate its outputs as transparent components of Defense, Readiness, Structural Efficiency and Joint Safety. Keep the existing targets and API shape compatible, and add evaluator-version metadata rather than rebuilding the optimizer.
+Completed on 2026-08-10:
+
+- Added `backend/services/pose_structural_chain.py` with a versioned deterministic static-geometry model.
+- Added arm connection, body-normalized guard compactness, torso stack, lower-body support, whole-body support and joint-chain reserve measurements.
+- Integrated transparent structural-chain components into Defense, Readiness, Structural Efficiency and Joint Safety without changing target ids or optimizer inputs.
+- Advanced the evaluator to `1.1.0` and exposed `structural_chain_version` in evaluation and optimization results.
+- Added the complete representative evaluation to optimization output so the admin catalog can show the evidence behind the selected pose.
+- Added an admin analysis table for the structural-chain evidence and focused backend tests.
+
+Also completed on 2026-08-10:
+
+- Added the first backward-compatible optimization context with `anchor_mode`, `full_safe_ranges`, `guard_exempt_variables`, and `range_locked_variables`.
+- Added `guard_similarity` as a transparent multi-objective target. Legacy backend callers default to no anchor; new Admin Pose Studio work defaults to Combat Guard.
+- Added separate left/right hand-to-head distances and signed head-relative hand heights, increasing the coupled decision vector from 17 to 21 variables. Distance controls proximity; signed height prevents a hand near the torso from satisfying a spherical distance-only proxy.
+- When a strike hand is exempt, combined two-hand guard measurements do not penalize it; the opposite hand remains independently scored.
+- Verified deterministic seeded NSGA-II convergence from full safe ranges to a representative guard score above 95.
+- Changed representative selection to rank the reconstructed landmark skeleton by the configured objectives instead of preferring projection convenience. A focused full-range reconstruction smoke test produced a feasible visible skeleton with guard similarity `92.83`.
+- Guard similarity now gives critical weight to per-hand protection, so good legs/torso cannot hide dropped hands. Combat Guard runs reject final representatives below guard score `80` with an actionable range/exception message instead of displaying a misleading optimized pose.
+- New Admin Combat Guard configurations default to full safe ranges. Exact Reset-pose reproduction showed that ordinary `±0.5` position tolerance cannot lift the low reset wrists into the head/jaw guard zone and correctly returns 422; full safe ranges succeeds with reconstructed guard score `91.3`.
+- Resolved a deeper inverse-kinematics ambiguity: scalar angles/distances permitted crossed or raised non-guard limb directions. Combat Guard reconstruction now starts from and regularizes toward a feasible directional 3D guard landmark anchor, while exempt technique limbs retain the administrator pose. Final selection includes visual-anchor RMSE. Exact Reset reproduction now scores `98.45` with wrists above the elbows, hands forward near the head, elbows outside the shoulders and a staggered supported stance.
+- Objective weights and context controls are reactive after the first optimization. Weight, Anchor State, full-range and exception changes debounce for `900 ms`, then regenerate ranges and rerun optimization automatically. The old optimized skeleton remains visible while status reads `Updating optimized pose...`, and the completed configuration is saved back to the step draft. This fixes the previous behavior where Anchor State and weights changed configuration without changing the visible result.
+
+The next scientific task is to extend this initial context with opponent direction/distance, protected-target priorities and threat corridors before adding target-volume coverage geometry.
 

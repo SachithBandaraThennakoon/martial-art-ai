@@ -18,8 +18,8 @@ def _weighted_score(scores, objective_weights):
     return sum(scores[target] * weight for target, weight in enabled) / total
 
 
-def _scores(variables):
-    evaluation = evaluate_variables(variables)
+def _scores(variables, optimization_context=None):
+    evaluation = evaluate_variables(variables, optimization_context)
     return {target: details["score"] for target, details in evaluation["targets"].items()}
 
 
@@ -66,12 +66,13 @@ def analyze_sensitivity_and_robustness(
     objective_weights,
     seed=42,
     robustness_samples=32,
+    optimization_context=None,
 ):
     """Analyze local effects and deterministic perturbations around the optimal region."""
     if robustness_samples < 4:
         raise ValueError("Robustness analysis requires at least four samples")
     optimal_region, region_solution_ids = derive_optimal_region(pareto_solutions)
-    baseline_scores = _scores(representative_variables)
+    baseline_scores = _scores(representative_variables, optimization_context)
     baseline_composite = _weighted_score(baseline_scores, objective_weights)
     weight_total = sum(weight for weight in objective_weights.values() if weight > 0)
 
@@ -87,8 +88,8 @@ def analyze_sensitivity_and_robustness(
         upper_variables = dict(representative_variables)
         lower_variables[variable_id] = lower
         upper_variables[variable_id] = upper
-        lower_scores = _scores(lower_variables)
-        upper_scores = _scores(upper_variables)
+        lower_scores = _scores(lower_variables, optimization_context)
+        upper_scores = _scores(upper_variables, optimization_context)
         denominator = max(upper - lower, 1e-12)
         target_effects = {
             target: round(abs(upper_scores[target] - lower_scores[target]) / denominator * span, 6)
@@ -109,7 +110,7 @@ def analyze_sensitivity_and_robustness(
         for value in region_values:
             perturbed = dict(representative_variables)
             perturbed[variable_id] = value
-            composites.append(_weighted_score(_scores(perturbed), objective_weights))
+            composites.append(_weighted_score(_scores(perturbed, optimization_context), objective_weights))
         deviation = pstdev(composites)
         worst_drop = max(0.0, baseline_composite - min(composites))
         robustness_score = max(0.0, min(100.0, 100 - deviation * 5 - worst_drop * 2))
@@ -132,7 +133,7 @@ def analyze_sensitivity_and_robustness(
         for index, variable_id in enumerate(variable_ids):
             region = optimal_region[variable_id]
             variables[variable_id] = region["optimal_min"] + sample[index] * (region["optimal_max"] - region["optimal_min"])
-        sample_scores = _scores(variables)
+        sample_scores = _scores(variables, optimization_context)
         for target, score in sample_scores.items():
             target_samples[target].append(score)
 

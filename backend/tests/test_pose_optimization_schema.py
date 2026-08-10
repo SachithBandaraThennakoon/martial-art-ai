@@ -29,6 +29,7 @@ class PoseOptimizationSchemaTests(unittest.TestCase):
         self.assertEqual(result["seed"], 42)
         self.assertEqual(result["margin"], {"angle_degrees": 0.0, "position_normalized": 0.0})
         self.assertEqual(result["objective_weights"], DEFAULT_OBJECTIVE_WEIGHTS)
+        self.assertEqual(result["optimization_context"]["anchor_mode"], "none")
         self.assertEqual(result["pose_a"]["origin"], "hip_center")
         self.assertEqual(len(result["pose_a"]["bones"]), 16)
 
@@ -66,6 +67,20 @@ class PoseOptimizationSchemaTests(unittest.TestCase):
             "representative_scores": {"joint_safety": 0.9},
         }, 1)
         self.assertEqual(result["representative_scores"]["joint_safety"], 0.9)
+
+    def test_guard_context_validates_exempt_and_locked_variables(self):
+        result = validate_pose_optimization({"optimization_context": {
+            "anchor_mode": "combat_guard",
+            "full_safe_ranges": True,
+            "guard_exempt_variables": ["left_elbow_flexion", "left_hand_head_distance"],
+            "range_locked_variables": ["left_elbow_flexion", "left_hand_head_distance"],
+        }}, 1)
+        self.assertEqual(result["optimization_context"]["anchor_mode"], "combat_guard")
+        self.assertTrue(result["optimization_context"]["full_safe_ranges"])
+        with self.assertRaisesRegex(HTTPException, "unknown pose variables"):
+            validate_pose_optimization({"optimization_context": {
+                "guard_exempt_variables": ["imaginary_joint"],
+            }}, 1)
 
 
 if __name__ == "__main__":

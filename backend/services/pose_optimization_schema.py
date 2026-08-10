@@ -4,6 +4,7 @@ from copy import deepcopy
 from math import isfinite
 
 from fastapi import HTTPException
+from services.pose_variables import VARIABLE_DEFINITIONS
 
 
 POSE_BONES = (
@@ -27,7 +28,37 @@ DEFAULT_OBJECTIVE_WEIGHTS = {
     "mobility": 1.0,
     "structural_efficiency": 1.0,
     "joint_safety": 1.0,
+    "guard_similarity": 2.0,
 }
+
+
+def normalize_optimization_context(context, step_index):
+    if context is None:
+        context = {}
+    if not isinstance(context, dict):
+        raise HTTPException(400, f"Step {step_index} optimization context must be an object")
+    anchor_mode = str(context.get("anchor_mode") or "none").lower()
+    if anchor_mode not in {"none", "combat_guard"}:
+        raise HTTPException(400, f"Step {step_index} optimization anchor is invalid")
+    normalized_lists = {}
+    for field in ("guard_exempt_variables", "range_locked_variables"):
+        values = context.get(field) or []
+        if not isinstance(values, list):
+            raise HTTPException(400, f"Step {step_index} {field} must be a list")
+        unknown = sorted(set(values) - set(VARIABLE_DEFINITIONS))
+        if unknown:
+            raise HTTPException(400, f"Step {step_index} has unknown pose variables: {', '.join(unknown)}")
+        expanded = set(values)
+        for side in ("left", "right"):
+            if f"{side}_hand_head_distance" in expanded:
+                expanded.add(f"{side}_hand_head_height")
+        normalized_lists[field] = sorted(expanded, key=list(VARIABLE_DEFINITIONS).index)
+    return {
+        "schema_version": "1.0",
+        "anchor_mode": anchor_mode,
+        "full_safe_ranges": bool(context.get("full_safe_ranges", False)),
+        **normalized_lists,
+    }
 
 
 def _number(value, message):
@@ -138,5 +169,6 @@ def validate_pose_optimization(configuration, step_index):
         "seed": seed,
         "margin": {"angle_degrees": angle_margin, "position_normalized": position_margin},
         "objective_weights": normalized_weights,
+        "optimization_context": normalize_optimization_context(configuration.get("optimization_context"), step_index),
     })
     return normalized

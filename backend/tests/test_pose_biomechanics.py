@@ -1,6 +1,7 @@
 import unittest
 
 from services.pose_biomechanics import EVALUATOR_VERSION, TARGET_KINDS, evaluate_pose
+from services.pose_structural_chain import STRUCTURAL_CHAIN_VERSION
 from services.pose_optimization_schema import normalize_reference_pose
 
 
@@ -26,12 +27,18 @@ class PoseBiomechanicsTests(unittest.TestCase):
     def test_returns_all_versioned_static_targets(self):
         result = evaluate_pose(pose())
         self.assertEqual(result["evaluator_version"], EVALUATOR_VERSION)
+        self.assertEqual(result["structural_chain_version"], STRUCTURAL_CHAIN_VERSION)
         self.assertEqual(result["evaluation_scope"], "static_geometry")
         self.assertEqual(set(result["targets"]), set(TARGET_KINDS))
         for target in result["targets"].values():
             self.assertGreaterEqual(target["score"], 0)
             self.assertLessEqual(target["score"], 100)
             self.assertTrue(target["components"])
+
+        self.assertIn("chain_arm_connection", result["targets"]["defense"]["components"])
+        self.assertIn("chain_whole_body_support", result["targets"]["readiness"]["components"])
+        self.assertIn("chain_torso_support", result["targets"]["structural_efficiency"]["components"])
+        self.assertIn("chain_joint_safety", result["targets"]["joint_safety"]["components"])
 
     def test_evaluation_is_deterministic(self):
         self.assertEqual(evaluate_pose(pose()), evaluate_pose(pose()))

@@ -29,6 +29,42 @@ def _angle_delta(actual, target):
     return difference
 
 
+def _unit(vector):
+    length = np.linalg.norm(vector)
+    return vector / max(length, 1e-12)
+
+
+def _place(matrix, index, target_bones, parent, child, direction):
+    matrix[index[child]] = (
+        matrix[index[parent]]
+        + _unit(np.asarray(direction, dtype=float)) * target_bones[(parent, child)]
+    )
+
+
+def _combat_guard_anchor(base, index, target_bones, optimization_context):
+    """Build a feasible directional seed; scalar angles alone cannot choose a guard plane."""
+    guard = base.copy()
+    _place(guard, index, target_bones, "shoulder_left", "elbow_left", (-0.35, -0.65, 0.25))
+    _place(guard, index, target_bones, "elbow_left", "wrist_left", (0.30, 0.75, 0.30))
+    _place(guard, index, target_bones, "shoulder_right", "elbow_right", (0.35, -0.65, 0.25))
+    _place(guard, index, target_bones, "elbow_right", "wrist_right", (-0.30, 0.75, 0.30))
+    _place(guard, index, target_bones, "hip_left", "knee_left", (-0.20, -0.94, 0.28))
+    _place(guard, index, target_bones, "knee_left", "ankle_left", (0.10, -0.96, 0.25))
+    _place(guard, index, target_bones, "ankle_left", "foot_left", (0.0, -0.25, 0.97))
+    _place(guard, index, target_bones, "hip_right", "knee_right", (0.20, -0.94, -0.28))
+    _place(guard, index, target_bones, "knee_right", "ankle_right", (-0.10, -0.96, -0.25))
+    _place(guard, index, target_bones, "ankle_right", "foot_right", (0.0, -0.25, 0.97))
+
+    exempt = set((optimization_context or {}).get("guard_exempt_variables") or [])
+    for side in ("left", "right"):
+        if exempt & {f"{side}_shoulder_angle", f"{side}_elbow_flexion"}:
+            guard[index[f"elbow_{side}"]] = base[index[f"elbow_{side}"]]
+            guard[index[f"wrist_{side}"]] = base[index[f"wrist_{side}"]]
+        elif exempt & {f"{side}_hand_head_distance", f"{side}_hand_head_height"}:
+            guard[index[f"wrist_{side}"]] = base[index[f"wrist_{side}"]]
+    return guard
+
+
 def _variable_residual(actual, target, variable_id):
     definition = VARIABLE_DEFINITIONS[variable_id]
     difference = _angle_delta(actual, target) if definition.group == "orientation" else actual - target
@@ -36,7 +72,7 @@ def _variable_residual(actual, target, variable_id):
     return difference / scale
 
 
-def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200):
+def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200, optimization_context=None):
     """Solve one complete landmark skeleton for a jointly optimized variable vector."""
     missing = sorted(set(VARIABLE_DEFINITIONS) - set(target_variables))
     if missing:
@@ -44,7 +80,7 @@ def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200):
 
     first = _pose_array(pose_a)
     second = _pose_array(pose_b)
-    initial = (first + second) / 2
+    base = (first + second) / 2
     index = {name: position for position, name in enumerate(LANDMARK_ORDER)}
     target_bones = {
         (start, end): (
@@ -53,6 +89,12 @@ def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200):
         ) / 2
         for start, end in POSE_BONES
     }
+    anchor = (
+        _combat_guard_anchor(base, index, target_bones, optimization_context)
+        if (optimization_context or {}).get("anchor_mode") == "combat_guard"
+        else base
+    )
+    initial = anchor.copy()
 
     def residual(flattened):
         landmark_map = _landmarks(flattened)
@@ -71,7 +113,8 @@ def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200):
         ]
         hip_center = (matrix[index["hip_left"]] + matrix[index["hip_right"]]) / 2
         anchor_errors = (hip_center / 0.01).tolist()
-        regularization = ((matrix - initial) / 0.5).ravel().tolist()
+        regularization_scale = 0.12 if (optimization_context or {}).get("anchor_mode") == "combat_guard" else 0.5
+        regularization = ((matrix - anchor) / regularization_scale).ravel().tolist()
         return np.array(variable_errors + bone_errors + anchor_errors + regularization)
 
     result = least_squares(
@@ -118,6 +161,7 @@ def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200):
         sum(error ** 2 for error in normalized_projection_errors) / len(normalized_projection_errors)
     ) ** 0.5
     physical_feasible = bool(np.all(np.isfinite(result.x)) and max_bone_error <= BONE_RELATIVE_ERROR_LIMIT)
+    anchor_rmse = float(np.sqrt(np.mean(np.sum((np.asarray(result.x).reshape((-1, 3)) - anchor) ** 2, axis=1))))
 
     return {
         "schema_version": "1.0",
@@ -131,6 +175,7 @@ def reconstruct_pose(target_variables, pose_a, pose_b, max_evaluations=1200):
         "solver_evaluations": int(result.nfev),
         "cost": round(float(result.cost), 8),
         "max_bone_relative_error": round(max_bone_error, 8),
+        "visual_anchor_rmse": round(anchor_rmse, 8),
         "variable_errors": variable_errors,
         "actual_variables": actual_variables,
         "reference_pose": reconstructed,

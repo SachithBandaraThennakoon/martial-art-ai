@@ -48,6 +48,21 @@ class PoseKinematicsTests(unittest.TestCase):
         self.assertIn("guard_height", result["variable_errors"])
         self.assertLessEqual(result["variable_errors"]["guard_height"]["absolute_error"], 0.08)
 
+    def test_combat_guard_context_resolves_limb_direction_ambiguity(self):
+        anchor = pose()
+        result = reconstruct_pose(
+            extract_pose_variables(anchor), anchor, anchor, max_evaluations=600,
+            optimization_context={"anchor_mode": "combat_guard", "guard_exempt_variables": []},
+        )
+        landmarks = result["reference_pose"]["landmarks"]
+        self.assertLess(landmarks["elbow_left"][0], landmarks["shoulder_left"][0])
+        self.assertGreater(landmarks["elbow_right"][0], landmarks["shoulder_right"][0])
+        self.assertGreater(landmarks["wrist_left"][1], landmarks["elbow_left"][1])
+        self.assertGreater(landmarks["wrist_right"][1], landmarks["elbow_right"][1])
+        self.assertGreater(landmarks["wrist_left"][2], landmarks["shoulder_left"][2])
+        self.assertGreater(landmarks["wrist_right"][2], landmarks["shoulder_right"][2])
+        self.assertLess(result["visual_anchor_rmse"], 0.3)
+
 
 if __name__ == "__main__":
     unittest.main()

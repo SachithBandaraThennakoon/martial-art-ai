@@ -12,7 +12,7 @@ import logging
 from database import get_db
 from models.user import User
 from services.catalog_sync import sync_technique_catalog
-from services.pose_optimization_schema import normalize_reference_pose, validate_pose_optimization
+from services.pose_optimization_schema import normalize_optimization_context, normalize_reference_pose, validate_pose_optimization
 from services.pose_biomechanics import evaluate_pose
 from services.pose_optimizer import optimize_pose_variables
 from services.pose_search_ranges import generate_search_ranges
@@ -42,10 +42,12 @@ class PoseRangePayload(BaseModel):
     pose_a: dict
     pose_b: dict
     margin: dict = Field(default_factory=dict)
+    optimization_context: dict = Field(default_factory=dict)
 
 
 class PoseEvaluationPayload(BaseModel):
     pose: dict
+    optimization_context: dict = Field(default_factory=dict)
 
 
 class PoseOptimizationPayload(PoseRangePayload):
@@ -267,8 +269,11 @@ def generate_pose_optimization_ranges(
         "pose_a": pose_a,
         "pose_b": pose_b,
         "margin": payload.margin,
+        "optimization_context": payload.optimization_context,
     }, "preview")
-    return generate_search_ranges(pose_a, pose_b, settings["margin"])
+    return generate_search_ranges(
+        pose_a, pose_b, settings["margin"], optimization_context=settings["optimization_context"]
+    )
 
 
 @router.post("/pose-optimization/evaluate")
@@ -277,7 +282,8 @@ def evaluate_pose_optimization(
     _admin: User = Depends(require_admin_user),
 ):
     pose = normalize_reference_pose(payload.pose, "preview", "pose")
-    return evaluate_pose(pose)
+    context = normalize_optimization_context(payload.optimization_context, "preview")
+    return evaluate_pose(pose, context)
 
 
 @router.post("/pose-optimization/run")
@@ -303,12 +309,14 @@ def run_pose_optimization(
         "pose_b": payload.get("pose_b"),
         "margin": payload.get("margin") or {},
         "objective_weights": payload.get("objective_weights") or None,
+        "optimization_context": payload.get("optimization_context") or {},
         "seed": seed,
     }, "preview")
     ranges = generate_search_ranges(
         settings["pose_a"],
         settings["pose_b"],
         settings["margin"],
+        optimization_context=settings["optimization_context"],
     )
     optimization = optimize_pose_variables(
         ranges,
@@ -318,6 +326,7 @@ def run_pose_optimization(
         seed=settings["seed"],
         population_size=population_size,
         generations=generations,
+        optimization_context=settings["optimization_context"],
     )
     return {"search": ranges, "optimization": optimization}
 

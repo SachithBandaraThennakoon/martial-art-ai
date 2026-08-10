@@ -15,6 +15,8 @@ def representative():
         "left_ankle_angle": 100, "right_ankle_angle": 100,
         "torso_lean": 10, "pelvis_rotation": -12, "shoulder_rotation": 12,
         "stance_width": 1.0, "stance_depth": 0.8, "guard_width": 0.7, "guard_height": 0.8,
+        "left_hand_head_distance": 0.55, "right_hand_head_distance": 0.55,
+        "left_hand_head_height": -0.45, "right_hand_head_height": -0.45,
     }
 
 

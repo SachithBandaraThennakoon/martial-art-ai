@@ -6,7 +6,7 @@ from services.pose_constraints import constrain_search_range, validate_endpoint
 from services.pose_variables import VARIABLE_DEFINITIONS, extract_pose_variables
 
 
-def generate_search_ranges(pose_a, pose_b, margin=None, step_index=None):
+def generate_search_ranges(pose_a, pose_b, margin=None, step_index=None, optimization_context=None):
     margin = margin or {}
     angle_margin = float(margin.get("angle_degrees", 0))
     position_margin = float(margin.get("position_normalized", 0))
@@ -18,18 +18,24 @@ def generate_search_ranges(pose_a, pose_b, margin=None, step_index=None):
         raise HTTPException(400, f"{prefix}cannot generate pose ranges: {error}") from None
 
     ranges = {}
+    context = optimization_context or {}
+    locked_variables = set(context.get("range_locked_variables") or [])
     for variable_id, definition in VARIABLE_DEFINITIONS.items():
         endpoint_a = variables_a[variable_id]
         endpoint_b = variables_b[variable_id]
         validate_endpoint(variable_id, endpoint_a, "Pose A", step_index)
         validate_endpoint(variable_id, endpoint_b, "Pose B", step_index)
-        configured_margin = angle_margin if definition.unit == "degrees" else position_margin
-        lower, upper = constrain_search_range(
-            variable_id,
-            min(endpoint_a, endpoint_b) - configured_margin,
-            max(endpoint_a, endpoint_b) + configured_margin,
-            step_index,
-        )
+        use_full_range = context.get("full_safe_ranges", False) and variable_id not in locked_variables
+        if use_full_range:
+            lower, upper = definition.constraint_min, definition.constraint_max
+        else:
+            configured_margin = angle_margin if definition.unit == "degrees" else position_margin
+            lower, upper = constrain_search_range(
+                variable_id,
+                min(endpoint_a, endpoint_b) - configured_margin,
+                max(endpoint_a, endpoint_b) + configured_margin,
+                step_index,
+            )
         ranges[variable_id] = {
             "label": definition.label,
             "unit": definition.unit,
@@ -40,6 +46,7 @@ def generate_search_ranges(pose_a, pose_b, margin=None, step_index=None):
             "search_max": round(upper, 6),
             "constraint_min": definition.constraint_min,
             "constraint_max": definition.constraint_max,
+            "range_source": "full_safe_constraints" if use_full_range else "initial_tolerance",
         }
 
     return {

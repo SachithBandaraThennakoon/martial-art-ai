@@ -47,6 +47,10 @@ VARIABLE_DEFINITIONS = {
         PoseVariableDefinition("stance_depth", "Stance depth", "torso_lengths", 0, 3.0, "stance"),
         PoseVariableDefinition("guard_width", "Guard width", "torso_lengths", 0.05, 3.0, "guard"),
         PoseVariableDefinition("guard_height", "Guard height", "torso_lengths", -1.5, 2.5, "guard"),
+        PoseVariableDefinition("left_hand_head_distance", "Left hand to head", "torso_lengths", 0.05, 3.5, "guard"),
+        PoseVariableDefinition("right_hand_head_distance", "Right hand to head", "torso_lengths", 0.05, 3.5, "guard"),
+        PoseVariableDefinition("left_hand_head_height", "Left hand height from head", "torso_lengths", -3.5, 1.5, "guard"),
+        PoseVariableDefinition("right_hand_head_height", "Right hand height from head", "torso_lengths", -3.5, 1.5, "guard"),
     )
 }
 
@@ -102,5 +106,9 @@ def extract_pose_variables(reference_pose):
         "stance_depth": abs(landmarks["ankle_right"][2] - landmarks["ankle_left"][2]) / torso_length,
         "guard_width": _length(_subtract(landmarks["wrist_right"], landmarks["wrist_left"])) / torso_length,
         "guard_height": (wrist_center[1] - hip_center[1]) / torso_length,
+        "left_hand_head_distance": _length(_subtract(landmarks["wrist_left"], landmarks["head"])) / torso_length,
+        "right_hand_head_distance": _length(_subtract(landmarks["wrist_right"], landmarks["head"])) / torso_length,
+        "left_hand_head_height": (landmarks["wrist_left"][1] - landmarks["head"][1]) / torso_length,
+        "right_hand_head_height": (landmarks["wrist_right"][1] - landmarks["head"][1]) / torso_length,
     })
     return {key: round(value, 6) for key, value in variables.items()}

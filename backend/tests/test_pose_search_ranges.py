@@ -62,6 +62,23 @@ class PoseSearchRangeTests(unittest.TestCase):
             self.assertGreaterEqual(variable["search_min"], variable["constraint_min"])
             self.assertLessEqual(variable["search_max"], variable["constraint_max"])
 
+    def test_full_safe_ranges_preserve_technique_specific_locked_variables(self):
+        result = generate_search_ranges(
+            pose(BASE), pose(BASE), {"angle_degrees": 3, "position_normalized": 0.05},
+            optimization_context={
+                "full_safe_ranges": True,
+                "range_locked_variables": ["left_elbow_flexion", "left_hand_head_distance"],
+            },
+        )
+        full = result["ranges"]["right_elbow_flexion"]
+        locked = result["ranges"]["left_elbow_flexion"]
+        hand = result["ranges"]["left_hand_head_distance"]
+        self.assertEqual((full["search_min"], full["search_max"]), (full["constraint_min"], full["constraint_max"]))
+        self.assertEqual(full["range_source"], "full_safe_constraints")
+        self.assertEqual(locked["range_source"], "initial_tolerance")
+        self.assertLess(locked["search_max"] - locked["search_min"], 7)
+        self.assertLessEqual(hand["search_max"] - hand["search_min"], 0.100001)
+
     def test_range_generation_is_deterministic(self):
         first = generate_search_ranges(pose(BASE), pose(BASE), {"angle_degrees": 3})
         second = generate_search_ranges(pose(BASE), pose(BASE), {"angle_degrees": 3})

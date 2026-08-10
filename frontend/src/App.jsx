@@ -25,16 +25,18 @@ const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
 const TemporalDataLab = lazy(() => import("./pages/TemporalDataLab"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const TechniqueCatalogAdmin = lazy(() => import("./pages/TechniqueCatalogAdmin"));
+const ManualTechniqueCatalogAdmin = lazy(() => import("./pages/ManualTechniqueCatalogAdmin"));
 
 function AppRoutes() {
   const location = useLocation();
   const isStudio =
-    location.pathname === "/training" || location.pathname === "/admin-training" || location.pathname === "/admin-catalog";
+    location.pathname === "/training" || location.pathname === "/admin-training" || location.pathname === "/admin-catalog" || location.pathname === "/admin-manual-catalog";
   const isLiveStudioRoute = [
     "/admin-studio",
     "/training",
     "/admin-training",
     "/admin-catalog",
+    "/admin-manual-catalog",
   ].includes(location.pathname);
   const showSharedParticles = location.pathname !== "/" && !isLiveStudioRoute;
   const isDashboard = location.pathname.startsWith("/dashboard");
@@ -87,6 +89,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <TechniqueCatalogAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-manual-catalog"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <ManualTechniqueCatalogAdmin />
             </ProtectedRoute>
           }
         />
