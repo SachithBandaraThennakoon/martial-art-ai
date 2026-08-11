@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from services.pose_optimization_schema import (
     DEFAULT_OBJECTIVE_WEIGHTS,
     POSE_LANDMARKS,
+    normalize_reference_pose,
     validate_pose_optimization,
 )
 
@@ -22,6 +23,21 @@ def reference_pose(offset=0.0):
 
 
 class PoseOptimizationSchemaTests(unittest.TestCase):
+    def test_face_and_hand_articulation_survives_normalization(self):
+        pose = reference_pose()
+        pose["articulation"] = {
+            "face": {"gaze_horizontal": -0.4, "eye_openness": 0.7, "jaw_openness": 0.2},
+            "hand_left": {"fist_closure": 0.85, "finger_spread": 0.1},
+            "hand_right": {"fist_closure": 0.15, "finger_spread": 0.6},
+        }
+
+        result = normalize_reference_pose(pose, 1)
+
+        self.assertEqual(result["articulation"]["face"]["gaze_horizontal"], -0.4)
+        self.assertEqual(result["articulation"]["face"]["eye_openness"], 0.7)
+        self.assertEqual(result["articulation"]["hand_left"]["fist_closure"], 0.85)
+        self.assertEqual(result["articulation"]["hand_right"]["finger_spread"], 0.6)
+
     def test_draft_accepts_one_endpoint_and_applies_reproducible_defaults(self):
         result = validate_pose_optimization({"pose_a": reference_pose()}, 1)
 
