@@ -85,6 +85,25 @@ const ANGLES = [
   ["ankle_left", "Left ankle", "knee_left", "ankle_left", "foot_left"],
   ["ankle_right", "Right ankle", "knee_right", "ankle_right", "foot_right"],
 ];
+const ANATOMICAL_ANGLE_LIMITS = {
+  elbow_left: { min: 15, max: 178 },
+  elbow_right: { min: 15, max: 178 },
+  shoulder_left: { min: 10, max: 175 },
+  shoulder_right: { min: 10, max: 175 },
+  hip_left: { min: 20, max: 175 },
+  hip_right: { min: 20, max: 175 },
+  knee_left: { min: 20, max: 178 },
+  knee_right: { min: 20, max: 178 },
+  ankle_left: { min: 50, max: 140 },
+  ankle_right: { min: 50, max: 140 },
+};
+function anatomicalLimits(bodyPart) {
+  return ANATOMICAL_ANGLE_LIMITS[bodyPart] || { min: 0, max: 180 };
+}
+function clampAnatomicalAngle(bodyPart, value) {
+  const limits = anatomicalLimits(bodyPart);
+  return Math.max(limits.min, Math.min(limits.max, value));
+}
 const JOINT_LABELS = {
   head: "Head",
   shoulder_left: "Left shoulder",
@@ -477,8 +496,11 @@ function poseFromAngleTargets(pose, angleTargets = []) {
   );
   angleTargets.forEach((target) => {
     const joints = ANGLE_JOINTS[target.body_part];
-    const desired = Number(
-      target.target_angle ?? (Number(target.min) + Number(target.max)) / 2,
+    const desired = clampAnatomicalAngle(
+      target.body_part,
+      Number(
+        target.target_angle ?? (Number(target.min) + Number(target.max)) / 2,
+      ),
     );
     if (!joints || !Number.isFinite(desired)) return;
     for (let iteration = 0; iteration < 48; iteration += 1) {
@@ -525,6 +547,17 @@ function poseFromAngleTargets(pose, angleTargets = []) {
     }
   });
   return groundPose(restorePlantedFootAndResolve(nextPose, pose));
+}
+
+function enforceAnatomicalLimits(pose) {
+  const corrections = ANGLES.flatMap(([bodyPart, , first, center, last]) => {
+    const angle = calculateAngle(pose[first], pose[center], pose[last]);
+    const corrected = clampAnatomicalAngle(bodyPart, angle);
+    return corrected === angle
+      ? []
+      : [{ body_part: bodyPart, target_angle: corrected }];
+  });
+  return corrections.length ? poseFromAngleTargets(pose, corrections) : pose;
 }
 
 function poseFromRanges(rangeTargets = []) {
@@ -785,9 +818,11 @@ function ImportedHumanModel({ articulation, opacity, pose, url }) {
       fingerNames.forEach((finger) => {
         // Curl as a three-joint chain. The previous values exceeded a natural
         // closed-fist arc and folded the fingertips through the palm/wrist.
-        curlBone(finger[0], 36 * easedClosure);
-        curlBone(finger[1], 66 * easedClosure);
-        curlBone(finger[2], 46 * easedClosure);
+        // The imported rig's local X flexion axis is opposite to the editor's
+        // palm-depth direction after the model's 180-degree facing correction.
+        curlBone(finger[0], -58 * easedClosure);
+        curlBone(finger[1], -78 * easedClosure);
+        curlBone(finger[2], -42 * easedClosure);
       });
       const thumbNames =
         sideCode === "L"
@@ -798,18 +833,18 @@ function ImportedHumanModel({ articulation, opacity, pose, url }) {
       const wrapDirection = sideCode === "L" ? 1 : -1;
       curlBone(
         thumbNames[0],
-        22 * easedClosure,
-        wrapDirection * 34 * easedClosure,
+        -28 * easedClosure,
+        wrapDirection * 45 * easedClosure,
       );
       curlBone(
         thumbNames[1],
-        42 * easedClosure,
-        wrapDirection * 19 * easedClosure,
+        -48 * easedClosure,
+        wrapDirection * 25 * easedClosure,
       );
       curlBone(
         thumbNames[2],
-        30 * easedClosure,
-        wrapDirection * 8 * easedClosure,
+        -32 * easedClosure,
+        wrapDirection * 10 * easedClosure,
       );
     };
     // The model is rotated 180 degrees, so its anatomical left hand appears
@@ -928,12 +963,12 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
       .add(forward.clone().multiplyScalar(forwardAmount))
       .toArray();
   const faceOutline = [
-    headPoint(-0.14, 0.12, 0.045),
-    headPoint(0.14, 0.12, 0.045),
-    headPoint(0.085, -0.13 - face.jaw_openness * 0.025, 0.065),
-    headPoint(0, -0.18 - face.jaw_openness * 0.035, 0.07),
-    headPoint(-0.085, -0.13 - face.jaw_openness * 0.025, 0.065),
-    headPoint(-0.14, 0.12, 0.045),
+    headPoint(-0.2, 0.22, 0.045),
+    headPoint(0.2, 0.22, 0.045),
+    headPoint(0.13, -0.19 - face.jaw_openness * 0.03, 0.075),
+    headPoint(0, -0.27 - face.jaw_openness * 0.045, 0.08),
+    headPoint(-0.13, -0.19 - face.jaw_openness * 0.03, 0.075),
+    headPoint(-0.2, 0.22, 0.045),
   ];
   const gazePoint = headPoint(
     face.gaze_horizontal * 0.045,
@@ -953,22 +988,38 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
     direction.applyQuaternion(wristQuaternion);
     widthAxis.applyQuaternion(wristQuaternion);
     const depthAxis = direction.clone().cross(widthAxis).normalize();
+    const torsoOffset = shoulderLeft
+      .clone()
+      .add(shoulderRight)
+      .multiplyScalar(0.5)
+      .sub(wrist);
+    const inwardCurlAxis = torsoOffset
+      .clone()
+      .addScaledVector(
+        direction,
+        -torsoOffset.dot(direction),
+      )
+      .normalize();
+    if (inwardCurlAxis.lengthSq() < 0.01) inwardCurlAxis.copy(depthAxis).negate();
     const closure = settings.fist_closure;
     const spreadScale = 0.4 + settings.finger_spread;
     const landmarks = Array(21);
     landmarks[0] = wrist.toArray();
-    const fingerOffsets = [-0.065, -0.022, 0.022, 0.065];
+    const fingerOffsets = [-0.078, -0.026, 0.026, 0.078];
     const fingerBases = [5, 9, 13, 17];
     fingerBases.forEach((baseIndex, fingerIndex) => {
       const lateral = fingerOffsets[fingerIndex] * spreadScale;
       const easedClosure = THREE.MathUtils.smoothstep(closure, 0, 1);
       let fingerPoint = wrist
         .clone()
-        .add(direction.clone().multiplyScalar(0.055))
+        .add(direction.clone().multiplyScalar(0.065))
         .add(widthAxis.clone().multiplyScalar(lateral));
       landmarks[baseIndex] = fingerPoint.toArray();
-      const segmentLengths = [0.058, 0.052, 0.043];
-      const bendAngles = [34, 98, 144];
+      const segmentLengths = [0.07, 0.062, 0.052];
+      // Cumulative segment directions for a closed fist. The proximal segment
+      // folds into the palm first; the last two then wrap back toward the
+      // knuckles instead of stopping in an open claw.
+      const bendAngles = [58, 132, 174];
       segmentLengths.forEach((length, segmentIndex) => {
         const angle = THREE.MathUtils.degToRad(
           bendAngles[segmentIndex] * easedClosure,
@@ -976,7 +1027,7 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
         const segmentDirection = direction
           .clone()
           .multiplyScalar(Math.cos(angle))
-          .add(depthAxis.clone().multiplyScalar(-Math.sin(angle)))
+          .add(inwardCurlAxis.clone().multiplyScalar(Math.sin(angle)))
           .normalize();
         fingerPoint = fingerPoint
           .clone()
@@ -992,26 +1043,30 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
         .add(
           direction
             .clone()
-            .multiplyScalar(0.025 + progress * 0.12),
+            .multiplyScalar(0.03 + progress * 0.145),
         )
         .add(
           widthAxis
             .clone()
-            .multiplyScalar(thumbSign * (0.035 + progress * 0.085)),
+            .multiplyScalar(thumbSign * (0.04 + progress * 0.105)),
         );
       const closedPoint = wrist
         .clone()
         .add(
           direction
             .clone()
-            .multiplyScalar(0.04 + Math.sin(progress * Math.PI) * 0.055),
+            .multiplyScalar(0.05 + Math.sin(progress * Math.PI) * 0.065),
         )
         .add(
           widthAxis
             .clone()
-            .multiplyScalar(thumbSign * (0.045 - progress * 0.025)),
+            .multiplyScalar(thumbSign * (0.055 - progress * 0.03)),
         )
-        .add(depthAxis.clone().multiplyScalar(-0.025 - progress * 0.085));
+        .add(
+          inwardCurlAxis
+            .clone()
+            .multiplyScalar(0.03 + progress * 0.1),
+        );
       landmarks[joint] = openPoint
         .lerp(closedPoint, closure)
         .toArray();
@@ -1022,6 +1077,18 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
   return (
     <>
       <Line color="#ffffff" lineWidth={1.4} points={faceOutline} />
+      <Line
+        color="#ffffff"
+        lineWidth={1.35}
+        points={[faceOutline[3], neck.toArray()]}
+      />
+      <Line
+        color="#ffffff"
+        lineWidth={1.25}
+        opacity={0.82}
+        points={[shoulderLeft.toArray(), neck.toArray(), shoulderRight.toArray()]}
+        transparent
+      />
       <Line
         color="#ffffff"
         lineWidth={1.15}
@@ -1655,9 +1722,11 @@ export default function PoseRangeDesigner({
   const workbenchRef = useRef(null);
   const studio = useContext(PoseStudioContext);
   const [pose, setPose] = useState(() =>
-    groundPose(
-      poseFromReferencePose(referencePose) ||
-        (rangeTargets.length ? poseFromRanges(rangeTargets) : freshPose()),
+    enforceAnatomicalLimits(
+      groundPose(
+        poseFromReferencePose(referencePose) ||
+          (rangeTargets.length ? poseFromRanges(rangeTargets) : freshPose()),
+      ),
     ),
   );
   const [selectedJoint, setSelectedJoint] = useState("elbow_left");
@@ -1754,6 +1823,7 @@ export default function PoseRangeDesigner({
               parentPosition[index] +
               (value / directionLength) * BONE_LENGTHS[name],
           );
+        else nextPosition = [...currentPosition];
       }
       const change = nextPosition.map(
         (value, index) => value - currentPosition[index],
@@ -1770,8 +1840,8 @@ export default function PoseRangeDesigner({
           moveChildren(child);
         });
       moveChildren(name);
-      const nextResolvedPose = groundPose(
-        restorePlantedFootAndResolve(nextPose, current, name),
+      const nextResolvedPose = enforceAnatomicalLimits(
+        groundPose(restorePlantedFootAndResolve(nextPose, current, name)),
       );
       syncAngleDrafts(nextResolvedPose, activeAngleInput);
       return nextResolvedPose;
@@ -1825,8 +1895,8 @@ export default function PoseRangeDesigner({
       .clone()
       .multiply(previousQuaternion.clone().invert());
     setPose((current) => {
-      const nextPose = groundPose(
-        rotateDescendants(current, name, deltaQuaternion),
+      const nextPose = enforceAnatomicalLimits(
+        groundPose(rotateDescendants(current, name, deltaQuaternion)),
       );
       syncAngleDrafts(nextPose, activeAngleInput);
       return nextPose;
@@ -1851,7 +1921,7 @@ export default function PoseRangeDesigner({
     if (rawValue === "" || rawValue === null || rawValue === undefined) return;
     const nextValue = Number(rawValue);
     if (!Number.isFinite(nextValue)) return;
-    const clampedValue = Math.max(0, Math.min(180, nextValue));
+    const clampedValue = clampAnatomicalAngle(bodyPart, nextValue);
     setPose((current) => {
       const nextPose = poseFromAngleTargets(current, [
         { body_part: bodyPart, target_angle: clampedValue },
@@ -1878,8 +1948,14 @@ export default function PoseRangeDesigner({
     onApply(
       calculated.map((item) => ({
         ...item,
-        min: Math.max(0, item.target_angle - safeAngleTolerance),
-        max: Math.min(180, item.target_angle + safeAngleTolerance),
+        min: Math.max(
+          anatomicalLimits(item.body_part).min,
+          item.target_angle - safeAngleTolerance,
+        ),
+        max: Math.min(
+          anatomicalLimits(item.body_part).max,
+          item.target_angle + safeAngleTolerance,
+        ),
         role: "supporting",
         weight: 1,
       })),
@@ -1910,8 +1986,14 @@ export default function PoseRangeDesigner({
       referencePoseFromPose(pose, positionTolerance, articulation),
       calculated.map((item) => ({
         ...item,
-        min: Math.max(0, item.target_angle - tolerance),
-        max: Math.min(180, item.target_angle + tolerance),
+        min: Math.max(
+          anatomicalLimits(item.body_part).min,
+          item.target_angle - tolerance,
+        ),
+        max: Math.min(
+          anatomicalLimits(item.body_part).max,
+          item.target_angle + tolerance,
+        ),
         role: "supporting",
         weight: 1,
       })),
@@ -1926,8 +2008,10 @@ export default function PoseRangeDesigner({
     tolerance,
   ]);
   const loadCurrentRanges = () => {
-    const nextPose = groundPose(
-      poseFromReferencePose(referencePose) || poseFromRanges(rangeTargets),
+    const nextPose = enforceAnatomicalLimits(
+      groundPose(
+        poseFromReferencePose(referencePose) || poseFromRanges(rangeTargets),
+      ),
     );
     setPose(nextPose);
     syncAngleDrafts(nextPose);
@@ -2356,11 +2440,16 @@ export default function PoseRangeDesigner({
             <div className="pose-designer__angle-list">
               {calculated.map((item) => (
                 <div key={item.body_part}>
-                  <span>{item.label}</span>
+                  <span>
+                    {item.label}
+                    <small>
+                      {` ${anatomicalLimits(item.body_part).min}–${anatomicalLimits(item.body_part).max}°`}
+                    </small>
+                  </span>
                   <label className="pose-designer__angle-input">
                     <input
-                      max="180"
-                      min="0"
+                      max={anatomicalLimits(item.body_part).max}
+                      min={anatomicalLimits(item.body_part).min}
                       onBlur={() => commitAngleTarget(item.body_part)}
                       onChange={(event) => {
                         updateAngleDraft(item.body_part, event.target.value);
