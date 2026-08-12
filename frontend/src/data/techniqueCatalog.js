@@ -75,6 +75,7 @@ function buildTechniqueCatalog({
       non_angle_features: step.non_angle_features || [],
       quality_targets: step.quality_targets || [],
       feedback_priority: step.feedback_priority || [],
+      position_targets: step.position_targets || [],
       evaluation_profile: evaluationProfile,
       angles: primaryAngles.map(({ body_part, min, max }) => ({
         body_part,

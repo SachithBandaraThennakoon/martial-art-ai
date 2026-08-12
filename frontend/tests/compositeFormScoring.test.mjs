@@ -247,3 +247,39 @@ test("natural awareness feedback is short and actionable", () => {
   assert.equal(trackingMessage, "Step back; show your full body.");
   assert.ok(correctionMessage.split(/\s+/).length <= 7);
 });
+
+test("position feedback is directional and follows angle corrections", () => {
+  const positionCorrection = {
+    bodyPart: "wrist_left",
+    label: "Lead wrist",
+    direction: "raise",
+    kind: "position",
+    score: 20
+  };
+  const result = scoreCompositeForm({
+    angleTargets,
+    liveAngles: { elbow_left: 90, knee_left: 125 },
+    positionCorrections: [positionCorrection]
+  });
+
+  assert.equal(result.corrections[0].kind, "angle");
+  assert.equal(result.corrections.at(-1).kind, "position");
+  assert.equal(
+    buildNaturalAwarenessFeedback({ correction: positionCorrection }),
+    "Raise your lead wrist slightly."
+  );
+});
+
+test("position feedback describes estimated depth movement", () => {
+  assert.equal(
+    buildNaturalAwarenessFeedback({
+      correction: {
+        bodyPart: "wrist_right",
+        label: "Rear wrist",
+        direction: "backward",
+        kind: "position"
+      }
+    }),
+    "Bring your rear wrist back slightly."
+  );
+});

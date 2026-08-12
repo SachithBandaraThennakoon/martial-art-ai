@@ -107,3 +107,44 @@ test("situation awareness emits non-blocking guidance for a trusted future risk"
   assert.equal(state.situation_context.feedback_decision.should_pause_progression, false);
   assert.equal(state.situation_context.next_action.command, "prepare_correction");
 });
+
+function awarenessContext(actionContext) {
+  return {
+    level1State: { timestamp: 1, tracking: { confidence: 0.95 } },
+    level2State: { action_context: { mistake_risk: 0.2, likely_mistake: null, ...actionContext } },
+    level3State: { session_context: { fatigue_risk: 0.1, mastery_score: 0.4, recommendation: "continue", trend: "stable" } },
+    level4State: { user_context: { progression: {}, personalization: {} } }
+  };
+}
+
+test("current XYZ evidence can drive a situation correction", () => {
+  const layer = new SituationAwarenessLayer({ updateIntervalMs: 0 });
+  const state = layer.update(awarenessContext({
+    spatial_awareness: {
+      risk: 0.78,
+      top_issue: { bodyPart: "wrist_left", axis: "z", direction: "forward" }
+    }
+  }));
+
+  assert.equal(state.situation_context.situation_state, "correcting");
+  assert.equal(state.situation_context.attention_target.layer, "level1_spatial");
+  assert.equal(state.situation_context.reasoning.spatial_dimension, "z");
+  assert.match(state.situation_context.feedback_decision.message, /forward/);
+});
+
+test("trusted predicted XYZ evidence creates anticipatory guidance", () => {
+  const layer = new SituationAwarenessLayer({ updateIntervalMs: 0 });
+  const state = layer.update(awarenessContext({
+    spatial_forecast: {
+      trusted: true,
+      risk: 0.8,
+      horizon_ms: 500,
+      top_issue: { bodyPart: "wrist_left", axis: "y", direction: "lower" }
+    }
+  }));
+
+  assert.equal(state.situation_context.situation_state, "anticipating");
+  assert.equal(state.situation_context.attention_target.layer, "level2_spatial_forecast");
+  assert.equal(state.situation_context.feedback_decision.type, "predictive_guidance");
+  assert.equal(state.situation_context.feedback_decision.should_pause_progression, false);
+});

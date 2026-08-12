@@ -74,7 +74,8 @@ export function scoreCompositeForm({
   liveFeatures = {},
   nonAngleTargets = [],
   qualityTargets = [],
-  feedbackPriority = []
+  feedbackPriority = [],
+  positionCorrections = []
 }) {
   const profile = {
     ...(DEFAULT_PROFILES[difficulty] || DEFAULT_PROFILES.medium),
@@ -177,7 +178,7 @@ export function scoreCompositeForm({
       ];
     })
   );
-  const corrections = measured
+  const measuredCorrections = measured
     .filter((item) => item.issue && item.score < 80)
     .sort((first, second) => {
       return correctionUrgency(second, feedbackPriority) -
@@ -196,6 +197,13 @@ export function scoreCompositeForm({
       score: Math.round(item.score),
       weight: item.weight
     }));
+  // Static position matching supports the angle/quality rules. Keep these
+  // corrections behind measured form errors so pose-shape advice never masks
+  // a primary joint or safety-related correction.
+  const corrections = [
+    ...measuredCorrections,
+    ...positionCorrections.filter((item) => item?.kind === "position")
+  ];
   const strengths = measured
     .filter(
       (item) =>
@@ -298,6 +306,16 @@ export function buildNaturalAwarenessFeedback({
   const bodyPart = correction.bodyPart || "";
   const label = correction.label?.toLowerCase() || bodyPart.replace(/_/g, " ");
   const side = /right|rear/.test(label) ? "rear" : "lead";
+  if (correction.kind === "position") {
+    const joint = bodyPart.replace(/_(left|right)$/, "").replace(/_/g, " ");
+    const namedPart = `${side} ${joint}`.trim();
+    if (correction.direction === "raise") return `Raise your ${namedPart} slightly.`;
+    if (correction.direction === "lower") return `Lower your ${namedPart} slightly.`;
+    if (correction.direction === "inward") return `Bring your ${namedPart} inward.`;
+    if (correction.direction === "outward") return `Move your ${namedPart} outward.`;
+    if (correction.direction === "forward") return `Move your ${namedPart} forward slightly.`;
+    if (correction.direction === "backward") return `Bring your ${namedPart} back slightly.`;
+  }
   if (correction.kind === "quality") {
     if (/fist/.test(bodyPart)) return `Close your ${side} fist firmly.`;
     if (/eyes/.test(bodyPart)) return "Keep your eyes on target.";

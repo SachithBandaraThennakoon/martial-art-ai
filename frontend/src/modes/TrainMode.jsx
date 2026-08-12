@@ -30,6 +30,7 @@ import {
   buildStepTransitionFeedback,
   parseTrainingStepCommand
 } from "../utils/trainingStepNavigation";
+import { evaluatePositionFeedback } from "../utils/positionFeedback";
 
 const VOICE_PROFILES = {
   calmMale: {
@@ -134,6 +135,8 @@ export default function TrainMode({
   const steps = useMemo(() => currentTechnique?.steps || [], [currentTechnique]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [angles, setAngles] = useState({});
+  const [liveMeasurementPose, setLiveMeasurementPose] = useState(null);
+  const lastPositionUpdateRef = useRef(0);
   const [, setServerAccuracy] = useState(0);
   const [formDifficulty, setFormDifficulty] = useState(
     () => localStorage.getItem("studioFormDifficulty") || "medium"
@@ -207,6 +210,15 @@ export default function TrainMode({
     () => [...displayAngleParts, ...(currentStep?.quality_targets || [])],
     [currentStep, displayAngleParts]
   );
+  const positionCorrections = useMemo(() => {
+    const profile = currentStep?.difficulty_profiles?.[formDifficulty];
+    return evaluatePositionFeedback({
+      livePose: liveMeasurementPose,
+      referencePose: currentStep?.reference_pose,
+      positionTargets: currentStep?.position_targets,
+      toleranceScale: profile?.tolerance_scale ?? 1
+    });
+  }, [currentStep, formDifficulty, liveMeasurementPose]);
   const compositeForm = useMemo(
     () =>
       scoreCompositeForm({
@@ -217,10 +229,17 @@ export default function TrainMode({
         liveFeatures: ruleEngineFrame?.features || {},
         nonAngleTargets: currentStep?.non_angle_features || [],
         qualityTargets: currentStep?.quality_targets || [],
-        feedbackPriority: currentStep?.feedback_priority || []
+        feedbackPriority: currentStep?.feedback_priority || [],
+        positionCorrections
       }),
-    [angles, currentStep, displayAngleParts, formDifficulty, ruleEngineFrame]
+    [angles, currentStep, displayAngleParts, formDifficulty, positionCorrections, ruleEngineFrame]
   );
+  const handleLandmarkFrame = useCallback((frame) => {
+    const now = Number(frame?.timestamp) || Date.now();
+    if (now - lastPositionUpdateRef.current < 250) return;
+    lastPositionUpdateRef.current = now;
+    setLiveMeasurementPose(frame?.measurementPose || null);
+  }, []);
   const feedbackAngleParts = useMemo(() => {
     const profile = currentStep?.difficulty_profiles?.[formDifficulty];
     const toleranceScale = profile?.tolerance_scale ?? 1;
@@ -1133,6 +1152,7 @@ export default function TrainMode({
           currentStepId={currentStep?.id}
           currentStepName={currentStep?.step_name}
           referencePose={currentStep?.reference_pose || null}
+          positionTargets={currentStep?.position_targets || []}
           sessionConfig={sessionConfig}
           coachCommand={coachCommand}
           requiredParts={requiredParts}
@@ -1140,6 +1160,7 @@ export default function TrainMode({
           expectedParts={expectedGuideParts}
           feedbackParts={feedbackAngleParts}
           onAngleUpdate={handleAngleUpdate}
+          onLandmarkFrame={handleLandmarkFrame}
           onAwarenessUpdate={setAwareness}
           onLevel1Update={setLevel1State}
           onLevel2Update={setLevel2State}

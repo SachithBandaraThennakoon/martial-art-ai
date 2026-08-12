@@ -162,6 +162,7 @@ import {
   TrackingSessionEngine
 } from "../tracking/trackingSessionEngine";
 import { deriveForecastAwareness } from "../temporal/forecastAwareness";
+import { evaluatePositionFeedback } from "../utils/positionFeedback";
 
 const BODY_PART_MAP = {
   elbow_right: [12, 14, 16],
@@ -728,6 +729,7 @@ export default function SkeletonCanvas({
   currentStepId,
   currentStepName,
   referencePose,
+  positionTargets,
   sessionConfig,
   coachCommand,
   requiredParts,
@@ -796,6 +798,8 @@ export default function SkeletonCanvas({
   const pendingCommandRef = useRef(null);
   const currentStepIdRef = useRef(currentStepId);
   const currentStepNameRef = useRef(currentStepName);
+  const referencePoseRef = useRef(referencePose);
+  const positionTargetsRef = useRef(positionTargets);
   const requiredPartsRef = useRef(requiredParts);
   const measurementPartsRef = useRef(measurementParts || requiredParts);
   const feedbackPartsRef = useRef(feedbackParts || measurementParts || requiredParts);
@@ -1050,6 +1054,8 @@ export default function SkeletonCanvas({
   useEffect(() => {
     currentStepIdRef.current = currentStepId;
     currentStepNameRef.current = currentStepName;
+    referencePoseRef.current = referencePose;
+    positionTargetsRef.current = positionTargets;
     enableCoachRef.current = enableCoach;
     requiredPartsRef.current = requiredParts;
     measurementPartsRef.current = measurementParts || requiredParts;
@@ -1099,6 +1105,8 @@ export default function SkeletonCanvas({
   }, [
     currentStepId,
     currentStepName,
+    referencePose,
+    positionTargets,
     displayMirrored,
     enableAwareness,
     enableCoach,
@@ -1668,6 +1676,24 @@ export default function SkeletonCanvas({
           faceLandmarks
         });
         const baseLevel1State = level1MotionRef.current.update(frame.pose, now);
+        const currentPositionCorrections = evaluatePositionFeedback({
+          livePose: frame.worldPose,
+          referencePose: referencePoseRef.current,
+          positionTargets: positionTargetsRef.current
+        });
+        const currentSpatialRisk = currentPositionCorrections.length
+          ? Math.max(0, 1 - currentPositionCorrections[0].score / 100)
+          : 0;
+        if (baseLevel1State?.motion_context) {
+          baseLevel1State.motion_context.spatial_awareness = {
+            coordinate_space: "body_normalized_v1",
+            dimensions: ["x", "y", "z"],
+            corrections: currentPositionCorrections,
+            top_issue: currentPositionCorrections[0] || null,
+            risk: Number(currentSpatialRisk.toFixed(3)),
+            confidence: Number((baseLevel1State.tracking?.confidence || 0).toFixed(3))
+          };
+        }
         const auxiliaryScores = getHolisticScores(
           frame,
           shouldTrackHandsRef.current,
@@ -1699,6 +1725,37 @@ export default function SkeletonCanvas({
           currentStepName: currentStepNameRef.current,
           techniqueName: sessionConfigRef.current?.technique_name
         });
+        if (level2State?.action_context) {
+          const predictedPose =
+            level2State.debug?.onnxPredictedLandmarks ||
+            level1State.debug?.predictedLandmarks ||
+            null;
+          const predictedCorrections = evaluatePositionFeedback({
+            livePose: predictedPose,
+            referencePose: referencePoseRef.current,
+            positionTargets: positionTargetsRef.current
+          });
+          const predictedRisk = predictedCorrections.length
+            ? Math.max(0, 1 - predictedCorrections[0].score / 100)
+            : 0;
+          level2State.action_context.spatial_awareness =
+            level1State.motion_context?.spatial_awareness || null;
+          level2State.action_context.spatial_forecast = {
+            source: level2State.debug?.onnxPredictedLandmarks ? "acp_stgat" : "level1_kinematic",
+            horizon_ms:
+              level2State.debug?.onnxPrediction?.prediction_horizon_ms ||
+              level1State.motion_context?.prediction_horizon_ms ||
+              null,
+            corrections: predictedCorrections,
+            top_issue: predictedCorrections[0] || null,
+            risk: Number(predictedRisk.toFixed(3)),
+            trusted: Boolean(
+              predictedCorrections.length &&
+              (level1State.tracking?.confidence || 0) >= 0.7 &&
+              (level2State.action_context.prediction_confidence || 0) >= 0.62
+            )
+          };
+        }
         predictionLedgerRef.current.addSequence({
           model: "level1",
           originTimestampMs: now,

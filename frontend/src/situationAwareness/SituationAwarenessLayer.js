@@ -3,7 +3,9 @@ const DEFAULT_CONFIG = {
   lowTrackingThreshold: 0.45,
   mistakeRiskThreshold: 0.62,
   fatigueRiskThreshold: 0.62,
-  forecastRiskThreshold: 0.62
+  forecastRiskThreshold: 0.62,
+  spatialRiskThreshold: 0.55,
+  spatialForecastRiskThreshold: 0.62
 };
 
 function clamp(value, min, max) {
@@ -30,6 +32,8 @@ function sameMistake(mistake, weakness) {
 
 function getAttentionTarget({ trackingConfidence, action, session, user, weaknessMatch, config }) {
   const forecast = action.forecast_awareness || {};
+  const spatial = action.spatial_awareness || {};
+  const spatialForecast = action.spatial_forecast || {};
   const forecastWarning =
     forecast.trusted &&
     forecast.likely_mistake &&
@@ -65,6 +69,18 @@ function getAttentionTarget({ trackingConfidence, action, session, user, weaknes
     };
   }
 
+  if (spatial.top_issue && (spatial.risk || 0) >= config.spatialRiskThreshold) {
+    return {
+      layer: "level1_spatial",
+      body_part: spatial.top_issue.bodyPart,
+      issue: `position_${spatial.top_issue.direction}`,
+      direction: spatial.top_issue.direction,
+      axis: spatial.top_issue.axis,
+      priority: round(spatial.risk || 0),
+      spatial: true
+    };
+  }
+
   if (forecastWarning) {
     return {
       layer: "level2_forecast",
@@ -73,6 +89,24 @@ function getAttentionTarget({ trackingConfidence, action, session, user, weaknes
       priority: round(forecast.risk || 0),
       predicted: true,
       first_risk_ms: forecast.likely_mistake.first_risk_ms ?? null
+    };
+  }
+
+  if (
+    spatialForecast.trusted &&
+    spatialForecast.top_issue &&
+    (spatialForecast.risk || 0) >= config.spatialForecastRiskThreshold
+  ) {
+    return {
+      layer: "level2_spatial_forecast",
+      body_part: spatialForecast.top_issue.bodyPart,
+      issue: `position_${spatialForecast.top_issue.direction}`,
+      direction: spatialForecast.top_issue.direction,
+      axis: spatialForecast.top_issue.axis,
+      priority: round(spatialForecast.risk || 0),
+      predicted: true,
+      first_risk_ms: spatialForecast.horizon_ms ?? null,
+      spatial: true
     };
   }
 
@@ -104,12 +138,24 @@ function getAttentionTarget({ trackingConfidence, action, session, user, weaknes
 
 function getSituationState({ trackingConfidence, action, session, userProgression, config }) {
   const forecast = action.forecast_awareness || {};
+  const spatial = action.spatial_awareness || {};
+  const spatialForecast = action.spatial_forecast || {};
   if (trackingConfidence < config.lowTrackingThreshold) return "tracking_unclear";
   if ((action.mistake_risk || 0) >= config.mistakeRiskThreshold) return "correcting";
+  if (spatial.top_issue && (spatial.risk || 0) >= config.spatialRiskThreshold) {
+    return "correcting";
+  }
   if (
     forecast.trusted &&
     forecast.likely_mistake &&
     (forecast.risk || 0) >= config.forecastRiskThreshold
+  ) {
+    return "anticipating";
+  }
+  if (
+    spatialForecast.trusted &&
+    spatialForecast.top_issue &&
+    (spatialForecast.risk || 0) >= config.spatialForecastRiskThreshold
   ) {
     return "anticipating";
   }
@@ -154,6 +200,9 @@ function getFeedbackDecision({ situationState, attentionTarget, session, user })
     const part = label(attentionTarget.body_part);
     const issue = label(attentionTarget.issue);
     const personalized = attentionTarget.layer === "level4";
+    const spatialMessage = attentionTarget.spatial
+      ? spatialFeedbackMessage(attentionTarget, false)
+      : null;
 
     return {
       type: personalized ? "personalized_correction" : "correction",
@@ -161,7 +210,7 @@ function getFeedbackDecision({ situationState, attentionTarget, session, user })
       intensity,
       message: personalized
         ? `${part} is repeating your known pattern: ${issue}. Slow down and fix it now.`
-        : `${part} needs correction: ${issue}. Hold this step and clean the form.`,
+        : spatialMessage || `${part} needs correction: ${issue}. Hold this step and clean the form.`,
       should_speak: true,
       should_show_text: true,
       should_pause_progression: true
@@ -179,7 +228,9 @@ function getFeedbackDecision({ situationState, attentionTarget, session, user })
       type: "predictive_guidance",
       timing: "before_predicted_error",
       intensity: "low",
-      message: `${part} may become ${issue}${leadTime}. Adjust before it happens.`,
+      message: attentionTarget.spatial
+        ? spatialFeedbackMessage(attentionTarget, true)
+        : `${part} may become ${issue}${leadTime}. Adjust before it happens.`,
       should_speak: true,
       should_show_text: true,
       should_pause_progression: false
@@ -219,6 +270,18 @@ function getFeedbackDecision({ situationState, attentionTarget, session, user })
     should_show_text: false,
     should_pause_progression: false
   };
+}
+
+function spatialFeedbackMessage(target, predicted) {
+  const part = label(target.body_part);
+  const prefix = predicted ? `${part} is moving` : `Move ${part}`;
+  if (target.direction === "raise") return `${prefix} higher${predicted ? ". Adjust now." : "."}`;
+  if (target.direction === "lower") return `${prefix} lower${predicted ? ". Adjust now." : "."}`;
+  if (target.direction === "inward") return `${prefix} inward${predicted ? ". Adjust now." : "."}`;
+  if (target.direction === "outward") return `${prefix} outward${predicted ? ". Adjust now." : "."}`;
+  if (target.direction === "forward") return `${prefix} forward${predicted ? ". Adjust now." : "."}`;
+  if (target.direction === "backward") return `${prefix} back${predicted ? ". Adjust now." : "."}`;
+  return `${part} needs position correction.`;
 }
 
 function getNextAction({ situationState, attentionTarget, userProgression }) {
@@ -297,6 +360,8 @@ export class SituationAwarenessLayer {
 
     const trackingConfidence = level1State.tracking?.confidence || 0;
     const forecast = action.forecast_awareness || {};
+    const spatial = action.spatial_awareness || {};
+    const spatialForecast = action.spatial_forecast || {};
     const userProgression = user.progression || {};
     const weaknessMatch = sameMistake(action.likely_mistake, user.top_weakness);
     const attentionTarget = getAttentionTarget({
@@ -326,7 +391,9 @@ export class SituationAwarenessLayer {
         (session.fatigue_risk || 0) * 0.25 +
         (weaknessMatch ? 0.2 : 0) +
         trackingRisk * 0.15 +
-        (forecast.trusted ? (forecast.risk || 0) * 0.2 : 0),
+        (forecast.trusted ? (forecast.risk || 0) * 0.2 : 0) +
+        (spatial.risk || 0) * 0.2 +
+        (spatialForecast.trusted ? (spatialForecast.risk || 0) * 0.15 : 0),
       0,
       1
     );
@@ -351,6 +418,10 @@ export class SituationAwarenessLayer {
           forecast_risk: round(forecast.risk || 0),
           forecast_horizon_ms: forecast.horizon_ms ?? null,
           forecast_agreement_error: forecast.agreement_error ?? null,
+          spatial_risk: round(spatial.risk || 0),
+          spatial_dimension: spatial.top_issue?.axis || null,
+          spatial_forecast_trusted: Boolean(spatialForecast.trusted),
+          spatial_forecast_risk: round(spatialForecast.risk || 0),
           user_history_match: Boolean(weaknessMatch),
           decision_score: round(decisionScore)
         },
