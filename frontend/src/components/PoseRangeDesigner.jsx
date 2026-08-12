@@ -25,6 +25,14 @@ import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.j
 import PoseStudioContext from "./PoseStudioContext";
 import MediaPipeSkeleton3D from "./MediaPipeSkeleton3D";
 import { manualPoseToMediaPipePreview } from "../skeleton/manualPoseAdapter";
+import {
+  HUMAN_MODEL_RIG,
+  MODEL_SIDE_FOR_POSE_SIDE,
+  aimModelBone,
+  buildHandLandmarks,
+  levelFootTarget,
+  retargetModelHand,
+} from "../skeleton/humanModelRig";
 
 const DEFAULT_POSE = {
   head: [0, 1.65, 0],
@@ -209,7 +217,8 @@ const STUDIO_OFFSETS = {
 const TWO_POSE_OFFSETS = { pose_a: [-1.45, 0, 0], optimal: [1.45, 0, 0] };
 const FLOOR_Y = -1.75;
 const FOOT_CONTACT_Y = FLOOR_Y + 0.135;
-const DEFAULT_HUMAN_MODEL_URL = `${import.meta.env.BASE_URL}models/human/male_human_low-poly_base.glb`;
+const DEFAULT_HUMAN_MODEL_URL = `${import.meta.env.BASE_URL}models/human/ch36-rigged.glb`;
+const MODEL_Y_ROTATION = 0;
 const DEFAULT_ARTICULATION = {
   face: {
     gaze_horizontal: 0,
@@ -220,12 +229,12 @@ const DEFAULT_ARTICULATION = {
   },
   hand_left: {
     fist_closure: 0,
-    finger_spread: 0.35,
+    finger_spread: 1,
     wrist_rotation: [0, 0, 0],
   },
   hand_right: {
     fist_closure: 0,
-    finger_spread: 0.35,
+    finger_spread: 1,
     wrist_rotation: [0, 0, 0],
   },
 };
@@ -252,13 +261,44 @@ const HAND_CONNECTIONS = [
   [19, 20],
   [17, 0],
 ];
+const freshHandArticulation = () => ({
+  fist_closure: 0,
+  finger_spread: 1,
+  wrist_rotation: [0, 0, 0],
+});
+
+const finiteClamped = (value, fallback, minimum, maximum) => {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? Math.max(minimum, Math.min(maximum, number))
+    : fallback;
+};
+
 function normalizedArticulation(value) {
-  return Object.fromEntries(
-    Object.entries(DEFAULT_ARTICULATION).map(([group, defaults]) => [
-      group,
-      { ...defaults, ...(value?.[group] || {}) },
-    ]),
-  );
+  const face = value?.face || {};
+  const normalizeHand = (group) => {
+    const hand = value?.[group] || {};
+    const rotation = Array.isArray(hand.wrist_rotation)
+      ? hand.wrist_rotation.slice(0, 3)
+      : [];
+    return {
+      fist_closure: finiteClamped(hand.fist_closure, 0, 0, 1),
+      finger_spread: finiteClamped(hand.finger_spread, 1, 0, 1),
+      wrist_rotation: [0, 1, 2].map((axis) =>
+        finiteClamped(rotation[axis], 0, -Math.PI, Math.PI),
+      ),
+    };
+  };
+  return {
+    face: Object.fromEntries(
+      Object.entries(DEFAULT_ARTICULATION.face).map(([field, fallback]) => [
+        field,
+        finiteClamped(face[field], fallback, field.startsWith("gaze_") ? -1 : 0, 1),
+      ]),
+    ),
+    hand_left: normalizeHand("hand_left"),
+    hand_right: normalizeHand("hand_right"),
+  };
 }
 
 function wristRotationsFromArticulation(value) {
@@ -614,149 +654,48 @@ function ImportedHumanModel({ articulation, opacity, pose, url }) {
       scene.getObjectByName(name)?.quaternion.copy(quaternion);
     });
     scene.updateMatrixWorld(true);
+    const rig = HUMAN_MODEL_RIG;
 
-    const calibratedTerminalAxis = (boneName, from, to) => {
-      const bone = scene.getObjectByName(boneName);
-      if (!bone?.isBone) return [0, 1, 0];
-      const bindDirection = new THREE.Vector3(...to)
-        .sub(new THREE.Vector3(...from))
-        .normalize();
-      return bindDirection
-        .applyQuaternion(
-          bone.getWorldQuaternion(new THREE.Quaternion()).invert(),
-        )
-        .toArray();
-    };
-    const leftFootAxis = calibratedTerminalAxis(
-      "Left_ankle_045",
-      DEFAULT_POSE.ankle_right,
-      DEFAULT_POSE.foot_right,
-    );
-    const rightFootAxis = calibratedTerminalAxis(
-      "Right_ankle_048",
-      DEFAULT_POSE.ankle_left,
-      DEFAULT_POSE.foot_left,
-    );
-
-    const aimBone = (boneName, childName, from, to) => {
-      const bone = scene.getObjectByName(boneName);
-      const child = scene.getObjectByName(childName);
-      if (!bone?.isBone || !child?.isBone) return;
-      const currentDirection = child
-        .getWorldPosition(new THREE.Vector3())
-        .sub(bone.getWorldPosition(new THREE.Vector3()))
-        .normalize();
-      const desiredDirection = new THREE.Vector3(...to)
-        .sub(new THREE.Vector3(...from))
-        .normalize();
-      if (!currentDirection.lengthSq() || !desiredDirection.lengthSq()) return;
-      const delta = new THREE.Quaternion().setFromUnitVectors(
-        currentDirection,
-        desiredDirection,
-      );
-      const desiredWorldRotation = delta.multiply(
-        bone.getWorldQuaternion(new THREE.Quaternion()),
-      );
-      const parentWorldRotation = bone.parent.getWorldQuaternion(
-        new THREE.Quaternion(),
-      );
-      bone.quaternion.copy(
-        parentWorldRotation.invert().multiply(desiredWorldRotation),
-      );
-      scene.updateMatrixWorld(true);
-    };
-    const aimTerminalBone = (boneName, localAxis, from, to) => {
-      const bone = scene.getObjectByName(boneName);
-      if (!bone?.isBone) return;
-      const currentDirection = new THREE.Vector3(...localAxis)
-        .applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()))
-        .normalize();
-      const desiredDirection = new THREE.Vector3(...to)
-        .sub(new THREE.Vector3(...from))
-        .normalize();
-      if (!desiredDirection.lengthSq()) return;
-      const delta = new THREE.Quaternion().setFromUnitVectors(
-        currentDirection,
-        desiredDirection,
-      );
-      const desiredWorldRotation = delta.multiply(
-        bone.getWorldQuaternion(new THREE.Quaternion()),
-      );
-      const parentWorldRotation = bone.parent.getWorldQuaternion(
-        new THREE.Quaternion(),
-      );
-      bone.quaternion.copy(
-        parentWorldRotation.invert().multiply(desiredWorldRotation),
-      );
-      scene.updateMatrixWorld(true);
-    };
-
+    const aimBone = (boneName, childName, from, to) =>
+      aimModelBone(scene, boneName, childName, from, to);
     const shoulderCenter = pose.shoulder_left.map(
       (value, axis) => (value + pose.shoulder_right[axis]) / 2,
     );
     const hipCenter = pose.hip_left.map(
       (value, axis) => (value + pose.hip_right[axis]) / 2,
     );
-    aimBone("Spine_02", "Chest_03", hipCenter, shoulderCenter);
-    aimBone("Neck_04", "Head_05", shoulderCenter, pose.head);
-    aimBone(
-      "Left_arm_07",
-      "Left_elbow_08",
-      pose.shoulder_right,
-      pose.elbow_right,
-    );
-    aimBone(
-      "Left_elbow_08",
-      "Left_wrist_09",
-      pose.elbow_right,
-      pose.wrist_right,
-    );
-    aimBone(
-      "Right_arm_025",
-      "Right_elbow_026",
-      pose.shoulder_left,
-      pose.elbow_left,
-    );
-    aimBone(
-      "Right_elbow_026",
-      "Right_wrist_027",
-      pose.elbow_left,
-      pose.wrist_left,
-    );
-    aimBone("Left_leg_043", "Left_knee_044", pose.hip_right, pose.knee_right);
-    aimBone(
-      "Left_knee_044",
-      "Left_ankle_045",
-      pose.knee_right,
-      pose.ankle_right,
-    );
-    aimBone(
-      "Right_leg_046",
-      "Right_knee_047",
-      pose.hip_left,
-      pose.knee_left,
-    );
-    aimBone(
-      "Right_knee_047",
-      "Right_ankle_048",
-      pose.knee_left,
-      pose.ankle_left,
-    );
-    // This GLB has no toe bones. Its ankle bone owns the complete foot mesh,
-    // so use the bind-calibrated authoring direction instead of assuming one
-    // of the asset's local axes points toward the toes.
-    aimTerminalBone(
-      "Left_ankle_045",
-      leftFootAxis,
-      pose.ankle_right,
-      pose.foot_right,
-    );
-    aimTerminalBone(
-      "Right_ankle_048",
-      rightFootAxis,
-      pose.ankle_left,
-      pose.foot_left,
-    );
+    aimBone(rig.spine, rig.chest, hipCenter, shoulderCenter);
+    // The head landmark describes position, not gaze. Keep the model's native
+    // upright head orientation instead of turning that offset into neck pitch.
+    ["left", "right"].forEach((poseSide) => {
+      const modelSide = MODEL_SIDE_FOR_POSE_SIDE[poseSide];
+      const arm = modelSide === "left" ? rig.leftArm : rig.rightArm;
+      const elbow = modelSide === "left" ? rig.leftElbow : rig.rightElbow;
+      const wrist = modelSide === "left" ? rig.leftWrist : rig.rightWrist;
+      const leg = modelSide === "left" ? rig.leftLeg : rig.rightLeg;
+      const knee = modelSide === "left" ? rig.leftKnee : rig.rightKnee;
+      const ankle = modelSide === "left" ? rig.leftAnkle : rig.rightAnkle;
+      const toe = modelSide === "left" ? rig.leftToe : rig.rightToe;
+      const toeEnd = modelSide === "left" ? rig.leftToeEnd : rig.rightToeEnd;
+
+      aimBone(arm, elbow, pose[`shoulder_${poseSide}`], pose[`elbow_${poseSide}`]);
+      aimBone(elbow, wrist, pose[`elbow_${poseSide}`], pose[`wrist_${poseSide}`]);
+      aimBone(leg, knee, pose[`hip_${poseSide}`], pose[`knee_${poseSide}`]);
+      aimBone(knee, ankle, pose[`knee_${poseSide}`], pose[`ankle_${poseSide}`]);
+      const footTarget = levelFootTarget(
+        pose[`ankle_${poseSide}`],
+        pose[`foot_${poseSide}`],
+      );
+      aimBone(
+        ankle,
+        toe,
+        pose[`ankle_${poseSide}`],
+        footTarget,
+      );
+      // Mixamo feet have a second toe segment. Aim it as well so the visible
+      // last point follows the authored ankle-to-foot angle.
+      aimBone(toe, toeEnd, pose[`ankle_${poseSide}`], footTarget);
+    });
 
     const rotateModelWrist = (boneName, rotation) => {
       const bone = scene.getObjectByName(boneName);
@@ -775,89 +714,28 @@ function ImportedHumanModel({ articulation, opacity, pose, url }) {
       );
       scene.updateMatrixWorld(true);
     };
-    rotateModelWrist(
-      "Left_wrist_09",
-      articulation.hand_right.wrist_rotation,
-    );
-    rotateModelWrist(
-      "Right_wrist_027",
-      articulation.hand_left.wrist_rotation,
-    );
+    rotateModelWrist(rig.leftWrist, articulation.hand_right.wrist_rotation);
+    rotateModelWrist(rig.rightWrist, articulation.hand_left.wrist_rotation);
 
-    const curlBone = (name, xDegrees, zDegrees = 0) => {
-      const bone = scene.getObjectByName(name);
-      if (!bone?.isBone) return;
-      bone.quaternion.multiply(
-        new THREE.Quaternion().setFromEuler(
-          new THREE.Euler(
-            THREE.MathUtils.degToRad(xDegrees),
-            0,
-            THREE.MathUtils.degToRad(zDegrees),
-            "XYZ",
-          ),
-        ),
-      );
-    };
-    const curlHand = (modelSide, closure) => {
-      const sideCode = modelSide === "L" ? "L" : "R";
-      const fingerNames =
-        modelSide === "L"
-          ? [
-              ["Middle_finger0_L_010", "Middle_finger1_L_00", "Middle_finger2_L_011"],
-              ["Ring_finger0_L_012", "Ring_finger1_L_013", "Ring_finger2_L_014"],
-              ["Little_finger0_L_015", "Little_finger1_L_016", "Little_finger2_L_017"],
-              ["Index_finger0_L_018", "Index_finger1_L_019", "Index_finger2_L_020"],
-            ]
-          : [
-              ["Middle_finger0_R_028", "Middle_finger1_R_029", "Middle_finger2_R_030"],
-              ["Ring_finger0_R_031", "Ring_finger1_R_032", "Ring_finger2_R_033"],
-              ["Little_finger0_R_034", "Little_finger1_R_035", "Little_finger2_R_036"],
-              ["Index_finger0_R_037", "Index_finger1_R_038", "Index_finger2_R_039"],
-            ];
-      const easedClosure = THREE.MathUtils.smoothstep(closure, 0, 1);
-      fingerNames.forEach((finger) => {
-        // Curl as a three-joint chain. The previous values exceeded a natural
-        // closed-fist arc and folded the fingertips through the palm/wrist.
-        // The imported rig's local X flexion axis is opposite to the editor's
-        // palm-depth direction after the model's 180-degree facing correction.
-        curlBone(finger[0], -58 * easedClosure);
-        curlBone(finger[1], -78 * easedClosure);
-        curlBone(finger[2], -42 * easedClosure);
-      });
-      const thumbNames =
-        sideCode === "L"
-          ? ["Thumb0_L_021", "Thumb1_L_022", "Thumb2_L_023"]
-          : ["Thumb0_R_040", "Thumb1_R_041", "Thumb2_R_042"];
-      // Thumb bind rotations are mirrored. Rotate toward the palm first,
-      // then bend the two distal joints over the curled index/middle fingers.
-      const wrapDirection = sideCode === "L" ? 1 : -1;
-      curlBone(
-        thumbNames[0],
-        -28 * easedClosure,
-        wrapDirection * 45 * easedClosure,
-      );
-      curlBone(
-        thumbNames[1],
-        -48 * easedClosure,
-        wrapDirection * 25 * easedClosure,
-      );
-      curlBone(
-        thumbNames[2],
-        -32 * easedClosure,
-        wrapDirection * 10 * easedClosure,
-      );
-    };
-    // The model is rotated 180 degrees, so its anatomical left hand appears
-    // on the editor's right side and vice versa.
-    curlHand("L", articulation.hand_right.fist_closure);
-    curlHand("R", articulation.hand_left.fist_closure);
+    retargetModelHand(
+      scene,
+      "left",
+      buildHandLandmarks(pose, articulation, "right"),
+      articulation.hand_right.fist_closure,
+    );
+    retargetModelHand(
+      scene,
+      "right",
+      buildHandLandmarks(pose, articulation, "left"),
+      articulation.hand_left.fist_closure,
+    );
     scene.updateMatrixWorld(true);
   }, [articulation, pose, prepared]);
   return (
     <primitive
       object={prepared.scene}
       position={prepared.position}
-      rotation={[0, Math.PI, 0]}
+      rotation={[0, MODEL_Y_ROTATION, 0]}
       scale={prepared.scale}
     />
   );
@@ -975,105 +853,10 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
     -0.035 + face.gaze_vertical * 0.04,
     0.085,
   );
-  const makeHand = (side) => {
-    const elbow = new THREE.Vector3(...pose[`elbow_${side}`]);
-    const wrist = new THREE.Vector3(...pose[`wrist_${side}`]);
-    const direction = wrist.clone().sub(elbow).normalize();
-    let widthAxis = forward.clone().cross(direction).normalize();
-    if (widthAxis.lengthSq() < 0.01) widthAxis = right.clone();
-    const settings = articulation[`hand_${side}`];
-    const wristQuaternion = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(...(settings.wrist_rotation || [0, 0, 0]), "XYZ"),
-    );
-    direction.applyQuaternion(wristQuaternion);
-    widthAxis.applyQuaternion(wristQuaternion);
-    const depthAxis = direction.clone().cross(widthAxis).normalize();
-    const torsoOffset = shoulderLeft
-      .clone()
-      .add(shoulderRight)
-      .multiplyScalar(0.5)
-      .sub(wrist);
-    const inwardCurlAxis = torsoOffset
-      .clone()
-      .addScaledVector(
-        direction,
-        -torsoOffset.dot(direction),
-      )
-      .normalize();
-    if (inwardCurlAxis.lengthSq() < 0.01) inwardCurlAxis.copy(depthAxis).negate();
-    const closure = settings.fist_closure;
-    const spreadScale = 0.4 + settings.finger_spread;
-    const landmarks = Array(21);
-    landmarks[0] = wrist.toArray();
-    const fingerOffsets = [-0.078, -0.026, 0.026, 0.078];
-    const fingerBases = [5, 9, 13, 17];
-    fingerBases.forEach((baseIndex, fingerIndex) => {
-      const lateral = fingerOffsets[fingerIndex] * spreadScale;
-      const easedClosure = THREE.MathUtils.smoothstep(closure, 0, 1);
-      let fingerPoint = wrist
-        .clone()
-        .add(direction.clone().multiplyScalar(0.065))
-        .add(widthAxis.clone().multiplyScalar(lateral));
-      landmarks[baseIndex] = fingerPoint.toArray();
-      const segmentLengths = [0.07, 0.062, 0.052];
-      // Cumulative segment directions for a closed fist. The proximal segment
-      // folds into the palm first; the last two then wrap back toward the
-      // knuckles instead of stopping in an open claw.
-      const bendAngles = [58, 132, 174];
-      segmentLengths.forEach((length, segmentIndex) => {
-        const angle = THREE.MathUtils.degToRad(
-          bendAngles[segmentIndex] * easedClosure,
-        );
-        const segmentDirection = direction
-          .clone()
-          .multiplyScalar(Math.cos(angle))
-          .add(inwardCurlAxis.clone().multiplyScalar(Math.sin(angle)))
-          .normalize();
-        fingerPoint = fingerPoint
-          .clone()
-          .add(segmentDirection.multiplyScalar(length));
-        landmarks[baseIndex + segmentIndex + 1] = fingerPoint.toArray();
-      });
-    });
-    const thumbSign = side === "left" ? -1 : 1;
-    for (let joint = 1; joint <= 4; joint += 1) {
-      const progress = joint / 4;
-      const openPoint = wrist
-        .clone()
-        .add(
-          direction
-            .clone()
-            .multiplyScalar(0.03 + progress * 0.145),
-        )
-        .add(
-          widthAxis
-            .clone()
-            .multiplyScalar(thumbSign * (0.04 + progress * 0.105)),
-        );
-      const closedPoint = wrist
-        .clone()
-        .add(
-          direction
-            .clone()
-            .multiplyScalar(0.05 + Math.sin(progress * Math.PI) * 0.065),
-        )
-        .add(
-          widthAxis
-            .clone()
-            .multiplyScalar(thumbSign * (0.055 - progress * 0.03)),
-        )
-        .add(
-          inwardCurlAxis
-            .clone()
-            .multiplyScalar(0.03 + progress * 0.1),
-        );
-      landmarks[joint] = openPoint
-        .lerp(closedPoint, closure)
-        .toArray();
-    }
-    return landmarks;
+  const hands = {
+    left: buildHandLandmarks(pose, articulation, "left"),
+    right: buildHandLandmarks(pose, articulation, "right"),
   };
-  const hands = { left: makeHand("left"), right: makeHand("right") };
   return (
     <>
       <Line color="#ffffff" lineWidth={1.4} points={faceOutline} />
@@ -1864,6 +1647,33 @@ export default function PoseRangeDesigner({
       [group]: { ...current[group], [field]: nextValue },
     }));
   };
+  const resetHand = (group) => {
+    const wristName = group === "hand_left" ? "wrist_left" : "wrist_right";
+    const neutralRotation = [0, 0, 0];
+    setArticulation((current) => ({
+      ...current,
+      [group]: freshHandArticulation(),
+    }));
+    jointRotationsRef.current = {
+      ...jointRotationsRef.current,
+      [wristName]: neutralRotation,
+    };
+    setJointRotations(jointRotationsRef.current);
+  };
+  const resetHands = () => {
+    setArticulation((current) => ({
+      ...current,
+      hand_left: freshHandArticulation(),
+      hand_right: freshHandArticulation(),
+    }));
+    const neutralRotations = {
+      ...jointRotationsRef.current,
+      wrist_left: [0, 0, 0],
+      wrist_right: [0, 0, 0],
+    };
+    jointRotationsRef.current = neutralRotations;
+    setJointRotations(neutralRotations);
+  };
   const rotateJoint = (name, nextRotation) => {
     const normalizedRotation = nextRotation.map((value) =>
       Number.isFinite(value) ? value : 0,
@@ -2181,8 +1991,14 @@ export default function PoseRangeDesigner({
           </div>
           {viewMode === "split" ? (
             <div className="pose-designer__split-view">
-              <div>{renderPoseCanvas("skeleton")}</div>
-              <div>{renderPoseCanvas("model")}</div>
+              <section aria-label="Skeleton workspace" className="pose-designer__split-panel">
+                <header><strong>Skeleton workspace</strong><span>Editable · independent view</span></header>
+                <div>{renderPoseCanvas("skeleton")}</div>
+              </section>
+              <section aria-label="Model preview workspace" className="pose-designer__split-panel">
+                <header><strong>Model preview</strong><span>Same pose · independent view</span></header>
+                <div>{renderPoseCanvas("model")}</div>
+              </section>
             </div>
           ) : (
             renderPoseCanvas(viewMode)
@@ -2341,7 +2157,16 @@ export default function PoseRangeDesigner({
                 ))}
               </div>
               <div className="pose-designer__articulation-controls">
-                <h4>Face controls</h4>
+                <div className="pose-designer__control-heading">
+                  <h4>Face controls</h4>
+                  <button
+                    className="btn btn--light btn--small"
+                    onClick={resetHands}
+                    type="button"
+                  >
+                    Reset both hands
+                  </button>
+                </div>
                 {[
                   ["gaze_horizontal", "Gaze left / right", -1, 1],
                   ["gaze_vertical", "Gaze down / up", -1, 1],
@@ -2371,7 +2196,16 @@ export default function PoseRangeDesigner({
                   ["hand_right", "Right hand"],
                 ].map(([group, label]) => (
                   <div className="pose-designer__hand-controls" key={group}>
-                    <h4>{label}</h4>
+                    <div className="pose-designer__control-heading">
+                      <h4>{label}</h4>
+                      <button
+                        className="btn btn--light btn--small"
+                        onClick={() => resetHand(group)}
+                        type="button"
+                      >
+                        Reset
+                      </button>
+                    </div>
                     {["fist_closure", "finger_spread"].map((field) => (
                       <label key={field}>
                         <span>

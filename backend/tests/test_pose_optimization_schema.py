@@ -27,8 +27,8 @@ class PoseOptimizationSchemaTests(unittest.TestCase):
         pose = reference_pose()
         pose["articulation"] = {
             "face": {"gaze_horizontal": -0.4, "eye_openness": 0.7, "jaw_openness": 0.2},
-            "hand_left": {"fist_closure": 0.85, "finger_spread": 0.1},
-            "hand_right": {"fist_closure": 0.15, "finger_spread": 0.6},
+            "hand_left": {"fist_closure": 0.85, "finger_spread": 0.1, "wrist_rotation": [0.25, -0.5, 1.0]},
+            "hand_right": {"fist_closure": 0.15, "finger_spread": 0.6, "wrist_rotation": [-0.75, 0.1, 0.4]},
         }
 
         result = normalize_reference_pose(pose, 1)
@@ -37,6 +37,8 @@ class PoseOptimizationSchemaTests(unittest.TestCase):
         self.assertEqual(result["articulation"]["face"]["eye_openness"], 0.7)
         self.assertEqual(result["articulation"]["hand_left"]["fist_closure"], 0.85)
         self.assertEqual(result["articulation"]["hand_right"]["finger_spread"], 0.6)
+        self.assertEqual(result["articulation"]["hand_left"]["wrist_rotation"], [0.25, -0.5, 1.0])
+        self.assertEqual(result["articulation"]["hand_right"]["wrist_rotation"], [-0.75, 0.1, 0.4])
 
     def test_draft_accepts_one_endpoint_and_applies_reproducible_defaults(self):
         result = validate_pose_optimization({"pose_a": reference_pose()}, 1)

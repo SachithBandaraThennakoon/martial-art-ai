@@ -1,7 +1,7 @@
 """Validation and normalization for static-pose optimization configuration."""
 
 from copy import deepcopy
-from math import isfinite
+from math import isfinite, pi
 
 from fastapi import HTTPException
 from services.pose_variables import VARIABLE_DEFINITIONS
@@ -89,6 +89,17 @@ def _normalize_articulation(reference_pose, prefix):
             if not minimum <= value <= 1.0:
                 raise HTTPException(400, f"{prefix} articulation {group}.{field} must be between {minimum:g} and 1")
             normalized[group][field] = round(value, 4)
+        if group.startswith("hand_"):
+            rotation = group_source.get("wrist_rotation", [0.0, 0.0, 0.0])
+            if not isinstance(rotation, list) or len(rotation) != 3:
+                raise HTTPException(400, f"{prefix} articulation {group}.wrist_rotation must contain XYZ radians")
+            normalized_rotation = [
+                _number(value, f"{prefix} has invalid articulation data for {group}.wrist_rotation")
+                for value in rotation
+            ]
+            if any(not isfinite(value) or abs(value) > 2 * pi for value in normalized_rotation):
+                raise HTTPException(400, f"{prefix} articulation {group}.wrist_rotation must use finite radians between -2π and 2π")
+            normalized[group]["wrist_rotation"] = [round(value, 4) for value in normalized_rotation]
     return normalized
 
 

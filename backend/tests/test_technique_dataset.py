@@ -1,3 +1,4 @@
+import math
 import unittest
 
 from services.technique_package_loader import (
@@ -27,6 +28,28 @@ SUPPORTED_TARGETS = {
     "eyes_forward",
     "face_calm",
 }
+
+ANGLE_LANDMARKS = {
+    "elbow_left": ("shoulder_left", "elbow_left", "wrist_left"),
+    "elbow_right": ("shoulder_right", "elbow_right", "wrist_right"),
+    "shoulder_left": ("elbow_left", "shoulder_left", "hip_left"),
+    "shoulder_right": ("elbow_right", "shoulder_right", "hip_right"),
+    "hip_left": ("shoulder_left", "hip_left", "knee_left"),
+    "hip_right": ("shoulder_right", "hip_right", "knee_right"),
+    "knee_left": ("hip_left", "knee_left", "ankle_left"),
+    "knee_right": ("hip_right", "knee_right", "ankle_right"),
+    "ankle_left": ("knee_left", "ankle_left", "foot_left"),
+    "ankle_right": ("knee_right", "ankle_right", "foot_right"),
+}
+
+
+def pose_angle(landmarks, body_part):
+    first, center, last = (landmarks[name] for name in ANGLE_LANDMARKS[body_part])
+    left = [value - center[index] for index, value in enumerate(first)]
+    right = [value - center[index] for index, value in enumerate(last)]
+    denominator = math.sqrt(sum(value * value for value in left) * sum(value * value for value in right))
+    cosine = max(-1.0, min(1.0, sum(a * b for a, b in zip(left, right)) / denominator))
+    return round(math.degrees(math.acos(cosine)))
 
 
 class TechniqueDatasetTests(unittest.TestCase):
@@ -94,6 +117,22 @@ class TechniqueDatasetTests(unittest.TestCase):
                         self.assertGreaterEqual(target["min"], 0)
                         self.assertLessEqual(target["max"], 180)
                         self.assertLessEqual(target["min"], target["max"])
+
+    def test_reference_skeleton_and_target_angle_data_tally(self):
+        for package in self.packages:
+            for step in package["training_steps"].get("steps", []):
+                landmarks = (step.get("reference_pose") or {}).get("landmarks")
+                if not landmarks:
+                    continue
+                for target in step.get("angle_targets", []):
+                    if target["body_part"] not in ANGLE_LANDMARKS:
+                        continue
+                    with self.subTest(
+                        technique=package["catalog"]["id"],
+                        step=step["step_number"],
+                        body_part=target["body_part"],
+                    ):
+                        self.assertEqual(target.get("target_angle"), pose_angle(landmarks, target["body_part"]))
 
 
 if __name__ == "__main__":

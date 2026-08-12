@@ -76,8 +76,24 @@ test("every Jab angle target has a valid ideal inside its range", async () => {
     )
   );
 
+  const expectedPoseAngles = [
+    "ankle_left",
+    "ankle_right",
+    "elbow_left",
+    "elbow_right",
+    "hip_left",
+    "hip_right",
+    "knee_left",
+    "knee_right",
+    "shoulder_left",
+    "shoulder_right",
+  ];
+
   for (const step of document.steps) {
-    assert.equal(step.angle_targets.length, 12);
+    assert.deepEqual(
+      step.angle_targets.map((target) => target.body_part).sort(),
+      expectedPoseAngles,
+    );
     for (const target of step.angle_targets) {
       assert.ok(
         target.target_angle >= target.min &&

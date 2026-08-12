@@ -1,5 +1,6 @@
 """Admin-only management for the reviewed technique package catalog."""
 import json
+import math
 import re
 from pathlib import Path
 
@@ -32,6 +33,34 @@ SENSOR_OR_ESTIMATE_ONLY = {
     "joint_torque", "ground_reaction_force", "center_of_pressure",
     "impulse", "collision_impact", "friction", "force",
 }
+ANGLE_LANDMARKS = {
+    "elbow_left": ("shoulder_left", "elbow_left", "wrist_left"),
+    "elbow_right": ("shoulder_right", "elbow_right", "wrist_right"),
+    "shoulder_left": ("elbow_left", "shoulder_left", "hip_left"),
+    "shoulder_right": ("elbow_right", "shoulder_right", "hip_right"),
+    "hip_left": ("shoulder_left", "hip_left", "knee_left"),
+    "hip_right": ("shoulder_right", "hip_right", "knee_right"),
+    "knee_left": ("hip_left", "knee_left", "ankle_left"),
+    "knee_right": ("hip_right", "knee_right", "ankle_right"),
+    "ankle_left": ("knee_left", "ankle_left", "foot_left"),
+    "ankle_right": ("knee_right", "ankle_right", "foot_right"),
+}
+
+
+def _reference_angle(landmarks, body_part):
+    joints = ANGLE_LANDMARKS.get(body_part)
+    if not joints:
+        return None
+    first, center, last = (landmarks[name] for name in joints)
+    left = [value - center[index] for index, value in enumerate(first)]
+    right = [value - center[index] for index, value in enumerate(last)]
+    denominator = math.sqrt(sum(value * value for value in left) * sum(value * value for value in right))
+    if denominator <= 1e-12:
+        return 0
+    cosine = max(-1.0, min(1.0, sum(a * b for a, b in zip(left, right)) / denominator))
+    return round(math.degrees(math.acos(cosine)))
+
+
 class PackagePayload(BaseModel):
     catalog: dict
     training_steps: dict
@@ -148,6 +177,20 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
         reference_pose = step.get("reference_pose")
         if reference_pose is not None:
             step["reference_pose"] = normalize_reference_pose(reference_pose, index)
+            landmarks = step["reference_pose"]["landmarks"]
+            for target in targets:
+                reference_angle = _reference_angle(landmarks, target["body_part"])
+                if reference_angle is None:
+                    continue
+                if not target["min"] <= reference_angle <= target["max"]:
+                    raise HTTPException(
+                        400,
+                        f"Step {index} {target['body_part']} reference pose is {reference_angle}°, outside its {target['min']:g}–{target['max']:g}° range",
+                    )
+                # The saved skeleton is the authoritative pose. Keep the
+                # target center synchronized while preserving reviewer-set
+                # minimum and maximum tolerances.
+                target["target_angle"] = reference_angle
 
         pose_optimization = step.get("pose_optimization")
         if pose_optimization is not None:
