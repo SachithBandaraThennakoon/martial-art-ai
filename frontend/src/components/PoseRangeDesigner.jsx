@@ -796,30 +796,30 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
   };
   return (
     <>
-      <Line color="#ffffff" lineWidth={1.4} points={faceOutline} />
+      <Line color="#c8d2dc" lineWidth={1.2} points={faceOutline} />
       <Line
-        color="#ffffff"
-        lineWidth={1.35}
+        color="#c8d2dc"
+        lineWidth={1.2}
         points={[faceOutline[3], neck.toArray()]}
       />
       <Line
-        color="#ffffff"
-        lineWidth={1.25}
-        opacity={0.82}
+        color="#c8d2dc"
+        lineWidth={1.1}
+        opacity={0.72}
         points={[shoulderLeft.toArray(), neck.toArray(), shoulderRight.toArray()]}
         transparent
       />
       <Line
-        color="#ffffff"
-        lineWidth={1.15}
-        opacity={0.78}
+        color="#c8d2dc"
+        lineWidth={1}
+        opacity={0.62}
         points={[faceOutline[0], gazePoint, faceOutline[1]]}
         transparent
       />
       <Line
-        color="#ffffff"
-        lineWidth={1.05}
-        opacity={0.68}
+        color="#c8d2dc"
+        lineWidth={1}
+        opacity={0.52}
         points={[faceOutline[4], gazePoint, faceOutline[2]]}
         transparent
       />
@@ -827,11 +827,13 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
         <group key={side}>
           {HAND_CONNECTIONS.map(([from, to]) => (
             <Line
-              color="#ffffff"
+              color="#dbe3e9"
               depthTest={false}
               key={`${from}-${to}`}
-              lineWidth={1.35}
+              lineWidth={2.6}
+              opacity={0.9}
               points={[landmarks[from], landmarks[to]]}
+              transparent
             />
           ))}
           {landmarks.slice(1).map((position, index) => (
@@ -848,11 +850,7 @@ const ArticulationOverlay = memo(function ArticulationOverlay({
                   6,
                 ]}
               />
-              <meshStandardMaterial
-                color="#ffffff"
-                depthTest={false}
-                depthWrite={false}
-              />
+              <meshBasicMaterial color="#eef3f6" depthTest={false} depthWrite={false} />
             </mesh>
           ))}
         </group>
@@ -1343,25 +1341,27 @@ function PoseScene({
             <MediaPipeSkeleton3D
               jointRadius={0.025}
               landmarks={mediaPipePreview}
-              lineWidth={1.45}
+              lineWidth={3.2}
             />
             {Object.entries(pose).map(([name, position]) => (
               <mesh
                 key={name}
                 onClick={(event) => chooseJoint(event, name)}
                 position={position}
-                scale={selectedJoint === name ? 1.28 : 1}
+                scale={selectedJoint === name ? 1.16 : 1}
               >
                 <sphereGeometry
                   args={[
-                    name.startsWith("wrist_") ? 0.027 : 0.04,
-                    16,
-                    12,
+                    name.startsWith("wrist_") ? 0.027 : 0.038,
+                    14,
+                    10,
                   ]}
                 />
                 <meshStandardMaterial
-                  color="#60d394"
-                  emissive={selectedJoint === name ? "#49d789" : "#173d2a"}
+                  color={selectedJoint === name ? "#f2c35f" : "#60d394"}
+                  emissive={selectedJoint === name ? "#6c4a0b" : "#112a20"}
+                  emissiveIntensity={0.35}
+                  roughness={0.62}
                 />
               </mesh>
             ))}

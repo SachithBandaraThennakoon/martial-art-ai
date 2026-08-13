@@ -2,7 +2,8 @@ import { Line } from "@react-three/drei";
 import { memo, useMemo } from "react";
 import { buildMediaPipePoseGraph } from "../skeleton/mediaPipePoseGraph";
 
-const WHITE = "#ffffff";
+const BONE_COLOR = "#c8d2dc";
+const JOINT_COLOR = "#edf3f7";
 
 const MediaPipeSkeleton3D = memo(function MediaPipeSkeleton3D({
   graph: suppliedGraph,
@@ -22,10 +23,10 @@ const MediaPipeSkeleton3D = memo(function MediaPipeSkeleton3D({
     <group userData={{ skeletonType: "mediapipe-pose-33" }}>
       {graph.edges.map(({ from, to }) => (
         <Line
-          color={WHITE}
+          color={BONE_COLOR}
           key={`${from}-${to}`}
           lineWidth={lineWidth}
-          opacity={0.92}
+          opacity={0.86}
           points={[graph.nodes.get(from).position, graph.nodes.get(to).position]}
           transparent
         />
@@ -45,8 +46,8 @@ const MediaPipeSkeleton3D = memo(function MediaPipeSkeleton3D({
             landmarkSource: node.source,
           }}
         >
-          <sphereGeometry args={[node.virtual ? jointRadius * 0.72 : jointRadius, 12, 10]} />
-          <meshBasicMaterial color={WHITE} toneMapped={false} />
+          <sphereGeometry args={[node.virtual ? jointRadius * 0.62 : jointRadius * 0.82, 12, 10]} />
+          <meshBasicMaterial color={selectedId === node.id ? "#f2c35f" : JOINT_COLOR} toneMapped={false} />
         </mesh>
       ))}
     </group>
