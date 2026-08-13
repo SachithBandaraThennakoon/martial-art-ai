@@ -56,7 +56,6 @@ export default function ExpectedPoseGuide({
       y: 56 - (point.y - centerY) * scale
     }]));
   }, [referencePose, requiredParts, stepName, viewDegrees]);
-  const qualityCues = requiredParts.filter((target) => target.feature);
   const projectedPose = useMemo(
     () => referencePose?.landmarks
       ? Object.fromEntries(Object.entries(pose).map(([name, point]) => [name, { ...point, x: mirrored ? 100 - point.x : point.x }]))
@@ -113,14 +112,6 @@ export default function ExpectedPoseGuide({
           ))}
         </div>
       ) : null}
-      {qualityCues.length ? (
-        <div className="expected-pose-guide__quality">
-          {qualityCues.slice(0, 4).map((target) => (
-            <span key={target.feature}>{target.label}</span>
-          ))}
-        </div>
-      ) : null}
-      <small>{referencePose?.landmarks ? "Saved optimal skeleton · match the normalized shape" : "Bone guide · match the shape, not body size"}</small>
     </aside>
   );
 }

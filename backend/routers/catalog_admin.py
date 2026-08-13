@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from auth_context import require_admin_user
@@ -13,10 +13,7 @@ import logging
 from database import get_db
 from models.user import User
 from services.catalog_sync import sync_technique_catalog
-from services.pose_optimization_schema import normalize_optimization_context, normalize_reference_pose, validate_pose_optimization
-from services.pose_biomechanics import evaluate_pose
-from services.pose_optimizer import optimize_pose_variables
-from services.pose_search_ranges import generate_search_ranges
+from services.reference_pose_schema import normalize_reference_pose
 from services.technique_package_loader import TECHNIQUE_ROOT, TRACKING_FILES
 
 
@@ -65,25 +62,6 @@ class PackagePayload(BaseModel):
     catalog: dict
     training_steps: dict
     enabled: bool = True
-
-
-class PoseRangePayload(BaseModel):
-    pose_a: dict
-    pose_b: dict
-    margin: dict = Field(default_factory=dict)
-    optimization_context: dict = Field(default_factory=dict)
-
-
-class PoseEvaluationPayload(BaseModel):
-    pose: dict
-    optimization_context: dict = Field(default_factory=dict)
-
-
-class PoseOptimizationPayload(PoseRangePayload):
-    objective_weights: dict = Field(default_factory=dict)
-    seed: int = 42
-    population_size: int = 48
-    generations: int = 60
 
 
 def _read_index():
@@ -174,6 +152,17 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
         step["angle_targets"] = targets
         step.pop("angles", None)
 
+        if index < len(steps):
+            try:
+                transition_duration = int(step.get("transition_duration_ms", 1600))
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"Step {index} has an invalid transition duration") from None
+            if not 200 <= transition_duration <= 10000:
+                raise HTTPException(400, f"Step {index} transition duration must be between 200 and 10000 ms")
+            step["transition_duration_ms"] = transition_duration
+        else:
+            step.pop("transition_duration_ms", None)
+
         reference_pose = step.get("reference_pose")
         if reference_pose is not None:
             step["reference_pose"] = normalize_reference_pose(reference_pose, index)
@@ -192,9 +181,9 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
                 # minimum and maximum tolerances.
                 target["target_angle"] = reference_angle
 
-        pose_optimization = step.get("pose_optimization")
-        if pose_optimization is not None:
-            step["pose_optimization"] = validate_pose_optimization(pose_optimization, index)
+        # The manual catalog is the sole authoring path. Drop stale optimizer
+        # metadata from packages created by the retired optimization studio.
+        step.pop("pose_optimization", None)
 
     biomechanics = training_steps.get("biomechanics")
     if biomechanics is not None:
@@ -298,80 +287,6 @@ def _save_package(package_id, catalog, training_steps, enabled, creating):
 @router.get("")
 def list_packages(_admin: User = Depends(require_admin_user)):
     return {"techniques": [_package_payload(item) for item in _load_all_packages()]}
-
-
-@router.post("/pose-optimization/ranges")
-def generate_pose_optimization_ranges(
-    payload: PoseRangePayload,
-    _admin: User = Depends(require_admin_user),
-):
-    pose_a = normalize_reference_pose(payload.pose_a, "preview", "Pose A")
-    pose_b = normalize_reference_pose(payload.pose_b, "preview", "Pose B")
-    settings = validate_pose_optimization({
-        "status": "READY",
-        "pose_a": pose_a,
-        "pose_b": pose_b,
-        "margin": payload.margin,
-        "optimization_context": payload.optimization_context,
-    }, "preview")
-    return generate_search_ranges(
-        pose_a, pose_b, settings["margin"], optimization_context=settings["optimization_context"]
-    )
-
-
-@router.post("/pose-optimization/evaluate")
-def evaluate_pose_optimization(
-    payload: PoseEvaluationPayload,
-    _admin: User = Depends(require_admin_user),
-):
-    pose = normalize_reference_pose(payload.pose, "preview", "pose")
-    context = normalize_optimization_context(payload.optimization_context, "preview")
-    return evaluate_pose(pose, context)
-
-
-@router.post("/pose-optimization/run")
-def run_pose_optimization(
-    payload: dict,
-    _admin: User = Depends(require_admin_user),
-):
-    if not isinstance(payload, dict):
-        raise HTTPException(400, "Pose optimization request must be a JSON object")
-    try:
-        population_size = int(payload.get("population_size", 48))
-        generations = int(payload.get("generations", 60))
-        seed = int(payload.get("seed", 42))
-    except (TypeError, ValueError):
-        raise HTTPException(400, "Seed, population size, and generations must be integers") from None
-    if not 16 <= population_size <= 300:
-        raise HTTPException(400, "Population size must be between 16 and 300")
-    if not 5 <= generations <= 500:
-        raise HTTPException(400, "Generations must be between 5 and 500")
-    settings = validate_pose_optimization({
-        "status": "READY",
-        "pose_a": payload.get("pose_a"),
-        "pose_b": payload.get("pose_b"),
-        "margin": payload.get("margin") or {},
-        "objective_weights": payload.get("objective_weights") or None,
-        "optimization_context": payload.get("optimization_context") or {},
-        "seed": seed,
-    }, "preview")
-    ranges = generate_search_ranges(
-        settings["pose_a"],
-        settings["pose_b"],
-        settings["margin"],
-        optimization_context=settings["optimization_context"],
-    )
-    optimization = optimize_pose_variables(
-        ranges,
-        settings["objective_weights"],
-        pose_a=settings["pose_a"],
-        pose_b=settings["pose_b"],
-        seed=settings["seed"],
-        population_size=population_size,
-        generations=generations,
-        optimization_context=settings["optimization_context"],
-    )
-    return {"search": ranges, "optimization": optimization}
 
 
 @router.get("/{technique_id}")

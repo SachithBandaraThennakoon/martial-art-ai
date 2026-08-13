@@ -103,3 +103,37 @@ test("every Jab angle target has a valid ideal inside its range", async () => {
     }
   }
 });
+
+test("Jab authoring poses include safe impact and complete transition data", async () => {
+  const document = JSON.parse(
+    await readFile(
+      path.join(trackingRoot, "jab", "training-steps.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    document.steps.map(
+      (step) => step.reference_pose.articulation.hand_left.palm_turn,
+    ),
+    [0, 1, 0],
+    "lead fist should turn palm-down only at impact",
+  );
+  assert.deepEqual(
+    document.steps.slice(0, -1).map((step) => step.transition_duration_ms),
+    [550, 650],
+  );
+  for (const step of document.steps) {
+    assert.ok(step.reference_pose.tolerance <= 0.12);
+    for (const side of ["hand_left", "hand_right"]) {
+      const hand = step.reference_pose.articulation[side];
+      assert.equal(hand.fist_closure, 1);
+      assert.ok(hand.palm_turn >= 0 && hand.palm_turn <= 1);
+      assert.equal(hand.wrist_rotation.length, 3);
+    }
+  }
+  const impactElbow = document.steps[1].angle_targets.find(
+    (target) => target.body_part === "elbow_left",
+  );
+  assert.equal(impactElbow.role, "primary");
+  assert.ok(impactElbow.target_angle <= 175, "impact elbow must not lock");
+});

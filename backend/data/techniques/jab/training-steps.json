@@ -70,51 +70,69 @@
         {
           "body_part": "elbow_left",
           "label": "Left elbow",
-          "target_angle": 54,
-          "min": 51.0,
-          "max": 57.0,
+          "target_angle": 60,
+          "min": 57.0,
+          "max": 63.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "elbow_right",
           "label": "Right elbow",
-          "target_angle": 67,
-          "min": 64.0,
-          "max": 70.0,
+          "target_angle": 60,
+          "min": 57.0,
+          "max": 63.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "shoulder_left",
           "label": "Left shoulder",
-          "target_angle": 29,
-          "min": 26.0,
-          "max": 32.0,
+          "target_angle": 24,
+          "min": 21.0,
+          "max": 27.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "shoulder_right",
           "label": "Right shoulder",
-          "target_angle": 39,
-          "min": 36.0,
-          "max": 42.0,
+          "target_angle": 23,
+          "min": 20.0,
+          "max": 26.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "hip_left",
           "label": "Left hip",
-          "target_angle": 148,
-          "min": 145.0,
-          "max": 151.0,
+          "target_angle": 146,
+          "min": 143.0,
+          "max": 149.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "hip_right",
           "label": "Right hip",
+          "target_angle": 160,
+          "min": 157.0,
+          "max": 163.0,
+          "role": "supporting",
+          "weight": 1
+        },
+        {
+          "body_part": "knee_left",
+          "label": "Left knee",
+          "target_angle": 147,
+          "min": 144.0,
+          "max": 150.0,
+          "role": "supporting",
+          "weight": 1
+        },
+        {
+          "body_part": "knee_right",
+          "label": "Right knee",
           "target_angle": 163,
           "min": 160.0,
           "max": 166.0,
@@ -122,38 +140,20 @@
           "weight": 1
         },
         {
-          "body_part": "knee_left",
-          "label": "Left knee",
-          "target_angle": 148,
-          "min": 145.0,
-          "max": 151.0,
-          "role": "supporting",
-          "weight": 1
-        },
-        {
-          "body_part": "knee_right",
-          "label": "Right knee",
-          "target_angle": 162,
-          "min": 159.0,
-          "max": 165.0,
-          "role": "supporting",
-          "weight": 1
-        },
-        {
           "body_part": "ankle_left",
           "label": "Left ankle",
-          "target_angle": 107,
-          "min": 104.0,
-          "max": 110.0,
+          "target_angle": 106,
+          "min": 103.0,
+          "max": 109.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "ankle_right",
           "label": "Right ankle",
-          "target_angle": 75,
-          "min": 72.0,
-          "max": 78.0,
+          "target_angle": 76,
+          "min": 73.0,
+          "max": 79.0,
           "role": "supporting",
           "weight": 1
         }
@@ -271,164 +271,164 @@
         "coordinate_space": "body_normalized_v1",
         "origin": "hip_center",
         "scale_basis": "torso_length",
-        "tolerance": 0.5,
+        "tolerance": 0.12,
         "landmarks": {
           "head": [
-            -0.031,
-            1.4227,
-            0.2572
+            -0.0314,
+            1.411,
+            0.2652
           ],
           "shoulder_left": [
-            -0.5215,
-            1.015,
-            0.0019
+            -0.5,
+            0.9995,
+            0.0062
           ],
           "shoulder_right": [
-            0.4653,
-            0.9826,
-            0.0791
-          ],
-          "elbow_left": [
-            -0.4444,
-            0.5396,
-            0.2677
-          ],
-          "elbow_right": [
-            0.3386,
-            0.5406,
-            0.381
-          ],
-          "wrist_left": [
-            -0.3405,
-            1.0064,
-            0.4506
-          ],
-          "wrist_right": [
-            0.1824,
-            0.9778,
-            0.5963
+            0.4495,
+            0.9995,
+            0.029
           ],
           "hip_left": [
-            -0.3615,
-            0.0186,
-            -0.0019
+            -0.34,
+            0.0033,
+            -0.0081
           ],
           "hip_right": [
-            0.3615,
-            -0.0186,
-            0.0019
+            0.34,
+            -0.0033,
+            0.0081
+          ],
+          "elbow_left": [
+            -0.3838,
+            0.5071,
+            0.2224
+          ],
+          "wrist_left": [
+            -0.2019,
+            0.9386,
+            0.45
           ],
           "knee_left": [
-            -0.4282,
-            -0.7149,
-            0.4039
-          ],
-          "knee_right": [
-            0.4596,
-            -0.8216,
-            -0.2267
+            -0.4324,
+            -0.7386,
+            0.4176
           ],
           "ankle_left": [
-            -0.391,
-            -1.496,
-            0.3744
-          ],
-          "ankle_right": [
-            0.4596,
-            -1.4827,
-            -0.6459
+            -0.3933,
+            -1.5376,
+            0.3957
           ],
           "foot_left": [
-            -0.4196,
-            -1.6151,
-            0.7059
+            -0.419,
+            -1.63,
+            0.69
+          ],
+          "elbow_right": [
+            0.3657,
+            0.4938,
+            0.229
+          ],
+          "wrist_right": [
+            0.1476,
+            0.9062,
+            0.4595
+          ],
+          "knee_right": [
+            0.4619,
+            -0.8243,
+            -0.2176
+          ],
+          "ankle_right": [
+            0.4619,
+            -1.5119,
+            -0.6262
           ],
           "foot_right": [
-            0.4939,
-            -1.5846,
-            -0.3096
+            0.4905,
+            -1.5986,
+            -0.33
           ]
         },
         "bones": [
           {
             "from": "head",
             "to": "shoulder_left",
-            "length": 0.687
+            "length": 0.6753
           },
           {
             "from": "head",
             "to": "shoulder_right",
-            "length": 0.6868
+            "length": 0.6756
           },
           {
             "from": "shoulder_left",
             "to": "shoulder_right",
-            "length": 0.9903
+            "length": 0.9498
           },
           {
             "from": "shoulder_left",
             "to": "elbow_left",
-            "length": 0.5501
+            "length": 0.5502
           },
           {
             "from": "elbow_left",
             "to": "wrist_left",
-            "length": 0.512
+            "length": 0.5207
           },
           {
             "from": "shoulder_right",
             "to": "elbow_right",
-            "length": 0.5501
+            "length": 0.5502
           },
           {
             "from": "elbow_right",
             "to": "wrist_right",
-            "length": 0.5118
+            "length": 0.5204
           },
           {
             "from": "shoulder_left",
             "to": "hip_left",
-            "length": 1.0092
+            "length": 1.0091
           },
           {
             "from": "shoulder_right",
             "to": "hip_right",
-            "length": 1.0095
+            "length": 1.009
           },
           {
             "from": "hip_left",
             "to": "hip_right",
-            "length": 0.724
+            "length": 0.6802
           },
           {
             "from": "hip_left",
             "to": "knee_left",
-            "length": 0.8409
+            "length": 0.8603
           },
           {
             "from": "knee_left",
             "to": "ankle_left",
-            "length": 0.7825
+            "length": 0.8003
           },
           {
             "from": "ankle_left",
             "to": "foot_left",
-            "length": 0.3534
+            "length": 0.3095
           },
           {
             "from": "hip_right",
             "to": "knee_right",
-            "length": 0.8406
+            "length": 0.8601
           },
           {
             "from": "knee_right",
             "to": "ankle_right",
-            "length": 0.7828
+            "length": 0.7998
           },
           {
             "from": "ankle_right",
             "to": "foot_right",
-            "length": 0.3531
+            "length": 0.31
           }
         ],
         "articulation": {
@@ -441,14 +441,27 @@
           },
           "hand_left": {
             "fist_closure": 1.0,
-            "finger_spread": 0.35
+            "finger_spread": 0.35,
+            "palm_turn": 0.0,
+            "wrist_rotation": [
+              0.0,
+              0.0,
+              0.0
+            ]
           },
           "hand_right": {
             "fist_closure": 1.0,
-            "finger_spread": 0.35
+            "finger_spread": 0.35,
+            "palm_turn": 0.0,
+            "wrist_rotation": [
+              0.0,
+              0.0,
+              0.0
+            ]
           }
         }
-      }
+      },
+      "transition_duration_ms": 550
     },
     {
       "step_number": 2,
@@ -483,23 +496,23 @@
           "target_angle": 173,
           "min": 165.0,
           "max": 175.0,
-          "role": "supporting",
-          "weight": 1
+          "role": "primary",
+          "weight": 1.5
         },
         {
           "body_part": "elbow_right",
           "label": "Right elbow",
-          "target_angle": 67,
-          "min": 55.0,
-          "max": 80.0,
+          "target_angle": 60,
+          "min": 57.0,
+          "max": 63.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "shoulder_left",
           "label": "Left shoulder",
-          "target_angle": 86,
-          "min": 75.0,
+          "target_angle": 87,
+          "min": 84.0,
           "max": 90.0,
           "role": "supporting",
           "weight": 1
@@ -507,63 +520,63 @@
         {
           "body_part": "shoulder_right",
           "label": "Right shoulder",
-          "target_angle": 39,
-          "min": 25.0,
-          "max": 45.0,
+          "target_angle": 23,
+          "min": 20.0,
+          "max": 26.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "hip_left",
           "label": "Left hip",
-          "target_angle": 148,
-          "min": 140.0,
-          "max": 160.0,
+          "target_angle": 145,
+          "min": 142.0,
+          "max": 148.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "hip_right",
           "label": "Right hip",
-          "target_angle": 163,
-          "min": 150.0,
-          "max": 172.0,
+          "target_angle": 160,
+          "min": 157.0,
+          "max": 163.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "knee_left",
           "label": "Left knee",
-          "target_angle": 148,
-          "min": 140.0,
-          "max": 160.0,
+          "target_angle": 147,
+          "min": 144.0,
+          "max": 150.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "knee_right",
           "label": "Right knee",
-          "target_angle": 162,
-          "min": 158.0,
-          "max": 175.0,
+          "target_angle": 163,
+          "min": 160.0,
+          "max": 166.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "ankle_left",
           "label": "Left ankle",
-          "target_angle": 107,
-          "min": 98.0,
-          "max": 118.0,
+          "target_angle": 106,
+          "min": 103.0,
+          "max": 109.0,
           "role": "supporting",
           "weight": 1
         },
         {
           "body_part": "ankle_right",
           "label": "Right ankle",
-          "target_angle": 75,
-          "min": 72.0,
-          "max": 92.0,
+          "target_angle": 76,
+          "min": 73.0,
+          "max": 79.0,
           "role": "supporting",
           "weight": 1
         }
@@ -681,164 +694,164 @@
         "coordinate_space": "body_normalized_v1",
         "origin": "hip_center",
         "scale_basis": "torso_length",
-        "tolerance": 0.5,
+        "tolerance": 0.12,
         "landmarks": {
           "head": [
-            -0.0319,
-            1.4232,
-            0.2567
+            -0.0295,
+            1.4118,
+            0.2648
           ],
           "shoulder_left": [
-            -0.5225,
-            1.0155,
-            0.0005
+            -0.5,
+            0.9995,
+            0.0114
           ],
           "shoulder_right": [
-            0.4644,
-            0.9821,
-            0.0786
-          ],
-          "elbow_left": [
-            -0.4558,
-            0.9878,
-            0.5454
-          ],
-          "elbow_right": [
-            0.3386,
-            0.5401,
-            0.3806
-          ],
-          "wrist_left": [
-            -0.3425,
-            0.9955,
-            1.0455
-          ],
-          "wrist_right": [
-            0.1824,
-            0.9783,
-            0.5958
+            0.4495,
+            0.9995,
+            0.0286
           ],
           "hip_left": [
-            -0.3615,
-            0.0191,
-            -0.0014
+            -0.34,
+            0.0033,
+            -0.0086
           ],
           "hip_right": [
-            0.3615,
-            -0.0191,
-            0.0014
+            0.34,
+            -0.0033,
+            0.0086
+          ],
+          "elbow_left": [
+            -0.4266,
+            0.9738,
+            0.5562
+          ],
+          "wrist_left": [
+            -0.3127,
+            0.9985,
+            1.0631
           ],
           "knee_left": [
-            -0.4291,
-            -0.7144,
-            0.4025
-          ],
-          "knee_right": [
-            0.4596,
-            -0.8211,
-            -0.2272
+            -0.4324,
+            -0.7376,
+            0.4171
           ],
           "ankle_left": [
-            -0.392,
-            -1.4965,
-            0.3739
-          ],
-          "ankle_right": [
-            0.4596,
-            -1.4832,
-            -0.6463
+            -0.3933,
+            -1.5366,
+            0.3952
           ],
           "foot_left": [
-            -0.4206,
-            -1.6156,
-            0.7054
+            -0.419,
+            -1.629,
+            0.6895
+          ],
+          "elbow_right": [
+            0.3657,
+            0.4947,
+            0.2286
+          ],
+          "wrist_right": [
+            0.1476,
+            0.9071,
+            0.459
+          ],
+          "knee_right": [
+            0.4619,
+            -0.8243,
+            -0.2171
+          ],
+          "ankle_right": [
+            0.4619,
+            -1.5109,
+            -0.6266
           ],
           "foot_right": [
-            0.4939,
-            -1.5851,
-            -0.3101
+            0.4905,
+            -1.5985,
+            -0.3305
           ]
         },
         "bones": [
           {
             "from": "head",
             "to": "shoulder_left",
-            "length": 0.6874
+            "length": 0.675
           },
           {
             "from": "head",
             "to": "shoulder_right",
-            "length": 0.6875
+            "length": 0.6747
           },
           {
             "from": "shoulder_left",
             "to": "shoulder_right",
-            "length": 0.9905
+            "length": 0.9497
           },
           {
             "from": "shoulder_left",
             "to": "elbow_left",
-            "length": 0.5497
+            "length": 0.5503
           },
           {
             "from": "elbow_left",
             "to": "wrist_left",
-            "length": 0.5128
+            "length": 0.5202
           },
           {
             "from": "shoulder_right",
             "to": "elbow_right",
-            "length": 0.5499
+            "length": 0.5494
           },
           {
             "from": "elbow_right",
             "to": "wrist_right",
-            "length": 0.5126
+            "length": 0.5203
           },
           {
             "from": "shoulder_left",
             "to": "hip_left",
-            "length": 1.0093
+            "length": 1.0092
           },
           {
             "from": "shoulder_right",
             "to": "hip_right",
-            "length": 1.0094
+            "length": 1.009
           },
           {
             "from": "hip_left",
             "to": "hip_right",
-            "length": 0.724
+            "length": 0.6802
           },
           {
             "from": "hip_left",
             "to": "knee_left",
-            "length": 0.8401
+            "length": 0.8595
           },
           {
             "from": "knee_left",
             "to": "ankle_left",
-            "length": 0.7835
+            "length": 0.8003
           },
           {
             "from": "ankle_left",
             "to": "foot_left",
-            "length": 0.3534
+            "length": 0.3095
           },
           {
             "from": "hip_right",
             "to": "knee_right",
-            "length": 0.8397
+            "length": 0.8601
           },
           {
             "from": "knee_right",
             "to": "ankle_right",
-            "length": 0.7836
+            "length": 0.7994
           },
           {
             "from": "ankle_right",
             "to": "foot_right",
-            "length": 0.353
+            "length": 0.3101
           }
         ],
         "articulation": {
@@ -851,14 +864,27 @@
           },
           "hand_left": {
             "fist_closure": 1.0,
-            "finger_spread": 0.35
+            "finger_spread": 0.35,
+            "palm_turn": 1.0,
+            "wrist_rotation": [
+              0.0,
+              0.0,
+              0.0
+            ]
           },
           "hand_right": {
             "fist_closure": 1.0,
-            "finger_spread": 0.35
+            "finger_spread": 0.35,
+            "palm_turn": 0.0,
+            "wrist_rotation": [
+              0.0,
+              0.0,
+              0.0
+            ]
           }
         }
-      }
+      },
+      "transition_duration_ms": 650
     },
     {
       "step_number": 3,
@@ -1091,164 +1117,164 @@
         "coordinate_space": "body_normalized_v1",
         "origin": "hip_center",
         "scale_basis": "torso_length",
-        "tolerance": 0.5,
+        "tolerance": 0.12,
         "landmarks": {
           "head": [
-            -0.031,
-            1.4227,
-            0.2572
+            -0.0314,
+            1.4225,
+            0.2571
           ],
           "shoulder_left": [
-            -0.5215,
+            -0.5218,
             1.015,
             0.0019
           ],
           "shoulder_right": [
-            0.4653,
+            0.4656,
             0.9826,
-            0.0791
-          ],
-          "elbow_left": [
-            -0.4444,
-            0.5396,
-            0.2677
-          ],
-          "elbow_right": [
-            0.3386,
-            0.5406,
-            0.381
-          ],
-          "wrist_left": [
-            -0.3405,
-            1.0064,
-            0.4506
-          ],
-          "wrist_right": [
-            0.1824,
-            0.9778,
-            0.5963
+            0.079
           ],
           "hip_left": [
-            -0.3615,
-            0.0186,
+            -0.3618,
+            0.019,
             -0.0019
           ],
           "hip_right": [
-            0.3615,
-            -0.0186,
+            0.3618,
+            -0.019,
             0.0019
           ],
-          "knee_left": [
-            -0.4282,
-            -0.7149,
-            0.4039
+          "elbow_left": [
+            -0.4446,
+            0.5399,
+            0.2675
           ],
-          "knee_right": [
-            0.4596,
-            -0.8216,
-            -0.2267
+          "wrist_left": [
+            -0.3409,
+            1.0064,
+            0.4504
+          ],
+          "knee_left": [
+            -0.4285,
+            -0.7151,
+            0.4037
           ],
           "ankle_left": [
-            -0.391,
-            -1.496,
-            0.3744
-          ],
-          "ankle_right": [
-            0.4596,
-            -1.4827,
-            -0.6459
+            -0.3913,
+            -1.4958,
+            0.3742
           ],
           "foot_left": [
-            -0.4196,
-            -1.6151,
-            0.7059
+            -0.4199,
+            -1.6148,
+            0.7055
+          ],
+          "elbow_right": [
+            0.339,
+            0.5408,
+            0.3809
+          ],
+          "wrist_right": [
+            0.1828,
+            0.9778,
+            0.596
+          ],
+          "knee_right": [
+            0.4599,
+            -0.8217,
+            -0.2266
+          ],
+          "ankle_right": [
+            0.4599,
+            -1.4825,
+            -0.6455
           ],
           "foot_right": [
-            0.4939,
-            -1.5846,
-            -0.3096
+            0.4942,
+            -1.5843,
+            -0.3094
           ]
         },
         "bones": [
           {
             "from": "head",
             "to": "shoulder_left",
-            "length": 0.687
+            "length": 0.6868
           },
           {
             "from": "head",
             "to": "shoulder_right",
-            "length": 0.6868
+            "length": 0.6872
           },
           {
             "from": "shoulder_left",
             "to": "shoulder_right",
-            "length": 0.9903
+            "length": 0.9909
           },
           {
             "from": "shoulder_left",
             "to": "elbow_left",
-            "length": 0.5501
+            "length": 0.5497
           },
           {
             "from": "elbow_left",
             "to": "wrist_left",
-            "length": 0.512
+            "length": 0.5117
           },
           {
             "from": "shoulder_right",
             "to": "elbow_right",
-            "length": 0.5501
+            "length": 0.5499
           },
           {
             "from": "elbow_right",
             "to": "wrist_right",
-            "length": 0.5118
+            "length": 0.5115
           },
           {
             "from": "shoulder_left",
             "to": "hip_left",
-            "length": 1.0092
+            "length": 1.0088
           },
           {
             "from": "shoulder_right",
             "to": "hip_right",
-            "length": 1.0095
+            "length": 1.0099
           },
           {
             "from": "hip_left",
             "to": "hip_right",
-            "length": 0.724
+            "length": 0.7246
           },
           {
             "from": "hip_left",
             "to": "knee_left",
-            "length": 0.8409
+            "length": 0.8413
           },
           {
             "from": "knee_left",
             "to": "ankle_left",
-            "length": 0.7825
+            "length": 0.7821
           },
           {
             "from": "ankle_left",
             "to": "foot_left",
-            "length": 0.3534
+            "length": 0.3532
           },
           {
             "from": "hip_right",
             "to": "knee_right",
-            "length": 0.8406
+            "length": 0.8403
           },
           {
             "from": "knee_right",
             "to": "ankle_right",
-            "length": 0.7828
+            "length": 0.7824
           },
           {
             "from": "ankle_right",
             "to": "foot_right",
-            "length": 0.3531
+            "length": 0.3528
           }
         ],
         "articulation": {
@@ -1261,11 +1287,23 @@
           },
           "hand_left": {
             "fist_closure": 1.0,
-            "finger_spread": 0.35
+            "finger_spread": 0.35,
+            "palm_turn": 0.0,
+            "wrist_rotation": [
+              0.0,
+              0.0,
+              0.0
+            ]
           },
           "hand_right": {
             "fist_closure": 1.0,
-            "finger_spread": 0.35
+            "finger_spread": 0.35,
+            "palm_turn": 0.0,
+            "wrist_rotation": [
+              0.0,
+              0.0,
+              0.0
+            ]
           }
         }
       }
