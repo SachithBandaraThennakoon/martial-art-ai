@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../services/api";
 import { authFetch } from "../services/authSession";
 import ManualPosePanel from "../components/ManualPosePanel";
+import GuideContentEditor from "../components/GuideContentEditor";
+import { STRIKING_SURFACES } from "../data/strikingSurfaces";
 
 const PLAN_OPTIONS = ["FREE_PLAN", "STARTER_PLAN", "PRO_PLAN", "ELITE_PLAN"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
@@ -15,7 +17,7 @@ function newTarget() {
 }
 
 function newStep(number) {
-  return { step_number: number, step_name: `Step ${number}`, transition_duration_ms: 1600, angle_targets: [newTarget()], reference_pose: null };
+  return { step_number: number, step_name: `Step ${number}`, striking_surface: "", striking_side: "", transition_duration_ms: 1600, angle_targets: [newTarget()], reference_pose: null };
 }
 
 function newBiomechanics() {
@@ -110,6 +112,11 @@ export default function ManualCatalogWorkspace() {
       if (!step.reference_pose) issues.push(`Author a reference pose for step ${index + 1}`);
       if (!(step.angle_targets || []).length) issues.push(`Add an angle range to step ${index + 1}`);
     });
+    if (draft.learning_content?.status === "PUBLISHED") {
+      if (!draft.learning_content.overview?.summary?.trim()) issues.push("Add a Guide summary before publishing");
+      if (!draft.learning_content.principles?.length) issues.push("Add a Guide principle before publishing");
+      if (draft.learning_content.principles?.some((item) => !item.title?.trim() || !item.explanation?.trim())) issues.push("Complete every Guide principle before publishing");
+    }
     return issues;
   }, [draft]);
 
@@ -121,7 +128,7 @@ export default function ManualCatalogWorkspace() {
 
   const addStep = () => setDraft((current) => {
     const steps = current.training_steps.steps;
-    if (steps.length >= 3) return current;
+    if (steps.length >= 12) return current;
     return { ...current, training_steps: { ...current.training_steps, steps: [...steps, newStep(steps.length + 1)] } };
   });
 
@@ -245,9 +252,20 @@ export default function ManualCatalogWorkspace() {
   };
   const updateTransitionDuration = (stepIndex, value) => setDraft((current) => {
     const steps = [...current.training_steps.steps];
+    const duration = Math.max(200, Math.min(10000, Number(value) || 1600));
+    const cycle = current.training_steps.cycle;
+    if (cycle?.enabled && stepIndex === steps.length - 1) {
+      return {
+        ...current,
+        training_steps: {
+          ...current.training_steps,
+          cycle: { ...cycle, transition_duration_ms: duration },
+        },
+      };
+    }
     steps[stepIndex] = {
       ...steps[stepIndex],
-      transition_duration_ms: Math.max(200, Math.min(10000, Number(value) || 1600)),
+      transition_duration_ms: duration,
     };
     return { ...current, training_steps: { ...current.training_steps, steps } };
   });
@@ -267,6 +285,21 @@ export default function ManualCatalogWorkspace() {
     }
   };
 
+  const poseSteps = draft?.training_steps?.steps || [];
+  const poseCycle = draft?.training_steps?.cycle;
+  const isCycleReturn = Boolean(
+    poseCycle?.enabled && poseStepIndex === poseSteps.length - 1,
+  );
+  const cycleTargetIndex = Math.max(
+    0,
+    Math.min(poseSteps.length - 1, Number(poseCycle?.return_to_step_number || 1) - 1),
+  );
+  const poseTransitionTarget =
+    poseSteps[poseStepIndex + 1] || (isCycleReturn ? poseSteps[cycleTargetIndex] : null);
+  const poseTransitionDuration = isCycleReturn
+    ? poseCycle.transition_duration_ms
+    : poseSteps[poseStepIndex]?.transition_duration_ms;
+
   return (
     <main className="studio-page studio-page--admin catalog-admin-page">
       <section className="studio-hub catalog-admin__hub">
@@ -276,7 +309,7 @@ export default function ManualCatalogWorkspace() {
         <label className="catalog-admin__technique-select"><span>Technique</span><select disabled={isLoading} onChange={(event) => choosePackage(packages.find((entry) => entry.id === event.target.value))} value={isExisting ? draft.id : ""}><option value="">{isLoading ? "Loading techniques…" : `Select from ${packages.length} technique${packages.length === 1 ? "" : "s"}…`}</option>{packages.map((item) => <option key={item.id} value={item.id}>{item.catalog.name}</option>)}</select></label>
         <label className="catalog-admin__technique-select catalog-admin__step-select-top"><span>Step</span><select disabled={!draft} onChange={(event) => setPoseStepIndex(Number(event.target.value))} value={poseStepIndex}>{draft?.training_steps.steps.map((step, index) => <option key={step.step_number} value={index}>{index + 1}. {step.step_name}</option>)}</select></label>
         <nav className="catalog-admin__workspace-tabs" aria-label="Catalog workspace panels">
-          {[['details', 'Details'], ['pose', 'Pose Studio'], ['steps', 'Step Data']].map(([id, label]) => <button aria-pressed={workspacePanel === id} className={workspacePanel === id ? "is-active" : ""} disabled={!draft} key={id} onClick={() => setWorkspacePanel(id)} type="button">{label}</button>)}
+          {[['details', 'Details'], ['pose', 'Pose Studio'], ['steps', 'Step Data'], ['guide', 'Guide Studio']].map(([id, label]) => <button aria-pressed={workspacePanel === id} className={workspacePanel === id ? "is-active" : ""} disabled={!draft} key={id} onClick={() => setWorkspacePanel(id)} type="button">{label}</button>)}
         </nav>
         <div className="catalog-admin__app-actions">{draft ? <span className={`catalog-admin__save-state ${isDirty ? "is-dirty" : ""}`}>{isDirty ? "Unsaved" : "Saved"}</span> : null}<button className="btn btn--ghost btn--small" onClick={() => { if (!isDirty || window.confirm("Discard your unsaved catalog changes?")) selectPackage(newPackage()); }} type="button">New</button>{isExisting ? <button className="btn btn--danger btn--small" onClick={archive} type="button">Archive</button> : null}<button className="btn btn--light btn--small" disabled={!draft || isSaving || !isDirty || draftIssues.length > 0} onClick={save} title={draftIssues[0] || "Save catalog item (Ctrl+S)"} type="button">{isSaving ? "Saving…" : "Save"}</button></div>
       </header>
@@ -285,6 +318,7 @@ export default function ManualCatalogWorkspace() {
           <button className={workspacePanel === "details" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("details")} title="Technique details" type="button"><b>D</b><span>Details</span></button>
           <button className={workspacePanel === "pose" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("pose")} title="Pose studio" type="button"><b>P</b><span>Pose</span></button>
           <button className={workspacePanel === "steps" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("steps")} title="Step data" type="button"><b>S</b><span>Steps</span></button>
+          <button className={workspacePanel === "guide" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("guide")} title="Guide studio" type="button"><b>G</b><span>Guide</span></button>
         </aside>
         <section className="catalog-admin__editor-panel">
           {!draft ? <div className="catalog-admin__empty"><span className="catalog-admin__empty-mark" aria-hidden="true">+</span><h2>Build a training technique</h2><p>Select one of {packages.length} existing techniques, or create a new catalog item and author each pose by hand.</p><button className="btn btn--light" onClick={() => selectPackage(newPackage())} type="button">Create technique</button></div> : <>
@@ -305,12 +339,12 @@ export default function ManualCatalogWorkspace() {
             <datalist id="catalog-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist>
             </section> : null}
             {workspacePanel === "steps" ? <section className="catalog-admin__panel-view catalog-admin__panel-view--steps">
-            <div className="catalog-admin__steps-heading"><div><h3>Steps and angle ranges</h3><p>Keep steps in performance order. Each range feeds scoring and coaching.</p></div><button className="btn btn--ghost btn--small" disabled={draft.training_steps.steps.length >= 3} onClick={addStep} type="button">Add step</button></div>
-            <div className="catalog-admin__steps">{draft.training_steps.steps.map((step, stepIndex) => <article className="catalog-admin__step" key={`${step.step_number}-${stepIndex}`}><div className="catalog-admin__step-top"><span>Step {stepIndex + 1}</span><input value={step.step_name} onChange={(event) => updateStep(stepIndex, "step_name", event.target.value)} /><button className="catalog-admin__text-button" disabled={draft.training_steps.steps.length === 1} onClick={() => removeStep(stepIndex)} type="button">Remove step</button></div><div className="catalog-admin__step-meta"><span className={`catalog-admin__step-pose-status ${step.reference_pose ? "has-pose" : "no-pose"}`}>{step.reference_pose ? "Saved reference pose" : "No saved reference pose"}</span>{step.reference_pose ? <button className="catalog-admin__text-button" onClick={() => clearStepReferencePose(stepIndex)} type="button">Clear pose</button> : null}</div><div className="catalog-admin__ranges">{(step.angle_targets || []).map((target, targetIndex) => <div className="catalog-admin__range" key={`${target.body_part}-${targetIndex}`}><input aria-label="Body part" value={target.body_part} onChange={(event) => updateTarget(stepIndex, targetIndex, "body_part", event.target.value)} /><input aria-label="Range label" value={target.label || ""} onChange={(event) => updateTarget(stepIndex, targetIndex, "label", event.target.value)} placeholder="Label" /><input aria-label="Minimum angle" min="0" max="180" type="number" value={target.min} onChange={(event) => updateTarget(stepIndex, targetIndex, "min", Number(event.target.value))} /><span>to</span><input aria-label="Maximum angle" min="0" max="180" type="number" value={target.max} onChange={(event) => updateTarget(stepIndex, targetIndex, "max", Number(event.target.value))} /><button className="catalog-admin__text-button" disabled={step.angle_targets.length === 1} onClick={() => setDraft((current) => { const steps = [...current.training_steps.steps]; steps[stepIndex] = { ...steps[stepIndex], angle_targets: step.angle_targets.filter((_, index) => index !== targetIndex) }; return { ...current, training_steps: { ...current.training_steps, steps } }; })} type="button">×</button></div>)}<button className="catalog-admin__add-range" onClick={() => updateStep(stepIndex, "angle_targets", [...(step.angle_targets || []), newTarget()])} type="button">+ Add angle range</button></div></article>)}</div>
+            <div className="catalog-admin__steps-heading"><div><h3>Steps and angle ranges</h3><p>Keep steps in performance order. Each range feeds scoring and coaching.</p></div><button className="btn btn--ghost btn--small" disabled={draft.training_steps.steps.length >= 12} onClick={addStep} type="button">Add step</button></div>
+            <div className="catalog-admin__steps">{draft.training_steps.steps.map((step, stepIndex) => <article className="catalog-admin__step" key={`${step.step_number}-${stepIndex}`}><div className="catalog-admin__step-top"><span>Step {stepIndex + 1}</span><input value={step.step_name} onChange={(event) => updateStep(stepIndex, "step_name", event.target.value)} /><button className="catalog-admin__text-button" disabled={draft.training_steps.steps.length === 1} onClick={() => removeStep(stepIndex)} type="button">Remove step</button></div><div className="catalog-admin__step-meta"><label><span>Striking surface</span><select aria-label={`Step ${stepIndex + 1} striking surface`} onChange={(event) => { const value = event.target.value; updateStep(stepIndex, "striking_surface", value); if (!value) updateStep(stepIndex, "striking_side", ""); }} value={step.striking_surface || ""}>{STRIKING_SURFACES.map((surface) => <option key={surface.value || "none"} value={surface.value}>{surface.label}</option>)}</select></label><label><span>Striking side</span><select aria-label={`Step ${stepIndex + 1} striking side`} disabled={!step.striking_surface} onChange={(event) => updateStep(stepIndex, "striking_side", event.target.value)} value={step.striking_side || ""}><option value="">Select side</option><option value="left">Left</option><option value="right">Right</option><option value="both">Both</option></select></label><span className={`catalog-admin__step-pose-status ${step.reference_pose ? "has-pose" : "no-pose"}`}>{step.reference_pose ? "Saved reference pose" : "No saved reference pose"}</span>{step.reference_pose ? <button className="catalog-admin__text-button" onClick={() => clearStepReferencePose(stepIndex)} type="button">Clear pose</button> : null}</div><div className="catalog-admin__ranges">{(step.angle_targets || []).map((target, targetIndex) => <div className="catalog-admin__range" key={`${target.body_part}-${targetIndex}`}><input aria-label="Body part" value={target.body_part} onChange={(event) => updateTarget(stepIndex, targetIndex, "body_part", event.target.value)} /><input aria-label="Range label" value={target.label || ""} onChange={(event) => updateTarget(stepIndex, targetIndex, "label", event.target.value)} placeholder="Label" /><input aria-label="Minimum angle" min="0" max="180" type="number" value={target.min} onChange={(event) => updateTarget(stepIndex, targetIndex, "min", Number(event.target.value))} /><span>to</span><input aria-label="Maximum angle" min="0" max="180" type="number" value={target.max} onChange={(event) => updateTarget(stepIndex, targetIndex, "max", Number(event.target.value))} /><button className="catalog-admin__text-button" disabled={step.angle_targets.length === 1} onClick={() => setDraft((current) => { const steps = [...current.training_steps.steps]; steps[stepIndex] = { ...steps[stepIndex], angle_targets: step.angle_targets.filter((_, index) => index !== targetIndex) }; return { ...current, training_steps: { ...current.training_steps, steps } }; })} type="button">×</button></div>)}<button className="catalog-admin__add-range" onClick={() => updateStep(stepIndex, "angle_targets", [...(step.angle_targets || []), newTarget()])} type="button">+ Add angle range</button></div></article>)}</div>
             </section> : null}
             {workspacePanel === "pose" ? <section className="catalog-admin__panel-view catalog-admin__panel-view--pose">
             <ManualPosePanel
-              key={`${draft.id || draft.catalog.id || "new"}-${draft.training_steps.steps[poseStepIndex]?.step_number}-${poseEditorRevision}`}
+              key={`${draft.id || draft.catalog.id || "new"}-${poseEditorRevision}`}
               onApplyManualPose={applyManualPose}
               onManualPoseChange={syncManualPose}
               onReuseEarlierStep={reuseEarlierStep}
@@ -319,8 +353,18 @@ export default function ManualCatalogWorkspace() {
               step={draft.training_steps.steps[poseStepIndex]}
               stepIndex={poseStepIndex}
               steps={draft.training_steps.steps}
-              transitionTarget={draft.training_steps.steps[poseStepIndex + 1] || null}
+              timelineCycle={poseCycle}
+              transitionDurationMs={poseTransitionDuration}
+              transitionTarget={poseTransitionTarget}
             />
+            </section> : null}
+            {workspacePanel === "guide" ? <section className="catalog-admin__panel-view catalog-admin__panel-view--guide">
+              <GuideContentEditor
+                content={draft.learning_content}
+                onChange={(learningContent) => setDraft((current) => ({ ...current, learning_content: learningContent }))}
+                steps={draft.training_steps.steps}
+                techniqueId={draft.catalog.id || draft.id}
+              />
             </section> : null}
           </>}
         </section>

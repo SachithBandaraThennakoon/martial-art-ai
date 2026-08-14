@@ -728,6 +728,8 @@ export default function SkeletonCanvas({
   skeletonLayers = {},
   currentStepId,
   currentStepName,
+  strikingSide,
+  strikingSurface,
   referencePose,
   positionTargets,
   sessionConfig,
@@ -2332,6 +2334,8 @@ export default function SkeletonCanvas({
           onViewChange={onStanceTargetChange}
           referencePose={referencePose}
           requiredParts={expectedParts || requiredParts}
+          strikingSide={strikingSide}
+          strikingSurface={strikingSurface}
           stepName={currentStepName}
           viewDegrees={stanceTargetDegrees}
         />

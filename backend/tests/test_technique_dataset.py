@@ -88,12 +88,22 @@ class TechniqueDatasetTests(unittest.TestCase):
         }
         self.assertEqual(tracked, {"jab", "front-kick"})
 
-    def test_every_technique_has_one_to_three_ordered_steps(self):
+    def test_published_jab_guide_reuses_training_keyframes(self):
+        jab = next(package for package in self.packages if package["catalog"]["id"] == "jab")
+        guide = jab["learning_content"]
+        self.assertEqual(guide["technique_id"], "jab")
+        self.assertEqual(guide["status"], "PUBLISHED")
+        self.assertEqual(guide["animation"]["source"], "training_steps")
+        self.assertTrue(guide["overview"]["safety"])
+        self.assertTrue(guide["principles"])
+        self.assertTrue(all(step.get("reference_pose") for step in jab["training_steps"]["steps"]))
+
+    def test_every_technique_has_one_to_twelve_ordered_steps(self):
         for technique in self.techniques:
             with self.subTest(technique=technique["name"]):
                 steps = technique["steps"]
                 self.assertGreaterEqual(len(steps), 1)
-                self.assertLessEqual(len(steps), 3)
+                self.assertLessEqual(len(steps), 12)
                 self.assertEqual(
                     [step["step_number"] for step in steps],
                     list(range(1, len(steps) + 1)),
@@ -103,6 +113,19 @@ class TechniqueDatasetTests(unittest.TestCase):
         for technique in self.techniques:
             with self.subTest(technique=technique["name"]):
                 self.assertGreaterEqual(len(technique["description"].strip()), 20)
+
+    def test_striking_surfaces_use_supported_ids(self):
+        supported = {
+            "", "ball_of_foot", "heel", "instep", "outer_edge",
+            "inner_edge", "sole", "toes", "shin", "knee",
+        }
+        for technique in self.packages:
+            for step in technique["training_steps"]["steps"]:
+                with self.subTest(technique=technique["catalog"]["id"], step=step["step_number"]):
+                    self.assertIn(step.get("striking_surface", ""), supported)
+                    self.assertIn(step.get("striking_side", ""), {"", "left", "right", "both"})
+                    if step.get("striking_surface"):
+                        self.assertTrue(step.get("striking_side"))
 
     def test_targets_are_supported_unique_and_in_range(self):
         for technique in self.techniques:

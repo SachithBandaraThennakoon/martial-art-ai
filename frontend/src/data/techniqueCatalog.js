@@ -67,6 +67,8 @@ function buildTechniqueCatalog({
       id: step.id ?? `${techniqueId}-step-${step.step_number ?? index + 1}`,
       step_number: step.step_number ?? index + 1,
       step_name: step.step_name || `Step ${index + 1}`,
+      striking_surface: step.striking_surface || "",
+      striking_side: step.striking_side || "",
       counts_rep: Boolean(step.counts_rep),
       angle_targets: angleTargets,
       reference_pose: step.reference_pose || null,

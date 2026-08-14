@@ -7,8 +7,31 @@ from models.technique import Technique
 from models.technique_step import TechniqueStep
 from models.target_angle import TargetAngle
 from models.user import User
+from services.technique_package_loader import load_technique_packages
 
 router = APIRouter(prefix="/techniques", tags=["Techniques"])
+
+
+@router.get("/guide/{technique_id}")
+def get_technique_guide(technique_id: str):
+    """Return reviewed learning content and animation keyframes for one technique."""
+    package = next(
+        (
+            item for item in load_technique_packages()
+            if item["catalog"]["id"] == technique_id
+        ),
+        None,
+    )
+    content = package.get("learning_content") if package else None
+    if not content or content.get("status") != "PUBLISHED":
+        raise HTTPException(404, "Technique Guide is not available")
+    return {
+        "id": technique_id,
+        "name": package["catalog"]["name"],
+        "difficulty": package["catalog"].get("difficulty"),
+        "learning_content": content,
+        "steps": package["training_steps"].get("steps", []),
+    }
 
 
 # -------------------------

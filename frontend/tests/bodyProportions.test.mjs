@@ -44,4 +44,23 @@ test("default authoring skeleton uses consistent bilateral bone ratios", () => {
     Math.abs(length(pose.hip_left, pose.knee_left) - length(pose.hip_right, pose.knee_right)) < 1e-10,
     "thighs should be symmetrical",
   );
+  assert.ok(
+    Math.abs(length(pose.elbow_left, pose.wrist_left) - length(pose.elbow_right, pose.wrist_right)) < 1e-10,
+    "forearms should be symmetrical",
+  );
+  assert.ok(
+    Math.abs(length(pose.knee_left, pose.ankle_left) - length(pose.knee_right, pose.ankle_right)) < 1e-10,
+    "shins should be symmetrical",
+  );
+  assert.ok(
+    Math.abs(length(pose.ankle_left, pose.foot_left) - length(pose.ankle_right, pose.foot_right)) < 1e-10,
+    "feet should be symmetrical",
+  );
+});
+
+test("default authoring skeleton keeps balanced anatomical segment ordering", () => {
+  assert.ok(BODY_BONE_RATIOS.shoulderWidth > BODY_BONE_RATIOS.hipWidth);
+  assert.ok(BODY_BONE_RATIOS.upperArm > BODY_BONE_RATIOS.forearm);
+  assert.ok(BODY_BONE_RATIOS.thigh > BODY_BONE_RATIOS.shin);
+  assert.ok(BODY_BONE_RATIOS.foot < BODY_BONE_RATIOS.shin / 2);
 });

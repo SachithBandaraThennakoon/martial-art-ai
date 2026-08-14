@@ -4,6 +4,7 @@ import {
   buildExpectedPose,
   projectExpectedPose
 } from "../utils/buildExpectedPose";
+import { strikingSurfaceLabel } from "../data/strikingSurfaces";
 
 const CONNECTIONS = [
   ["head", "shoulder_left"],
@@ -36,6 +37,8 @@ export default function ExpectedPoseGuide({
   onViewChange,
   referencePose = null,
   requiredParts = [],
+  strikingSide = "",
+  strikingSurface = "",
   stepName = "",
   viewDegrees = 30
 }) {
@@ -70,6 +73,12 @@ export default function ExpectedPoseGuide({
       <div className="expected-pose-guide__head">
         <span>Target shape</span>
         <strong>{stepName || "Current step"}</strong>
+        {strikingSurface ? (
+          <small className="expected-pose-guide__surface">
+            Contact · {strikingSide && strikingSide !== "both" ? `${strikingSide} ` : ""}
+            {strikingSurfaceLabel(strikingSurface)}
+          </small>
+        ) : null}
       </div>
       <svg
         aria-hidden="true"

@@ -8,6 +8,11 @@ Every technique requires:
 - `catalog.json` for display, access, category, and commercial metadata.
 - `training-steps.json` for instructional keyframes and target measurements.
 
+Techniques may also provide `learning-content.json`. This optional file powers
+the read-only Technique Guide: reviewed explanations, objectives, safety notes,
+and animation display settings. Animation keyframes remain authoritative in
+`training-steps.json`; the guide references them instead of duplicating poses.
+
 ## Training-step angle targets
 
 Schema `2.0` uses one `angle_targets` list per step as the authoritative source

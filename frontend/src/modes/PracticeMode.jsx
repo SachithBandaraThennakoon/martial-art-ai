@@ -3106,6 +3106,8 @@ export default function PracticeMode({
           onCalibrationStatus={bodyCalibration?.reportFit}
           currentStepId={selectedStep?.id}
           currentStepName={selectedStep?.step_name}
+          strikingSide={selectedStep?.striking_side}
+          strikingSurface={selectedStep?.striking_surface}
           sessionConfig={practiceSessionConfig}
           requiredParts={requiredParts}
           measurementParts={measurementParts}

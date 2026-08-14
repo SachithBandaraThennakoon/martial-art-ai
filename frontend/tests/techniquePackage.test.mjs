@@ -137,3 +137,74 @@ test("Jab authoring poses include safe impact and complete transition data", asy
   assert.equal(impactElbow.role, "primary");
   assert.ok(impactElbow.target_angle <= 175, "impact elbow must not lock");
 });
+
+test("Front Kick authoring data includes the complete guard-to-recovery cycle", async () => {
+  const document = JSON.parse(
+    await readFile(
+      path.join(trackingRoot, "front-kick", "training-steps.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(document.schema_version, "2.0");
+  assert.deepEqual(
+    document.steps.map((step) => step.phase_states),
+    [["STANCE"], ["CHAMBER"], ["EXTENSION"], ["RECOIL"], ["RECOVERY"]],
+  );
+  assert.deepEqual(
+    document.steps.slice(0, -1).map((step) => step.transition_duration_ms),
+    [650, 600, 500, 650],
+  );
+  assert.deepEqual(
+    document.cycle,
+    {
+      enabled: true,
+      return_to_step_number: 1,
+      transition_duration_ms: 350,
+      description: "Continue from the recovered guard into the next repetition.",
+    },
+  );
+  for (const step of document.steps) {
+    assert.equal(step.angle_targets.length, 10);
+    assert.ok(step.reference_pose?.landmarks);
+    assert.ok(step.reference_pose.tolerance <= 0.12);
+    assert.equal(step.reference_pose.articulation.hand_left.fist_closure, 1);
+    assert.equal(step.reference_pose.articulation.hand_right.fist_closure, 1);
+    for (const target of step.angle_targets) {
+      assert.ok(target.target_angle >= target.min && target.target_angle <= target.max);
+    }
+  }
+  assert.deepEqual(
+    document.steps[0].reference_pose.landmarks,
+    JSON.parse(
+      await readFile(path.join(trackingRoot, "jab", "training-steps.json"), "utf8"),
+    ).steps[0].reference_pose.landmarks,
+    "Front Kick should reuse the proven Jab guard skeleton",
+  );
+  assert.deepEqual(
+    document.steps[3].reference_pose,
+    document.steps[1].reference_pose,
+    "Recoil should return through the authored chamber pose",
+  );
+  assert.deepEqual(
+    document.steps[4].reference_pose,
+    document.steps[0].reference_pose,
+    "Recovery should visibly finish in the authored guard pose",
+  );
+  const chamberKnee = document.steps[1].angle_targets.find(
+    (target) => target.body_part === "knee_right",
+  );
+  const extensionKnee = document.steps[2].angle_targets.find(
+    (target) => target.body_part === "knee_right",
+  );
+  assert.equal(document.steps[2].striking_surface, "ball_of_foot");
+  assert.equal(document.steps[2].striking_side, "right");
+  assert.equal(chamberKnee.role, "primary");
+  assert.ok(chamberKnee.target_angle < 100);
+  assert.equal(extensionKnee.role, "primary");
+  assert.ok(extensionKnee.target_angle >= 145 && extensionKnee.target_angle < 178);
+  assert.ok(
+    document.temporal_runtime.errors.errors.some(
+      (error) => error.id === "excessive_knee_extension" && error.severity === "safety",
+    ),
+  );
+});

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import TrainMode from "../modes/TrainMode";
 import PracticeMode from "../modes/PracticeMode";
 import PracticeAnalysisMode from "../modes/PracticeAnalysisMode";
+import GuideMode from "../modes/GuideMode";
 import StudioModeEntry from "../components/StudioModeEntry";
 import { DEFAULT_STUDIO_MODE, STUDIO_MODES } from "../data/studioModes";
 import useBodyCalibration from "../hooks/useBodyCalibration";
@@ -172,6 +173,8 @@ export default function TrainingStudio({ studioMode = "student" }) {
     <main
       className={`training-shell ${isAdminStudio ? "training-shell--admin" : ""} ${
         mode === "analysis" ? "training-shell--analysis" : ""
+      } ${
+        mode === "guide" ? "training-shell--guide" : ""
       }`}
     >
       {requiresModeChoice ? (
@@ -220,7 +223,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           ← Library
         </Link>
 
-        {mode !== "analysis" ? (
+        {!['analysis', 'guide'].includes(mode) ? (
         <div className="coach-toggles" aria-label="Coach output controls">
           <label className="studio-performance-control">
             <span>Performance</span>
@@ -262,7 +265,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
         </div>
         ) : null}
 
-        {isAdminStudio && mode !== "analysis" ? (
+        {isAdminStudio && !['analysis', 'guide'].includes(mode) ? (
           <div className="admin-input-source" aria-label="Admin evaluation input source">
             <div className="admin-input-source__heading">
               <span>Evaluation input</span>
@@ -320,7 +323,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           </div>
         ) : null}
 
-        {isAdminStudio && mode !== "analysis" ? (
+        {isAdminStudio && !['analysis', 'guide'].includes(mode) ? (
           <div className="coach-toggles coach-toggles--skeleton" aria-label="Research skeleton layers">
             <button
               aria-pressed={activeSkeletonLayers.level1}
@@ -354,7 +357,12 @@ export default function TrainingStudio({ studioMode = "student" }) {
         ) : null}
       </div>
 
-      {mode === "train" ? (
+      {mode === "guide" ? (
+        <GuideMode
+          isAdminStudio={isAdminStudio}
+          selectedTechniqueName={selectedTechniqueName}
+        />
+      ) : mode === "train" ? (
         <TrainMode
           categorySlug={categorySlug}
           displayMirrored={displayMirrored}

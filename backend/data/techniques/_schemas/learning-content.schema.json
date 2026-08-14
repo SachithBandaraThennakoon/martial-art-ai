@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "learning-content.schema.json",
+  "title": "Technique Guide learning content",
+  "type": "object",
+  "required": ["schema_version", "technique_id", "status", "overview", "principles", "animation"],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "technique_id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "status": { "enum": ["DRAFT", "IN_REVIEW", "PUBLISHED"] },
+    "overview": {
+      "type": "object",
+      "required": ["summary", "objectives", "safety"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 1200 },
+        "objectives": { "type": "array", "maxItems": 12, "items": { "type": "string" } },
+        "safety": { "type": "array", "maxItems": 12, "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "principles": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "required": ["id", "domain", "title", "explanation", "related_phases"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$" },
+          "domain": { "enum": ["kinematics", "kinetics", "balance", "stability", "alignment", "coordination", "footwork", "timing", "safety", "recovery"] },
+          "title": { "type": "string", "maxLength": 120 },
+          "explanation": { "type": "string", "maxLength": 1200 },
+          "related_phases": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "animation": {
+      "type": "object",
+      "required": ["source", "loop", "playback_speed", "camera_preset", "show_trajectory", "highlight_joints"],
+      "properties": {
+        "source": { "const": "training_steps" },
+        "loop": { "type": "boolean" },
+        "playback_speed": { "type": "number", "minimum": 0.25, "maximum": 2 },
+        "camera_preset": { "enum": ["front", "side", "front_diagonal"] },
+        "show_trajectory": { "type": "boolean" },
+        "highlight_joints": { "type": "array", "maxItems": 12, "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

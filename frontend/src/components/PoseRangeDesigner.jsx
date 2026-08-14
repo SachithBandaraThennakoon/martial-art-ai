@@ -18,6 +18,11 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
+import { buildFootLandmarks } from "../skeleton/footLandmarks";
+import {
+  buildTechniqueTimeline,
+  timelineFrameAt,
+} from "../utils/techniqueTimeline";
 import PoseStudioContext from "./PoseStudioContext";
 import MediaPipeSkeleton3D from "./MediaPipeSkeleton3D";
 import { manualPoseToMediaPipePreview } from "../skeleton/manualPoseAdapter";
@@ -180,6 +185,20 @@ const LINK_LENGTHS = Object.fromEntries(
     ),
   ]),
 );
+
+function linkLengthsFromPose(pose) {
+  if (!pose) return LINK_LENGTHS;
+  return Object.fromEntries(
+    LINKS.map(([first, second]) => [
+      `${first}:${second}`,
+      Math.hypot(
+        ...pose[first].map(
+          (value, index) => value - pose[second][index],
+        ),
+      ),
+    ]),
+  );
+}
 const ANGLE_JOINTS = Object.fromEntries(
   ANGLES.map(([id, , first, center, end]) => [id, { first, center, end }]),
 );
@@ -191,6 +210,8 @@ const STUDIO_OFFSETS = {
 const TWO_POSE_OFFSETS = { pose_a: [-1.45, 0, 0], optimal: [1.45, 0, 0] };
 const FLOOR_Y = -1.75;
 const FOOT_CONTACT_Y = FLOOR_Y + 0.135;
+const AUTHORING_JOINT_RADIUS = 0.024;
+const AUTHORING_WRIST_RADIUS = 0.019;
 const DEFAULT_ARTICULATION = {
   face: {
     gaze_horizontal: 0,
@@ -437,19 +458,25 @@ function smoothProgress(progress) {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-function interpolatePose(startPose, endPose, progress) {
+function interpolatePose(startPose, endPose, progress, targetLengths = LINK_LENGTHS) {
   const eased = smoothProgress(progress);
+  const normalizedStart = groundPose(
+    enforceAllBoneLengths(startPose, "hip_left", targetLengths),
+  );
+  const normalizedEnd = groundPose(
+    enforceAllBoneLengths(endPose, "hip_left", targetLengths),
+  );
   const blended = Object.fromEntries(
-    Object.entries(startPose).map(([name, position]) => [
+    Object.entries(normalizedStart).map(([name, position]) => [
       name,
       position.map((value, axis) =>
-        interpolateNumber(value, endPose[name]?.[axis] ?? value, eased),
+        interpolateNumber(value, normalizedEnd[name]?.[axis] ?? value, eased),
       ),
     ]),
   );
   // Cartesian interpolation can shorten a rotating limb halfway through the
   // move. Re-solving the rig keeps every preview frame anatomically stable.
-  return groundPose(enforceAllBoneLengths(blended, "hip_left"));
+  return groundPose(enforceAllBoneLengths(blended, "hip_left", targetLengths));
 }
 
 function interpolateWristRotation(start, end, progress) {
@@ -522,7 +549,7 @@ function transitionBoundaryStatus(pose, startTargets, endTargets, progress) {
   return { checked: Object.keys(startByPart).filter((key) => endByPart[key]).length, violations: sharedTargets };
 }
 
-function enforceAllBoneLengths(pose, pinnedJoint) {
+function enforceAllBoneLengths(pose, pinnedJoint, targetLengths = LINK_LENGTHS) {
   const next = Object.fromEntries(
     Object.entries(pose).map(([name, position]) => [name, [...position]]),
   );
@@ -538,9 +565,9 @@ function enforceAllBoneLengths(pose, pinnedJoint) {
       if (distance < 0.000001) return;
       maximumError = Math.max(
         maximumError,
-        Math.abs(distance - LINK_LENGTHS[`${first}:${second}`]),
+        Math.abs(distance - targetLengths[`${first}:${second}`]),
       );
-      const error = (distance - LINK_LENGTHS[`${first}:${second}`]) / distance;
+      const error = (distance - targetLengths[`${first}:${second}`]) / distance;
       const firstPinned = first === pinnedJoint;
       const secondPinned = second === pinnedJoint;
       const firstShare = firstPinned ? 0 : secondPinned ? 1 : 0.5;
@@ -949,39 +976,93 @@ const AxialRigOverlay = memo(function AxialRigOverlay({ pose }) {
   );
 });
 
-const FootDetailOverlay = memo(function FootDetailOverlay({ pose }) {
+const FootDetailOverlay = memo(function FootDetailOverlay({
+  animationProgress,
+  pose,
+  strikingSide,
+  strikingSurface,
+  targetStrikingSide,
+  targetStrikingSurface,
+}) {
+  const transitionProgress = smoothProgress(animationProgress);
+  const appliesToSide = (configuredSide, side) =>
+    configuredSide === "both" || configuredSide === side;
   return (
     <>
       {["left", "right"].map((side) => {
-        const ankle = new THREE.Vector3(...pose[`ankle_${side}`]);
-        const foot = new THREE.Vector3(...pose[`foot_${side}`]);
-        const direction = foot.clone().sub(ankle).normalize();
-        const perpendicular = new THREE.Vector3(
-          -direction.z,
-          0,
-          direction.x,
-        ).normalize();
-        const toes = [-1, 0, 1].map((offset) =>
-          foot
-            .clone()
-            .add(
-              direction.clone().multiplyScalar(0.13 - Math.abs(offset) * 0.018),
-            )
-            .add(perpendicular.clone().multiplyScalar(offset * 0.045))
-            .toArray(),
+        const startsOnBall = Number(
+          strikingSurface === "ball_of_foot" && appliesToSide(strikingSide, side),
         );
+        const endsOnBall = Number(
+          targetStrikingSurface === "ball_of_foot" &&
+          appliesToSide(targetStrikingSide, side),
+        );
+        const ballOfFootProgress = interpolateNumber(
+          startsOnBall,
+          endsOnBall,
+          transitionProgress,
+        );
+        const activeSurface = ballOfFootProgress > 0.001
+          ? "ball_of_foot"
+          : appliesToSide(strikingSide, side) ? strikingSurface : "";
+        const foot = buildFootLandmarks(pose, side, { ballOfFootProgress });
+        const highlighted = new Set(
+          activeSurface === "heel" ? ["heel", "innerHeel", "outerHeel"]
+            : activeSurface === "ball_of_foot" ? ["ball", "innerBall", "outerBall"]
+              : activeSurface === "instep" ? ["mid"]
+                : activeSurface === "inner_edge" ? ["innerHeel", "innerMid", "innerBall"]
+                  : activeSurface === "outer_edge" ? ["outerHeel", "outerMid", "outerBall"]
+                    : activeSurface === "sole" ? ["heel", "mid", "ball"]
+                      : [],
+        );
+        const bones = [
+          ["ankle", "heel"], ["heel", "innerHeel"], ["heel", "outerHeel"],
+          ["innerHeel", "innerMid"], ["outerHeel", "outerMid"],
+          ["innerMid", "innerBall"], ["outerMid", "outerBall"],
+          ["innerBall", "ball"], ["ball", "outerBall"], ["ankle", "mid"],
+          ["mid", "ball"],
+        ];
+        const joints = [
+          "heel", "innerHeel", "outerHeel", "mid", "innerMid", "outerMid",
+          "ball", "innerBall", "outerBall",
+        ];
         return (
           <group key={side}>
-            {toes.map((toe, index) => (
+            {bones.map(([from, to]) => {
+              const active = highlighted.has(from) && highlighted.has(to);
+              return <Line
+                color={active ? "#f2c35f" : "#ffffff"}
+                key={`${from}-${to}`}
+                lineWidth={active ? 2.2 : 1.25}
+                points={[foot[from], foot[to]]}
+              />;
+            })}
+            {joints.map((name) => {
+              const active = highlighted.has(name);
+              return <mesh key={name} position={foot[name]}>
+                <sphereGeometry args={[active ? 0.021 : 0.014, 9, 7]} />
+                <meshStandardMaterial
+                  color={active ? "#f2c35f" : "#ffffff"}
+                  emissive={active ? "#6c4a0b" : "#222222"}
+                />
+              </mesh>;
+            })}
+            {foot.toes.map((toe, index) => (
               <group key={index}>
                 <Line
-                  color="#ffffff"
-                  lineWidth={1.15}
-                  points={[pose[`foot_${side}`], toe]}
+                  color={activeSurface === "toes" ? "#f2c35f" : "#ffffff"}
+                  lineWidth={activeSurface === "toes" ? 2.1 : 1.1}
+                  points={[
+                    index < 2 ? foot.innerBall : index > 2 ? foot.outerBall : foot.ball,
+                    toe,
+                  ]}
                 />
                 <mesh position={toe}>
-                  <sphereGeometry args={[0.012, 8, 6]} />
-                  <meshStandardMaterial color="#ffffff" emissive="#222222" />
+                  <sphereGeometry args={[activeSurface === "toes" ? 0.018 : 0.011, 8, 6]} />
+                  <meshStandardMaterial
+                    color={activeSurface === "toes" ? "#f2c35f" : "#ffffff"}
+                    emissive={activeSurface === "toes" ? "#6c4a0b" : "#222222"}
+                  />
                 </mesh>
               </group>
             ))}
@@ -994,6 +1075,8 @@ const FootDetailOverlay = memo(function FootDetailOverlay({ pose }) {
 
 function PoseScene({
   articulation,
+  animationProgress,
+  cameraViewRef,
   editingEnabled = true,
   guidesVisible,
   pose,
@@ -1002,12 +1085,17 @@ function PoseScene({
   transformMode,
   rotation,
   rotationSnap,
+  strikingSide,
+  strikingSurface,
+  targetStrikingSide,
+  targetStrikingSurface,
   onSelectJoint,
   onMoveJoint,
   onRotateJoint,
 }) {
   const studio = useContext(PoseStudioContext);
   const { camera } = useThree();
+  const orbitControlsRef = useRef(null);
   const studioOffsets = studio?.singlePoseMode
     ? TWO_POSE_OFFSETS
     : STUDIO_OFFSETS;
@@ -1105,9 +1193,14 @@ function PoseScene({
   }, [camera, studio]);
   useEffect(() => {
     if (studio) return;
-    camera.position.set(2.8, 1.3, 5.1);
-    camera.lookAt(0, 0, 0);
-  }, [camera, studio]);
+    const savedView = cameraViewRef?.current;
+    const position = savedView?.position || [2.8, 1.3, 5.1];
+    const target = savedView?.target || [0, 0, 0];
+    camera.position.fromArray(position);
+    camera.lookAt(...target);
+    orbitControlsRef.current?.target.fromArray(target);
+    orbitControlsRef.current?.update();
+  }, [camera, cameraViewRef, studio]);
   useEffect(() => {
     if (isTransforming.current) return;
     transformTarget.position.fromArray(pose[selectedJoint]);
@@ -1352,7 +1445,9 @@ function PoseScene({
               >
                 <sphereGeometry
                   args={[
-                    name.startsWith("wrist_") ? 0.027 : 0.038,
+                    name.startsWith("wrist_")
+                      ? AUTHORING_WRIST_RADIUS
+                      : AUTHORING_JOINT_RADIUS,
                     14,
                     10,
                   ]}
@@ -1366,6 +1461,14 @@ function PoseScene({
               </mesh>
             ))}
             <ArticulationOverlay articulation={articulation} pose={pose} />
+            <FootDetailOverlay
+              animationProgress={animationProgress}
+              pose={pose}
+              strikingSide={strikingSide}
+              strikingSurface={strikingSurface}
+              targetStrikingSide={targetStrikingSide}
+              targetStrikingSurface={targetStrikingSurface}
+            />
         </group>
         {studio ? (
           <Html center position={[0, 2.12, 0]}>
@@ -1398,13 +1501,21 @@ function PoseScene({
         makeDefault
         maxDistance={12}
         minDistance={3}
-        target={[0, 0, 0]}
+        onChange={(event) => {
+          if (!cameraViewRef || studio) return;
+          cameraViewRef.current = {
+            position: camera.position.toArray(),
+            target: event.target.target.toArray(),
+          };
+        }}
+        ref={orbitControlsRef}
       />
     </>
   );
 }
 
 export default function PoseRangeDesigner({
+  cameraViewRef = null,
   emitInitialPoseChange = true,
   initialAngleTolerance = 12,
   onApply,
@@ -1413,8 +1524,11 @@ export default function PoseRangeDesigner({
   onTransitionDurationChange,
   rangeTargets = [],
   referencePose = null,
+  strikingSide = "",
+  strikingSurface = "",
   studioActions = null,
   studioLead = null,
+  timelineCycle = null,
   timelineStepIndex = 0,
   timelineSteps = [],
   transitionDurationMs = 1600,
@@ -1462,6 +1576,12 @@ export default function PoseRangeDesigner({
   const animationFrameRef = useRef(null);
   const animationProgressRef = useRef(0);
   const animationStartedAtRef = useRef(0);
+  const [sequenceTimeMs, setSequenceTimeMs] = useState(0);
+  const [isSequencePlaying, setIsSequencePlaying] = useState(false);
+  const [sequencePreviewActive, setSequencePreviewActive] = useState(false);
+  const sequenceFrameRef = useRef(null);
+  const sequenceTimeRef = useRef(0);
+  const sequenceStartedAtRef = useRef(0);
   const animationDuration = Math.max(
     200,
     Math.min(10000, Number(transitionDurationMs) || 1600),
@@ -1470,23 +1590,102 @@ export default function PoseRangeDesigner({
     () => poseFromReferencePose(transitionTarget?.reference_pose),
     [transitionTarget],
   );
+  const animationLinkLengths = useMemo(
+    () => linkLengthsFromPose(
+      poseFromReferencePose(timelineSteps[0]?.reference_pose) || pose,
+    ),
+    [pose, timelineSteps],
+  );
+  const techniqueTimeline = useMemo(
+    () => buildTechniqueTimeline(timelineSteps, timelineCycle),
+    [timelineCycle, timelineSteps],
+  );
+  const sequenceFrame = useMemo(
+    () => timelineFrameAt(techniqueTimeline, sequenceTimeMs),
+    [sequenceTimeMs, techniqueTimeline],
+  );
+  const sequenceReady = Boolean(
+    techniqueTimeline.totalDurationMs &&
+    timelineSteps.every((step) => step.reference_pose?.landmarks),
+  );
+  const timelineDisplayIndex = sequencePreviewActive && sequenceFrame
+    ? sequenceFrame.fromIndex
+    : timelineStepIndex;
+  const sequenceFromStep = sequenceFrame
+    ? timelineSteps[sequenceFrame.fromIndex]
+    : null;
+  const sequenceToStep = sequenceFrame
+    ? timelineSteps[sequenceFrame.toIndex]
+    : null;
+  const sequenceFromPose = useMemo(
+    () => poseFromReferencePose(sequenceFromStep?.reference_pose),
+    [sequenceFromStep],
+  );
+  const sequenceToPose = useMemo(
+    () => poseFromReferencePose(sequenceToStep?.reference_pose),
+    [sequenceToStep],
+  );
+  const sequencePose = useMemo(
+    () => sequencePreviewActive && sequenceFrame && sequenceFromPose && sequenceToPose
+      ? interpolatePose(
+          sequenceFromPose,
+          sequenceToPose,
+          sequenceFrame.progress,
+          animationLinkLengths,
+        )
+      : null,
+    [
+      animationLinkLengths,
+      sequenceFrame,
+      sequenceFromPose,
+      sequencePreviewActive,
+      sequenceToPose,
+    ],
+  );
   const previewPose = useMemo(
     () =>
-      transitionPose && animationProgress > 0
-        ? interpolatePose(pose, transitionPose, animationProgress)
-        : pose,
-    [animationProgress, pose, transitionPose],
+      sequencePose || (transitionPose && (isAnimating || animationProgress > 0)
+        ? interpolatePose(
+            pose,
+            transitionPose,
+            animationProgress,
+            animationLinkLengths,
+          )
+        : pose),
+    [
+      animationLinkLengths,
+      animationProgress,
+      isAnimating,
+      pose,
+      sequencePose,
+      transitionPose,
+    ],
   );
   const previewArticulation = useMemo(
     () =>
-      transitionPose && animationProgress > 0
+      sequencePreviewActive && sequenceFrame && sequenceFromStep && sequenceToStep
+        ? interpolateArticulation(
+            sequenceFromStep.reference_pose?.articulation,
+            sequenceToStep.reference_pose?.articulation,
+            sequenceFrame.progress,
+          )
+        : transitionPose && animationProgress > 0
         ? interpolateArticulation(
             articulation,
             transitionTarget?.reference_pose?.articulation,
             animationProgress,
           )
         : articulation,
-    [animationProgress, articulation, transitionPose, transitionTarget],
+    [
+      animationProgress,
+      articulation,
+      sequenceFrame,
+      sequenceFromStep,
+      sequencePreviewActive,
+      sequenceToStep,
+      transitionPose,
+      transitionTarget,
+    ],
   );
   const boundaryStatus = useMemo(
     () =>
@@ -1509,6 +1708,7 @@ export default function PoseRangeDesigner({
   const initialPoseStateSignature = useRef(
     JSON.stringify({ articulation, pose, positionTolerance, tolerance }),
   );
+  const loadedTimelineStepIndexRef = useRef(timelineStepIndex);
   useEffect(() => {
     const syncFullscreen = () =>
       setIsFullscreen(document.fullscreenElement === workbenchRef.current);
@@ -1521,6 +1721,12 @@ export default function PoseRangeDesigner({
     if (animationFrameRef.current)
       window.cancelAnimationFrame(animationFrameRef.current);
     animationFrameRef.current = null;
+  }, []);
+  const stopSequence = useCallback(() => {
+    setIsSequencePlaying(false);
+    if (sequenceFrameRef.current)
+      window.cancelAnimationFrame(sequenceFrameRef.current);
+    sequenceFrameRef.current = null;
   }, []);
   useEffect(() => {
     if (!isAnimating || !transitionPose) return undefined;
@@ -1547,6 +1753,32 @@ export default function PoseRangeDesigner({
       animationFrameRef.current = null;
     };
   }, [animationDuration, isAnimating, transitionPose]);
+  useEffect(() => {
+    if (!isSequencePlaying || !techniqueTimeline.totalDurationMs)
+      return undefined;
+    sequenceStartedAtRef.current =
+      performance.now() - sequenceTimeRef.current;
+    const animateSequence = (timestamp) => {
+      const nextTime = Math.min(
+        techniqueTimeline.totalDurationMs,
+        timestamp - sequenceStartedAtRef.current,
+      );
+      sequenceTimeRef.current = nextTime;
+      setSequenceTimeMs(nextTime);
+      if (nextTime >= techniqueTimeline.totalDurationMs) {
+        setIsSequencePlaying(false);
+        sequenceFrameRef.current = null;
+        return;
+      }
+      sequenceFrameRef.current = window.requestAnimationFrame(animateSequence);
+    };
+    sequenceFrameRef.current = window.requestAnimationFrame(animateSequence);
+    return () => {
+      if (sequenceFrameRef.current)
+        window.cancelAnimationFrame(sequenceFrameRef.current);
+      sequenceFrameRef.current = null;
+    };
+  }, [isSequencePlaying, techniqueTimeline.totalDurationMs]);
   useEffect(() => {
     const handleShortcut = (event) => {
       if (
@@ -1777,6 +2009,78 @@ export default function PoseRangeDesigner({
     );
   };
   useEffect(() => {
+    if (loadedTimelineStepIndexRef.current === timelineStepIndex)
+      return undefined;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      loadedTimelineStepIndexRef.current = timelineStepIndex;
+      stopAnimation();
+      stopSequence();
+      animationProgressRef.current = 0;
+      setAnimationProgress(0);
+      const selectedStartMs = techniqueTimeline.segments.find(
+        (segment) => segment.fromIndex === timelineStepIndex,
+      )?.startMs ?? techniqueTimeline.totalDurationMs;
+      sequenceTimeRef.current = selectedStartMs;
+      setSequenceTimeMs(selectedStartMs);
+      setSequencePreviewActive(false);
+
+      const nextPose = enforceAnatomicalLimits(
+        groundPose(
+          poseFromReferencePose(referencePose) ||
+            (rangeTargets.length
+              ? poseFromRanges(rangeTargets)
+              : freshPose()),
+        ),
+      );
+      const nextArticulation = normalizedArticulation(
+        referencePose?.articulation,
+      );
+      const nextPositionTolerance =
+        Number(referencePose?.tolerance) || 0.03;
+      const nextAngleTolerance = initialAngleTolerance;
+      const nextWristRotations = wristRotationsFromArticulation(
+        referencePose?.articulation,
+      );
+
+      setPose(nextPose);
+      setArticulation(nextArticulation);
+      setPositionTolerance(nextPositionTolerance);
+      setTolerance(nextAngleTolerance);
+      setActiveAngleInput(null);
+      setDraftAngleValues(
+        Object.fromEntries(
+          ANGLES.map(([body_part, , first, center, last]) => [
+            body_part,
+            String(
+              calculateAngle(nextPose[first], nextPose[center], nextPose[last]),
+            ),
+          ]),
+        ),
+      );
+      jointRotationsRef.current = nextWristRotations;
+      setJointRotations(nextWristRotations);
+      initialPoseStateSignature.current = JSON.stringify({
+        articulation: nextArticulation,
+        pose: nextPose,
+        positionTolerance: nextPositionTolerance,
+        tolerance: nextAngleTolerance,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    initialAngleTolerance,
+    rangeTargets,
+    referencePose,
+    stopAnimation,
+    stopSequence,
+    techniqueTimeline,
+    timelineStepIndex,
+  ]);
+  useEffect(() => {
     const currentSignature = JSON.stringify({
       articulation,
       pose,
@@ -1851,7 +2155,13 @@ export default function PoseRangeDesigner({
       <color attach="background" args={["#0c121b"]} />
       <PoseScene
         articulation={previewArticulation}
-        editingEnabled={!isAnimating && animationProgress === 0}
+        animationProgress={sequencePreviewActive
+          ? sequenceFrame?.progress || 0
+          : animationProgress}
+        cameraViewRef={cameraViewRef}
+        editingEnabled={
+          !sequencePreviewActive && !isAnimating && animationProgress === 0
+        }
         guidesVisible={guidesVisible}
         onMoveJoint={moveJoint}
         onRotateJoint={rotateJoint}
@@ -1861,6 +2171,18 @@ export default function PoseRangeDesigner({
         rotation={selectedRotation}
         rotationSnap={rotationSnap}
         selectedJoint={selectedJoint}
+        strikingSide={sequencePreviewActive
+          ? sequenceFromStep?.striking_side || ""
+          : strikingSide}
+        strikingSurface={sequencePreviewActive
+          ? sequenceFromStep?.striking_surface || ""
+          : strikingSurface}
+        targetStrikingSide={sequencePreviewActive
+          ? sequenceToStep?.striking_side || ""
+          : transitionTarget?.striking_side || ""}
+        targetStrikingSurface={sequencePreviewActive
+          ? sequenceToStep?.striking_surface || ""
+          : transitionTarget?.striking_surface || ""}
         transformMode={transformMode}
       />
     </Canvas>
@@ -1968,8 +2290,9 @@ export default function PoseRangeDesigner({
               <strong>Technique timeline</strong>
               <span>Step points and normalized transition ranges</span>
             </div>
-            {transitionTarget ? (
-              <div className="pose-designer__timeline-controls">
+            <div className="pose-designer__timeline-controls">
+              {transitionTarget ? (
+                <>
                 <button
                   className="btn btn--light btn--small"
                   disabled={!transitionPose}
@@ -2022,19 +2345,53 @@ export default function PoseRangeDesigner({
                         : "Within bounds"
                       : "Normalized preview"}
                 </span>
-              </div>
-            ) : (
-              <span className="pose-designer__timeline-end">Final step</span>
-            )}
+                </>
+              ) : (
+                <span className="pose-designer__timeline-end">Final step</span>
+              )}
+              <button
+                className="btn btn--light btn--small"
+                disabled={!sequenceReady}
+                onClick={() => {
+                  if (isSequencePlaying) {
+                    stopSequence();
+                    return;
+                  }
+                  stopAnimation();
+                  animationProgressRef.current = 0;
+                  setAnimationProgress(0);
+                  setSequencePreviewActive(true);
+                  if (sequenceTimeMs >= techniqueTimeline.totalDurationMs) {
+                    sequenceTimeRef.current = 0;
+                    setSequenceTimeMs(0);
+                  } else sequenceTimeRef.current = sequenceTimeMs;
+                  setIsSequencePlaying(true);
+                }}
+                type="button"
+              >
+                {isSequencePlaying
+                  ? "Pause all"
+                  : sequencePreviewActive && sequenceTimeMs > 0 &&
+                      sequenceTimeMs < techniqueTimeline.totalDurationMs
+                    ? "Resume all"
+                    : sequenceTimeMs >= techniqueTimeline.totalDurationMs
+                      ? "Replay all"
+                      : "Play all"}
+              </button>
+            </div>
           </header>
           <div className="pose-designer__timeline-track">
             {timelineSteps.flatMap((timelineStep, index) => {
               const elements = [
                 <button
-                  aria-current={index === timelineStepIndex ? "step" : undefined}
-                  className={`pose-designer__timeline-point ${index === timelineStepIndex ? "is-current" : ""} ${timelineStep.reference_pose ? "has-pose" : "is-missing"}`}
+                  aria-current={index === timelineDisplayIndex ? "step" : undefined}
+                  className={`pose-designer__timeline-point ${index === timelineDisplayIndex ? "is-current" : ""} ${timelineStep.reference_pose ? "has-pose" : "is-missing"}`}
                   key={`point-${timelineStep.step_number}-${index}`}
-                  onClick={() => onTimelineStepSelect?.(index)}
+                  onClick={() => {
+                    stopSequence();
+                    setSequencePreviewActive(false);
+                    onTimelineStepSelect?.(index);
+                  }}
                   title={`${timelineStep.step_name}${timelineStep.reference_pose ? "" : " — pose missing"}`}
                   type="button"
                 >
@@ -2049,16 +2406,25 @@ export default function PoseRangeDesigner({
                 );
                 elements.push(
                   <button
-                    className={`pose-designer__timeline-range ${index === timelineStepIndex ? "is-current" : ""}`}
+                    className={`pose-designer__timeline-range ${index === timelineDisplayIndex ? "is-current" : ""}`}
                     key={`range-${timelineStep.step_number}-${index}`}
-                    onClick={() => onTimelineStepSelect?.(index)}
+                    onClick={() => {
+                      stopSequence();
+                      setSequencePreviewActive(false);
+                      onTimelineStepSelect?.(index);
+                    }}
                     style={{ flexGrow: duration }}
                     title={`Transition ${index + 1} to ${index + 2}: ${duration} ms`}
                     type="button"
                   >
                     <span>{duration / 1000}s transition</span>
-                    {index === timelineStepIndex && transitionPose ? (
-                      <i style={{ left: `${animationProgress * 100}%` }} />
+                    {index === timelineDisplayIndex &&
+                    (sequencePreviewActive || transitionPose) ? (
+                      <i style={{
+                        left: `${(sequencePreviewActive
+                          ? sequenceFrame?.progress || 0
+                          : animationProgress) * 100}%`,
+                      }} />
                     ) : null}
                   </button>,
                 );
@@ -2066,33 +2432,54 @@ export default function PoseRangeDesigner({
               return elements;
             })}
           </div>
-          {transitionTarget ? (
-            <div className="pose-designer__timeline-scrubber">
-              <span>{timelineSteps[timelineStepIndex]?.step_name}</span>
+          {techniqueTimeline.totalDurationMs ? (
+            <div className="pose-designer__timeline-scrubber pose-designer__timeline-scrubber--combined">
+              <span>
+                {sequencePreviewActive && sequenceFromStep
+                  ? sequenceFromStep.step_name
+                  : timelineSteps[0]?.step_name}
+              </span>
               <input
-                aria-label={`Timeline from ${timelineSteps[timelineStepIndex]?.step_name} to ${transitionTarget.step_name}`}
-                disabled={!transitionPose}
-                max="1"
+                aria-label="Combined technique timeline"
+                disabled={!sequenceReady}
+                max={techniqueTimeline.totalDurationMs}
                 min="0"
                 onChange={(event) => {
                   stopAnimation();
-                  const nextProgress = Number(event.target.value);
-                  animationProgressRef.current = nextProgress;
-                  setAnimationProgress(nextProgress);
+                  stopSequence();
+                  const nextTime = Number(event.target.value);
+                  sequenceTimeRef.current = nextTime;
+                  setSequenceTimeMs(nextTime);
+                  setSequencePreviewActive(true);
                 }}
-                step=".01"
+                step="10"
                 type="range"
-                value={animationProgress}
+                value={Math.min(
+                  sequenceTimeMs,
+                  techniqueTimeline.totalDurationMs,
+                )}
               />
-              <output>{Math.round(animationProgress * animationDuration)} ms</output>
-              <span>{transitionTarget.step_name}</span>
-              {animationProgress > 0 ? (
+              <output>
+                {(sequenceTimeMs / 1000).toFixed(2)}s / {" "}
+                {(techniqueTimeline.totalDurationMs / 1000).toFixed(2)}s
+              </output>
+              <span>
+                {sequencePreviewActive && sequenceToStep
+                  ? sequenceToStep.step_name
+                  : timelineSteps[timelineSteps.length - 1]?.step_name}
+              </span>
+              {sequencePreviewActive ? (
                 <button
                   className="pose-designer__animation-reset"
                   onClick={() => {
-                    stopAnimation();
-                    animationProgressRef.current = 0;
-                    setAnimationProgress(0);
+                    stopSequence();
+                    setSequencePreviewActive(false);
+                    const selectedStartMs =
+                      techniqueTimeline.segments.find(
+                        (segment) => segment.fromIndex === timelineStepIndex,
+                      )?.startMs ?? techniqueTimeline.totalDurationMs;
+                    sequenceTimeRef.current = selectedStartMs;
+                    setSequenceTimeMs(selectedStartMs);
                   }}
                   type="button"
                 >

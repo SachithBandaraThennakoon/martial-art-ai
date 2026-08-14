@@ -1,12 +1,35 @@
 import techniqueIndex from "../../../backend/data/techniques/index.json";
 
-const techniqueFiles = import.meta.glob(
-  "../../../backend/data/techniques/*/*.json",
-  {
-    eager: true,
-    import: "default"
-  }
+// Keep required package files as explicit Vite dependencies. A broad glob can
+// retain a stale file list during HMR when a technique is migrated by deleting
+// and recreating training-steps.json.
+const requiredTechniqueFiles = {
+  ...import.meta.glob(
+    "../../../backend/data/techniques/*/catalog.json",
+    { eager: true, import: "default" }
+  ),
+  ...import.meta.glob(
+    "../../../backend/data/techniques/*/training-steps.json",
+    { eager: true, import: "default" }
+  )
+};
+
+const optionalTechniqueFiles = import.meta.glob(
+  [
+    "../../../backend/data/techniques/*/learning-content.json",
+    "../../../backend/data/techniques/*/manifest.json",
+    "../../../backend/data/techniques/*/states.json",
+    "../../../backend/data/techniques/*/transitions.json",
+    "../../../backend/data/techniques/*/errors.json",
+    "../../../backend/data/techniques/*/modes.json"
+  ],
+  { eager: true, import: "default" }
 );
+
+const techniqueFiles = {
+  ...optionalTechniqueFiles,
+  ...requiredTechniqueFiles
+};
 
 const filesByTechnique = new Map();
 

@@ -14,7 +14,7 @@ from database import get_db
 from models.user import User
 from services.catalog_sync import sync_technique_catalog
 from services.reference_pose_schema import normalize_reference_pose
-from services.technique_package_loader import TECHNIQUE_ROOT, TRACKING_FILES
+from services.technique_package_loader import LEARNING_CONTENT_FILE, TECHNIQUE_ROOT, TRACKING_FILES
 
 
 router = APIRouter(prefix="/admin/catalog", tags=["Admin catalog"])
@@ -26,6 +26,15 @@ BIOMECHANICS_DOMAINS = {
 }
 SOURCE_MODES = {"camera_proxy", "model_estimate", "sensor"}
 REVIEW_STATES = {"DRAFT", "IN_REVIEW", "PUBLISHED"}
+STRIKING_SURFACES = {
+    "", "ball_of_foot", "heel", "instep", "outer_edge",
+    "inner_edge", "sole", "toes", "shin", "knee",
+}
+STRIKING_SIDES = {"", "left", "right", "both"}
+GUIDE_DOMAINS = {
+    "kinematics", "kinetics", "balance", "stability", "alignment",
+    "coordination", "footwork", "timing", "safety", "recovery",
+}
 SENSOR_OR_ESTIMATE_ONLY = {
     "joint_torque", "ground_reaction_force", "center_of_pressure",
     "impulse", "collision_impact", "friction", "force",
@@ -61,6 +70,7 @@ def _reference_angle(landmarks, body_part):
 class PackagePayload(BaseModel):
     catalog: dict
     training_steps: dict
+    learning_content: dict | None = None
     enabled: bool = True
 
 
@@ -78,6 +88,7 @@ def _package_payload(package):
         "enabled": package["index"].get("enabled", True),
         "catalog": package["catalog"],
         "training_steps": package["training_steps"],
+        "learning_content": package.get("learning_content"),
         "has_tracking": package["has_tracking"],
     }
 
@@ -96,15 +107,112 @@ def _load_all_packages():
         if not catalog_path.is_file() or not steps_path.is_file():
             continue
         training_steps = json.loads(steps_path.read_text(encoding="utf-8"))
+        learning_content_path = directory / LEARNING_CONTENT_FILE
         packages.append({
             "index": entry,
             "catalog": json.loads(catalog_path.read_text(encoding="utf-8")),
             "training_steps": training_steps,
+            "learning_content": (
+                json.loads(learning_content_path.read_text(encoding="utf-8"))
+                if learning_content_path.is_file()
+                else None
+            ),
             "directory": directory,
             "has_tracking": bool(training_steps.get("temporal_runtime"))
             or all((directory / filename).is_file() for filename in TRACKING_FILES),
         })
     return packages
+
+
+def _validate_learning_content(content, package_id):
+    if content is None:
+        return None
+    if not isinstance(content, dict):
+        raise HTTPException(400, "Guide content must be a structured configuration")
+
+    status = str(content.get("status") or "DRAFT").upper()
+    if status not in REVIEW_STATES:
+        raise HTTPException(400, "Guide review status is invalid")
+    overview = content.get("overview") or {}
+    if not isinstance(overview, dict):
+        raise HTTPException(400, "Guide overview must be an object")
+    summary = str(overview.get("summary") or "").strip()
+    if len(summary) > 1200:
+        raise HTTPException(400, "Guide summary must be 1200 characters or fewer")
+
+    def clean_text_list(field, maximum):
+        values = overview.get(field, [])
+        if not isinstance(values, list) or len(values) > maximum:
+            raise HTTPException(400, f"Guide {field} must contain at most {maximum} items")
+        return [str(value).strip() for value in values if str(value).strip()]
+
+    principles = content.get("principles", [])
+    if not isinstance(principles, list) or len(principles) > 24:
+        raise HTTPException(400, "Guide principles must contain at most 24 items")
+    clean_principles = []
+    seen_ids = set()
+    for index, principle in enumerate(principles, start=1):
+        if not isinstance(principle, dict):
+            raise HTTPException(400, f"Guide principle {index} must be an object")
+        principle_id = str(principle.get("id") or "").strip().lower()
+        domain = str(principle.get("domain") or "").strip().lower()
+        title = str(principle.get("title") or "").strip()
+        explanation = str(principle.get("explanation") or "").strip()
+        if not METRIC_ID_PATTERN.fullmatch(principle_id) or principle_id in seen_ids:
+            raise HTTPException(400, "Guide principles need unique snake_case ids")
+        if domain not in GUIDE_DOMAINS:
+            raise HTTPException(400, f"Guide domain is invalid for {principle_id}")
+        if status == "PUBLISHED" and (not title or not explanation):
+            raise HTTPException(400, f"Guide principle {principle_id} needs a title and explanation")
+        if len(title) > 120 or len(explanation) > 1200:
+            raise HTTPException(400, f"Guide principle {principle_id} is too long")
+        seen_ids.add(principle_id)
+        clean_principles.append({
+            "id": principle_id,
+            "domain": domain,
+            "title": title,
+            "explanation": explanation,
+            "related_phases": [
+                str(phase).strip().lower()
+                for phase in principle.get("related_phases", [])
+                if str(phase).strip()
+            ],
+        })
+
+    if status == "PUBLISHED" and (not summary or not clean_principles):
+        raise HTTPException(400, "Published Guide content needs a summary and at least one principle")
+
+    animation = content.get("animation") or {}
+    try:
+        playback_speed = float(animation.get("playback_speed", 0.75))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Guide animation playback speed is invalid") from None
+    if not 0.25 <= playback_speed <= 2:
+        raise HTTPException(400, "Guide animation playback speed must be between 0.25 and 2")
+
+    return {
+        "schema_version": str(content.get("schema_version") or "1.0"),
+        "technique_id": package_id,
+        "status": status,
+        "overview": {
+            "summary": summary,
+            "objectives": clean_text_list("objectives", 12),
+            "safety": clean_text_list("safety", 12),
+        },
+        "principles": clean_principles,
+        "animation": {
+            "source": "training_steps",
+            "loop": bool(animation.get("loop", True)),
+            "playback_speed": playback_speed,
+            "camera_preset": str(animation.get("camera_preset") or "front_diagonal"),
+            "show_trajectory": bool(animation.get("show_trajectory", True)),
+            "highlight_joints": [
+                str(joint).strip()
+                for joint in animation.get("highlight_joints", [])
+                if str(joint).strip()
+            ][:12],
+        },
+    }
 
 
 def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
@@ -124,12 +232,22 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
         raise HTTPException(400, "Add a description with setup or safety guidance (at least 20 characters)")
 
     steps = training_steps.get("steps")
-    if not isinstance(steps, list) or not 1 <= len(steps) <= 3:
-        raise HTTPException(400, "Each technique needs between one and three ordered steps")
+    if not isinstance(steps, list) or not 1 <= len(steps) <= 12:
+        raise HTTPException(400, "Each technique needs between one and twelve ordered steps")
     for index, step in enumerate(steps, start=1):
         if not isinstance(step, dict) or not str(step.get("step_name") or "").strip():
             raise HTTPException(400, f"Step {index} needs a name")
         step["step_number"] = index
+        striking_surface = str(step.get("striking_surface") or "").strip().lower()
+        if striking_surface not in STRIKING_SURFACES:
+            raise HTTPException(400, f"Step {index} has an unsupported striking surface")
+        step["striking_surface"] = striking_surface
+        striking_side = str(step.get("striking_side") or "").strip().lower()
+        if striking_side not in STRIKING_SIDES:
+            raise HTTPException(400, f"Step {index} has an unsupported striking side")
+        if striking_surface and not striking_side:
+            raise HTTPException(400, f"Step {index} needs a striking side")
+        step["striking_side"] = striking_side
         targets = step.get("angle_targets", step.get("angles", []))
         if not isinstance(targets, list) or not targets:
             raise HTTPException(400, f"Step {index} needs at least one angle range")
@@ -184,6 +302,26 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
         # The manual catalog is the sole authoring path. Drop stale optimizer
         # metadata from packages created by the retired optimization studio.
         step.pop("pose_optimization", None)
+
+    cycle = training_steps.get("cycle")
+    if cycle is not None:
+        if not isinstance(cycle, dict):
+            raise HTTPException(400, "Technique cycle must be a structured configuration")
+        cycle["enabled"] = bool(cycle.get("enabled", False))
+        try:
+            return_step = int(cycle.get("return_to_step_number", 1))
+            return_duration = int(cycle.get("transition_duration_ms", 900))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Technique cycle has invalid return data") from None
+        if not 1 <= return_step <= len(steps):
+            raise HTTPException(400, "Technique cycle return step is outside the step sequence")
+        if not 200 <= return_duration <= 10000:
+            raise HTTPException(400, "Technique cycle transition must be between 200 and 10000 ms")
+        cycle.update({
+            "return_to_step_number": return_step,
+            "transition_duration_ms": return_duration,
+            "description": str(cycle.get("description") or "").strip(),
+        })
 
     biomechanics = training_steps.get("biomechanics")
     if biomechanics is not None:
@@ -262,10 +400,11 @@ def _validate_payload(payload: PackagePayload, technique_id: str | None = None):
         "technique_id": package_id,
         "steps": steps,
     })
-    return package_id, catalog, training_steps
+    learning_content = _validate_learning_content(payload.learning_content, package_id)
+    return package_id, catalog, training_steps, learning_content
 
 
-def _save_package(package_id, catalog, training_steps, enabled, creating):
+def _save_package(package_id, catalog, training_steps, learning_content, enabled, creating):
     package_dir = (TECHNIQUE_ROOT / package_id).resolve()
     if TECHNIQUE_ROOT.resolve() not in package_dir.parents:
         raise HTTPException(400, "Invalid technique id")
@@ -273,6 +412,8 @@ def _save_package(package_id, catalog, training_steps, enabled, creating):
         package_dir.mkdir(exist_ok=False)
     _write_json(package_dir / "catalog.json", catalog)
     _write_json(package_dir / "training-steps.json", training_steps)
+    if learning_content is not None:
+        _write_json(package_dir / LEARNING_CONTENT_FILE, learning_content)
 
     index = _read_index()
     entries = index.setdefault("techniques", [])
@@ -299,10 +440,10 @@ def get_package(technique_id: str, _admin: User = Depends(require_admin_user)):
 
 @router.post("")
 def create_package(payload: PackagePayload, db: Session = Depends(get_db), _admin: User = Depends(require_admin_user)):
-    package_id, catalog, training_steps = _validate_payload(payload)
+    package_id, catalog, training_steps, learning_content = _validate_payload(payload)
     if (TECHNIQUE_ROOT / package_id).exists():
         raise HTTPException(409, "A technique with this id already exists")
-    _save_package(package_id, catalog, training_steps, payload.enabled, creating=True)
+    _save_package(package_id, catalog, training_steps, learning_content, payload.enabled, creating=True)
     try:
         sync_technique_catalog(db)
     except Exception:
@@ -314,8 +455,8 @@ def create_package(payload: PackagePayload, db: Session = Depends(get_db), _admi
 def update_package(technique_id: str, payload: PackagePayload, db: Session = Depends(get_db), _admin: User = Depends(require_admin_user)):
     if not (TECHNIQUE_ROOT / technique_id).is_dir():
         raise HTTPException(404, "Technique package not found")
-    package_id, catalog, training_steps = _validate_payload(payload, technique_id)
-    _save_package(package_id, catalog, training_steps, payload.enabled, creating=False)
+    package_id, catalog, training_steps, learning_content = _validate_payload(payload, technique_id)
+    _save_package(package_id, catalog, training_steps, learning_content, payload.enabled, creating=False)
     try:
         sync_technique_catalog(db)
     except Exception:

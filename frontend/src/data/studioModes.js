@@ -1,4 +1,10 @@
 export const STUDIO_MODES = {
+  guide: {
+    label: "Guide",
+    title: "3D movement, principles, and safety guidance.",
+    description: "Understand the technique through an animated reference and clear movement-science explanations.",
+    action: "Explore the technique"
+  },
   train: {
     label: "Train",
     title: "Steps, targets, and accuracy feedback.",

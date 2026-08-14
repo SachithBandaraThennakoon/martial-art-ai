@@ -4,6 +4,7 @@ from pathlib import Path
 
 TECHNIQUE_ROOT = Path(__file__).resolve().parents[1] / "data" / "techniques"
 REQUIRED_TECHNIQUE_FILES = ("catalog.json", "training-steps.json")
+LEARNING_CONTENT_FILE = "learning-content.json"
 TRACKING_FILES = (
     "manifest.json",
     "states.json",
@@ -52,6 +53,12 @@ def load_technique_packages(root=TECHNIQUE_ROOT):
 
         catalog = _read_json(directory / "catalog.json")
         training_steps = _read_json(directory / "training-steps.json")
+        learning_content_path = directory / LEARNING_CONTENT_FILE
+        learning_content = (
+            _read_json(learning_content_path)
+            if learning_content_path.is_file()
+            else None
+        )
         if catalog.get("id") != technique_id:
             raise ValueError(
                 f'Technique index id "{technique_id}" does not match catalog id'
@@ -87,6 +94,7 @@ def load_technique_packages(root=TECHNIQUE_ROOT):
             "index": entry,
             "catalog": catalog,
             "training_steps": training_steps,
+            "learning_content": learning_content,
             "directory": directory,
             "has_tracking": bool(embedded_tracking)
             or len(present_tracking_files) == len(TRACKING_FILES),
