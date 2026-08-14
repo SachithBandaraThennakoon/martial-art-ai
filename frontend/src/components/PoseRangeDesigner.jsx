@@ -10,6 +10,7 @@ import {
 } from "@react-three/drei";
 import {
   memo,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -24,6 +25,7 @@ import {
   timelineFrameAt,
 } from "../utils/techniqueTimeline";
 import PoseStudioContext from "./PoseStudioContext";
+import AuthoringSkeletonGlbOverlay from "./AuthoringSkeletonGlbOverlay";
 import MediaPipeSkeleton3D from "./MediaPipeSkeleton3D";
 import { manualPoseToMediaPipePreview } from "../skeleton/manualPoseAdapter";
 import { buildHandLandmarks } from "../skeleton/handLandmarks";
@@ -1079,6 +1081,7 @@ function PoseScene({
   cameraViewRef,
   editingEnabled = true,
   guidesVisible,
+  modelVisible,
   pose,
   poseScale,
   selectedJoint,
@@ -1431,12 +1434,20 @@ function PoseScene({
       <group position={groundedActiveOffset} scale={sceneScale}>
         <primitive object={transformTarget} />
         <group>
-            <MediaPipeSkeleton3D
-              jointRadius={0.025}
-              landmarks={mediaPipePreview}
-              lineWidth={3.2}
-            />
-            {Object.entries(pose).map(([name, position]) => (
+          {modelVisible ? (
+            <Suspense fallback={null}>
+              <AuthoringSkeletonGlbOverlay
+                articulation={articulation}
+                pose={pose}
+              />
+            </Suspense>
+          ) : null}
+          <MediaPipeSkeleton3D
+            jointRadius={0.025}
+            landmarks={mediaPipePreview}
+            lineWidth={3.2}
+          />
+          {Object.entries(pose).map(([name, position]) => (
               <mesh
                 key={name}
                 onClick={(event) => chooseJoint(event, name)}
@@ -1568,6 +1579,7 @@ export default function PoseRangeDesigner({
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [anglesOpen, setAnglesOpen] = useState(true);
   const [guidesVisible, setGuidesVisible] = useState(false);
+  const [modelVisible, setModelVisible] = useState(true);
   const [articulation, setArticulation] = useState(() =>
     normalizedArticulation(referencePose?.articulation),
   );
@@ -2163,6 +2175,7 @@ export default function PoseRangeDesigner({
           !sequencePreviewActive && !isAnimating && animationProgress === 0
         }
         guidesVisible={guidesVisible}
+        modelVisible={modelVisible}
         onMoveJoint={moveJoint}
         onRotateJoint={rotateJoint}
         onSelectJoint={setSelectedJoint}
@@ -2226,6 +2239,15 @@ export default function PoseRangeDesigner({
         </span>
         <div className="pose-designer__toolbar-actions">
           {studioActions}
+          <button
+            aria-pressed={modelVisible}
+            className={`btn btn--ghost btn--small ${modelVisible ? "is-active" : ""}`}
+            onClick={() => setModelVisible((value) => !value)}
+            title="Show or hide the athletic body model"
+            type="button"
+          >
+            Model
+          </button>
           <button
             aria-pressed={guidesVisible}
             className={`btn btn--ghost btn--small ${guidesVisible ? "is-active" : ""}`}
