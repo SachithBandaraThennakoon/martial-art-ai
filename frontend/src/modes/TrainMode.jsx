@@ -119,7 +119,9 @@ export default function TrainMode({
   inputVideoUrl,
   inputVideoName,
   onInputStatus,
-  onPredictionStatus
+  onPredictionStatus,
+  onDiagnosticsUpdate,
+  awarenessCompact = false
 }) {
   const currentTechnique = useMemo(
     () =>
@@ -150,6 +152,25 @@ export default function TrainMode({
   const [level3State, setLevel3State] = useState(null);
   const [level4State, setLevel4State] = useState(null);
   const [situationAwarenessState, setSituationAwarenessState] = useState(null);
+
+  useEffect(() => {
+    onDiagnosticsUpdate?.({
+      awareness,
+      level1State,
+      level2State,
+      level3State,
+      level4State,
+      situationAwarenessState
+    });
+  }, [
+    awareness,
+    level1State,
+    level2State,
+    level3State,
+    level4State,
+    onDiagnosticsUpdate,
+    situationAwarenessState
+  ]);
   const [trainSessionStarted, setTrainSessionStarted] = useState(false);
   const [ruleEngineSessionSummary, setRuleEngineSessionSummary] = useState(null);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
@@ -1178,6 +1199,29 @@ export default function TrainMode({
           onSummaryUpdate={setFeedback}
           onCoachEvent={handleCoachEvent}
         />
+        {awarenessCompact ? (
+          <aside className="awareness-camera-angles" aria-label="Live joint angles">
+            <header><div><span /><strong>Live angles</strong></div><small>{displayAngleParts.length} targets</small></header>
+            <div className="awareness-camera-angles__grid">
+              {feedbackAngleParts
+                .filter((part) => displayAngleParts.some((target) => target.body_part === part.body_part))
+                .map((part) => {
+                  const rawValue = angles?.[part.body_part];
+                  const hasValue = Number.isFinite(rawValue);
+                  const value = hasValue ? Math.round(rawValue) : null;
+                  const ideal = part.target_angle ?? Math.round((part.min + part.max) / 2);
+                  const inRange = hasValue && value >= part.min && value <= part.max;
+                  return <article className={inRange ? "is-good" : hasValue ? "is-low" : ""} key={part.body_part}>
+                    <span>{part.body_part.replaceAll("_", " ")}</span>
+                    <strong>{hasValue ? `${value}°` : "--"}</strong>
+                    <small>Ideal {ideal}° · {part.min}–{part.max}°</small>
+                    <i>{hasValue ? inRange ? "In range" : value < part.min ? `Increase ${part.min - value}°` : `Decrease ${value - part.max}°` : "Waiting"}</i>
+                  </article>;
+                })}
+            </div>
+            <footer><span>Current step</span><strong>{currentStepName || "Waiting for step"}</strong></footer>
+          </aside>
+        ) : null}
       </section>
 
       <aside className="training-panel training-panel--left">
@@ -1218,7 +1262,7 @@ export default function TrainMode({
           <AwarenessPanel awareness={awareness} mirrored={displayMirrored} />
         </div>
 
-        <div className="panel-block">
+        <div className={`panel-block ${awarenessCompact ? "awareness-compact-session" : ""}`}>
           <div className="panel-heading">
             <p className="eyebrow">Session awareness</p>
             <span>{trainSessionState.replaceAll("_", " ")}</span>
@@ -1365,7 +1409,7 @@ export default function TrainMode({
       </aside>
 
       <aside className="training-panel training-panel--right">
-        {isAdminStudio ? (
+        {isAdminStudio && !awarenessCompact ? (
           <>
             <div className="panel-block advanced-analysis-toggle">
               <button
@@ -1418,7 +1462,8 @@ export default function TrainMode({
           feedback={textEnabled ? feedback : ""}
           coachEvent={textEnabled ? coachEvent : null}
           compositeForm={compositeForm}
-          showFullBodyAssessment={isAdminStudio}
+          hideLiveValues={awarenessCompact}
+          showFullBodyAssessment={isAdminStudio && !awarenessCompact}
           difficulty={formDifficulty}
           onDifficultyChange={selectFormDifficulty}
         />

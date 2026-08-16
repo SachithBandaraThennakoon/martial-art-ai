@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 
 from database import Base
 from models import (
+    awareness,
     billing,
     body_calibration,
     contact_message,

@@ -18,20 +18,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+    inspector = sa.inspect(conn)
 
     def _table_exists(table_name: str) -> bool:
-        return conn.execute(
-            sa.text("SELECT to_regclass(:table_name)"),
-            {"table_name": table_name},
-        ).scalar() is not None
+        return inspector.has_table(table_name)
 
     def _index_exists(index_name: str) -> bool:
-        return conn.execute(
-            sa.text(
-                "SELECT 1 FROM pg_indexes WHERE indexname = :index_name"
-            ),
-            {"index_name": index_name},
-        ).fetchone() is not None
+        return any(item.get("name") == index_name for item in inspector.get_indexes("target_positions")) if inspector.has_table("target_positions") else False
 
     if not _table_exists("target_positions"):
         op.create_table(

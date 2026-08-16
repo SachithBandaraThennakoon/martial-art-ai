@@ -7,6 +7,7 @@ export default function MetricsPanel({
   feedback,
   coachEvent,
   compositeForm,
+  hideLiveValues = false,
   showFullBodyAssessment = false,
   difficulty = "medium",
   onDifficultyChange
@@ -171,7 +172,7 @@ export default function MetricsPanel({
         </div>
       ) : null}
 
-      <div className="panel-block">
+      {!hideLiveValues ? <div className="panel-block">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">Live Values</p>
@@ -211,7 +212,7 @@ export default function MetricsPanel({
             })}
           </div>
         )}
-      </div>
+      </div> : null}
 
       <div className="panel-block coach-card">
         <p className="eyebrow">Coach Feedback</p>

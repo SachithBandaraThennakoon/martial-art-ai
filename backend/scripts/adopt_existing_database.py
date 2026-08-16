@@ -15,6 +15,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from database import Base  # noqa: E402
 from models import (  # noqa: E402,F401
+    awareness,
     billing,
     body_calibration,
     contact_message,
@@ -36,7 +37,11 @@ BASELINE_REVISION = "883102153f8d"
 def baseline_metadata() -> MetaData:
     metadata = MetaData()
     for table in Base.metadata.sorted_tables:
-        if table.name not in {"billing_events", "billing_subscriptions", "consent_records", "target_positions"}:
+        if table.name not in {
+            "billing_events", "billing_subscriptions", "consent_records", "target_positions",
+            "awareness_sessions", "awareness_events", "awareness_knowledge_profiles",
+            "awareness_decision_evaluations",
+        }:
             table.to_metadata(metadata)
     users_table = metadata.tables["users"]
     for constraint in list(users_table.constraints):

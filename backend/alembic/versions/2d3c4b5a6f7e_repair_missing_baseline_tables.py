@@ -17,17 +17,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def _table_exists(connection, table_name: str) -> bool:
-    return connection.execute(
-        sa.text("SELECT to_regclass(:table_name)"),
-        {"table_name": f"public.{table_name}"},
-    ).scalar() is not None
+    return sa.inspect(connection).has_table(table_name)
 
 
 def _index_exists(connection, index_name: str) -> bool:
-    return connection.execute(
-        sa.text("SELECT 1 FROM pg_indexes WHERE indexname = :index_name"),
-        {"index_name": index_name},
-    ).fetchone() is not None
+    inspector = sa.inspect(connection)
+    return any(
+        item.get("name") == index_name
+        for table_name in ("rate_limit_buckets", "refresh_sessions")
+        if inspector.has_table(table_name)
+        for item in inspector.get_indexes(table_name)
+    )
 
 
 def upgrade() -> None:
@@ -99,12 +99,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    if op.get_bind().execute(sa.text("SELECT to_regclass(:table_name)"), {"table_name": "public.refresh_sessions"}).scalar() is not None:
-        op.drop_index("ix_refresh_sessions_revoked_at", table_name="refresh_sessions")
-        op.drop_index("ix_refresh_sessions_expires_at", table_name="refresh_sessions")
-        op.drop_index("ix_refresh_sessions_family_id", table_name="refresh_sessions")
-        op.drop_index("ix_refresh_sessions_user_id", table_name="refresh_sessions")
-        op.drop_table("refresh_sessions")
-    if op.get_bind().execute(sa.text("SELECT to_regclass(:table_name)"), {"table_name": "public.rate_limit_buckets"}).scalar() is not None:
-        op.drop_index("ix_rate_limit_buckets_expires_at", table_name="rate_limit_buckets")
-        op.drop_table("rate_limit_buckets")
+    # These are baseline-owned tables. Leaving them in place allows the baseline
+    # downgrade to remove them exactly once, including when this repair was a no-op.
+    pass

@@ -1,0 +1,43 @@
+{
+  "schema_version": "knowledge/v1",
+  "profile_id": "combat-awareness-default",
+  "version": "1.0.0",
+  "thresholds": {
+    "tracking_min_confidence": 0.35,
+    "mistake_risk": 0.65,
+    "action_forecast_trust": 0.55,
+    "motion_forecast_trust": 0.45,
+    "relationship_confidence": 0.50,
+    "hazard_closing_speed": 0.50,
+    "contact_distance": 0.08,
+    "predicted_collision_distance": 0.25
+  },
+  "horizons": {
+    "l1_seconds": 0.1,
+    "l2_seconds": 1.0,
+    "l3_label": "session"
+  },
+  "domains": {
+    "K_L1": ["physics", "geometry", "kinematics", "biomechanics", "joint_constraints", "gravity", "balance", "motion_models"],
+    "K_L2": ["techniques", "actions", "combat_patterns", "event_definitions", "state_transitions", "attack_patterns", "defense_patterns"],
+    "K_L3": ["fatigue_patterns", "repetition_patterns", "session_rules", "behaviour_patterns", "adaptation"],
+    "K_L4": ["learning_curves", "skill_progression", "long_term_adaptation", "degradation_models", "historical_trends"],
+    "K_relation": ["distance_rules", "reach_rules", "threat_zones", "collision_rules", "support_relationships", "interaction_constraints", "causal_patterns"],
+    "K_world": ["object_identity", "space", "time", "confidence", "history"]
+  },
+  "utility_weights": {
+    "defense": 1.0,
+    "balance": 0.75,
+    "power": 0.35,
+    "mobility": 0.65,
+    "exposure": -1.0,
+    "joint_stress": -0.8,
+    "energy_waste": -0.45
+  },
+  "goal_weights": {
+    "improve_user_technique": {"human": 0.75, "user": 1.0, "opponent": 0.8, "weapon": 0.9, "floor": 0.65, "wall": 0.45},
+    "maximize_defense": {"human": 0.75, "user": 0.9, "opponent": 1.0, "weapon": 1.0, "floor": 0.65, "wall": 0.7},
+    "evaluate_balance": {"human": 0.75, "user": 1.0, "floor": 1.0, "wall": 0.6, "opponent": 0.35, "weapon": 0.25},
+    "detect_threat": {"human": 0.65, "user": 0.75, "opponent": 1.0, "weapon": 1.0, "floor": 0.55, "wall": 0.45}
+  }
+}

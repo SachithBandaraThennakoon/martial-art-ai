@@ -18,21 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+    inspector = sa.inspect(conn)
 
     def _table_exists(table_name: str) -> bool:
-        return conn.execute(
-            sa.text("SELECT to_regclass(:table_name)"),
-            {"table_name": table_name},
-        ).scalar() is not None
+        return inspector.has_table(table_name)
 
     def _constraint_exists(constraint_name: str) -> bool:
-        return conn.execute(
-            sa.text(
-                "SELECT 1 FROM pg_constraint "
-                "WHERE conname = :constraint_name"
-            ),
-            {"constraint_name": constraint_name},
-        ).fetchone() is not None
+        return any(
+            constraint.get("name") == constraint_name
+            for constraint in inspector.get_unique_constraints("users")
+        )
 
     if not _constraint_exists("uq_users_paypal_subscription_id"):
         with op.batch_alter_table("users") as batch_op:

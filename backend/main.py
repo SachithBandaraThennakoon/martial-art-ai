@@ -25,7 +25,7 @@ validate_runtime_environment()
 from database import check_database_ready, database_readiness, get_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, target_position, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy
+from models import user, technique, technique_step, target_angle, target_position, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy, awareness
 from models.body_calibration import BodyCalibration
 from models.target_angle import TargetAngle
 from models.target_position import TargetPosition
@@ -49,6 +49,7 @@ from routers import contact as contact_router
 from routers import dashboard as dashboard_router
 from routers import privacy as privacy_router
 from routers import catalog_admin as catalog_admin_router
+from routers import awareness as awareness_router
 
 # Services
 from services.angle_service import compare_angles
@@ -209,6 +210,7 @@ app.include_router(contact_router.router)
 app.include_router(dashboard_router.router)
 app.include_router(privacy_router.router)
 app.include_router(catalog_admin_router.router)
+app.include_router(awareness_router.router)
 
 
 # -----------------------------

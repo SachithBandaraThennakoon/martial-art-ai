@@ -18,31 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     conn = op.get_bind()
+    inspector = sa.inspect(conn)
 
     def _column_exists(table_name: str, column_name: str) -> bool:
-        return conn.execute(
-            sa.text(
-                "SELECT 1 FROM information_schema.columns "
-                "WHERE table_name = :table_name AND column_name = :column_name"
-            ),
-            {"table_name": table_name, "column_name": column_name},
-        ).fetchone() is not None
+        return column_name in {column["name"] for column in inspector.get_columns(table_name)}
 
     def _constraint_exists(constraint_name: str) -> bool:
-        return conn.execute(
-            sa.text(
-                "SELECT 1 FROM pg_constraint WHERE conname = :constraint_name"
-            ),
-            {"constraint_name": constraint_name},
-        ).fetchone() is not None
+        return any(item.get("name") == constraint_name for item in inspector.get_unique_constraints("practice_session_tapes"))
 
     def _index_exists(index_name: str) -> bool:
-        return conn.execute(
-            sa.text(
-                "SELECT 1 FROM pg_indexes WHERE indexname = :index_name"
-            ),
-            {"index_name": index_name},
-        ).fetchone() is not None
+        return any(item.get("name") == index_name for item in inspector.get_indexes("practice_session_tapes"))
 
     with op.batch_alter_table("practice_session_tapes") as batch_op:
         batch_op.alter_column("payload", existing_type=sa.LargeBinary(), nullable=True)

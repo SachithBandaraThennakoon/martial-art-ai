@@ -152,10 +152,22 @@ try:
         unit="ms",
         description="Application HTTP request duration",
     )
+    _awareness_snapshots = _meter.create_counter(
+        "awareness.snapshots", unit="{snapshot}", description="Processed awareness snapshots"
+    )
+    _awareness_duration = _meter.create_histogram(
+        "awareness.processing.duration", unit="ms", description="Awareness processing duration"
+    )
+    _awareness_entities = _meter.create_histogram(
+        "awareness.verified.entities", unit="{entity}", description="Verified entities per snapshot"
+    )
 except ImportError:
     _tracer = None
     _request_counter = None
     _request_duration = None
+    _awareness_snapshots = None
+    _awareness_duration = None
+    _awareness_entities = None
 
 
 @contextmanager
@@ -193,3 +205,16 @@ def record_http_request(method: str, route: str, status_code: int, duration_ms: 
     }
     _request_counter.add(1, attributes)
     _request_duration.record(duration_ms, attributes)
+
+
+def record_awareness_snapshot(*, source: str, state: str, command: str, duration_ms: float, verified_entities: int) -> None:
+    if not _awareness_snapshots or not _awareness_duration or not _awareness_entities:
+        return
+    attributes = {
+        "awareness.source": source[:32],
+        "awareness.state": state[:64],
+        "awareness.command": command[:64],
+    }
+    _awareness_snapshots.add(1, attributes)
+    _awareness_duration.record(duration_ms, attributes)
+    _awareness_entities.record(verified_entities, {"awareness.source": source[:32]})

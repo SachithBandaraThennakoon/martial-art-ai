@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, inspect
 
 from database import Base
 from models import (  # noqa: F401
+    awareness,
     billing,
     body_calibration,
     contact_message,

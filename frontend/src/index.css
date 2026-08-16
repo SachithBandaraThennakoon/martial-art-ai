@@ -11932,3 +11932,789 @@ select:focus {
 
 @media (max-width: 1100px) { .studio-mode-entry__options { grid-template-columns: repeat(2,minmax(0,1fr)); }.guide-mode__principles { grid-template-columns: repeat(2,minmax(0,1fr)); }.guide-editor { grid-template-columns: 1fr; }.guide-editor__preview { position: relative; }.guide-editor__content { border-top: 1px solid var(--line); border-left: 0; } }
 @media (max-width: 760px) { .training-shell--guide .studio-mode-switch { grid-template-columns: 1fr; }.training-shell--guide .studio-mode-switch .mode-tiles { min-width: 0; }.guide-mode { width: min(100% - 24px,1420px); padding-top: 340px; }.guide-mode__hero,.guide-mode__main { grid-template-columns: 1fr; }.guide-mode__meta { justify-content: flex-start; }.guide-mode__principles { grid-template-columns: 1fr; }.guide-skeleton__stage { min-height: 390px; }.guide-skeleton__controls { flex-wrap: wrap; }.guide-skeleton__controls small { width: 100%; margin-left: 0; }.guide-editor__two-columns,.guide-editor__principle-meta { grid-template-columns: 1fr; } }
+/* Admin awareness validation workspace */
+.admin-awareness-page { min-height: 100vh; padding: 112px 24px 64px; background: #07100f; color: #f5f7f2; }
+.admin-awareness-header { max-width: 1500px; margin: 0 auto 24px; display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.admin-awareness-header h1 { margin: 8px 0; font-size: clamp(2rem, 4vw, 4rem); }
+.admin-awareness-header p { max-width: 760px; color: #aab8b2; }
+.admin-awareness-controls { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.admin-awareness-controls label { display: grid; gap: 6px; color: #aab8b2; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+.admin-awareness-controls select, .admin-awareness-controls button { min-height: 42px; border: 1px solid #29423b; border-radius: 8px; background: #101c19; color: #eaf4ee; padding: 0 12px; }
+.admin-awareness-controls button.is-active { border-color: #48d38a; color: #74efa9; }
+.admin-awareness-component { max-width: 1500px; margin: 0 auto 14px; border: 1px solid #213831; border-radius: 12px; background: rgba(13, 26, 22, .94); overflow: hidden; }
+.admin-awareness-component > summary { cursor: pointer; list-style: none; display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 12px; padding: 17px 20px; }
+.admin-awareness-component > summary::-webkit-details-marker { display: none; }
+.admin-awareness-component > summary span { width: 9px; height: 9px; border-radius: 50%; background: #75827d; box-shadow: 0 0 0 4px rgba(117,130,125,.1); }
+.admin-awareness-component > summary span.is-ready { background: #45dd8c; box-shadow: 0 0 0 4px rgba(69,221,140,.12); }
+.admin-awareness-component > summary div { display: grid; gap: 3px; }
+.admin-awareness-component > summary small, .admin-awareness-component > summary b { color: #8fa29a; font-size: .75rem; font-weight: 500; }
+.admin-awareness-component__body { border-top: 1px solid #213831; padding: 18px; }
+.admin-awareness-grid { display: grid; max-width: 1500px; margin: 20px auto 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.admin-awareness-grid .admin-awareness-component { width: 100%; margin: 0; }
+.admin-awareness-studio { min-height: 760px; position: relative; border-radius: 8px; overflow: hidden; }
+.admin-awareness-json { max-height: 440px; overflow: auto; margin: 12px 0 0; padding: 14px; border-radius: 8px; background: #050c0a; color: #a9e8c4; font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-awareness-empty { color: #8fa29a; }
+@media (max-width: 900px) { .admin-awareness-page { padding-inline: 12px; } .admin-awareness-header { align-items: stretch; flex-direction: column; } .admin-awareness-grid { grid-template-columns: 1fr; } }
+
+/* Combat Awareness live console */
+.awareness-console { --console-line: #294039; --console-panel: #0c1916; --console-green: #55e69a; max-width: none; padding: 86px 18px 88px; }
+.awareness-console-bar { position: sticky; top: 70px; z-index: 20; display: flex; align-items: center; gap: 22px; padding: 12px 16px; margin: 0 auto 14px; max-width: 1640px; border: 1px solid var(--console-line); border-radius: 8px; background: rgba(6, 15, 13, .97); box-shadow: 0 12px 30px rgba(0,0,0,.28); }
+.awareness-console-brand, .awareness-console-stat { display: flex; align-items: center; gap: 8px; }
+.awareness-console-brand > span { width: 9px; height: 9px; border-radius: 50%; background: #718078; }
+.awareness-console-brand > span.is-live { background: var(--console-green); box-shadow: 0 0 12px var(--console-green); }
+.awareness-console-brand strong { color: var(--console-green); font-size: .72rem; letter-spacing: .12em; }
+.awareness-console-brand b, .awareness-console-stat strong { font-size: .82rem; }
+.awareness-console-stat { border-left: 1px solid var(--console-line); padding-left: 18px; }
+.awareness-console-stat span, .awareness-console-bar label { color: #82958d; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+.awareness-console-bar label { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.awareness-console-bar label + label { margin-left: 0; }
+.awareness-console-bar .awareness-technique-select { margin-left: auto; display: grid; grid-template-columns: auto minmax(170px, 240px); column-gap: 8px; row-gap: 2px; }
+.awareness-console-bar .awareness-technique-select select { grid-row: 1 / 3; grid-column: 2; }
+.awareness-console-bar .awareness-technique-select small { color: #667a72; font-size: .62rem; text-transform: none; letter-spacing: 0; }
+.awareness-console-bar .awareness-technique-select + label { margin-left: 0; }
+.awareness-console select { border: 1px solid var(--console-line); border-radius: 5px; background: #101f1b; color: #e8f2ed; padding: 7px 9px; }
+.awareness-studio-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; max-width: 1640px; margin: 0 auto 14px; padding: 8px; border: 1px solid var(--console-line); border-radius: 9px; background: #080f10; }
+.awareness-studio-controls label { display: flex; align-items: center; gap: 7px; min-height: 39px; padding-left: 8px; border: 1px solid #30383a; border-radius: 7px; color: #a5abad; font-size: .62rem; font-weight: 800; text-transform: uppercase; }
+.awareness-studio-controls label select { height: 35px; border: 0; border-left: 1px solid #30383a; border-radius: 0 6px 6px 0; background: #05090a; font-size: .7rem; font-weight: 700; text-transform: uppercase; }
+.awareness-studio-controls button { min-height: 39px; padding: 0 12px; border: 1px solid #30383a; border-radius: 7px; background: #141719; color: #adb3b5; font-size: .7rem; font-weight: 750; }
+.awareness-studio-controls button.is-active { border-color: #3c8668; background: #10261e; color: #c5f5dd; }
+.awareness-studio-controls button.is-yellow { border-color: #d3b93e; background: #27230e; color: #ffe66d; }
+.awareness-studio-controls button.is-blue { border-color: #478bd1; background: #0d2032; color: #78baff; }
+.awareness-studio-controls button.is-frozen { border-color: #df9b49; background: #2b1d0d; color: #ffc47b; }
+.awareness-studio-controls button:disabled { cursor: not-allowed; opacity: .42; }
+.awareness-studio-controls__break { flex-basis: 100%; height: 0; }
+.awareness-studio-controls__spacer { flex: 1; }
+.awareness-pipeline-strip { display: grid; grid-template-columns: minmax(210px, 1.5fr) repeat(6, minmax(92px, .7fr)); gap: 1px; max-width: 1640px; margin: 0 auto 14px; overflow: hidden; border: 1px solid var(--console-line); border-radius: 8px; background: var(--console-line); }
+.awareness-pipeline-strip > div { display: grid; grid-template-columns: 10px 1fr; align-items: center; gap: 4px 7px; min-height: 54px; padding: 9px 11px; background: #091411; }
+.awareness-pipeline-strip > div:first-child { display: grid; grid-template-columns: 1fr; gap: 2px; }
+.awareness-pipeline-strip i { grid-row: 1 / 3; width: 7px; height: 7px; border-radius: 50%; background: #53635d; }
+.awareness-pipeline-strip .is-ready i { background: var(--console-green); box-shadow: 0 0 8px rgba(85,230,154,.55); }
+.awareness-pipeline-strip span, .awareness-pipeline-strip small { color: #71877e; font-size: .61rem; }.awareness-pipeline-strip strong { font-size: .68rem; }.awareness-pipeline-strip > div:first-child strong { color: #e1eee8; font-size: .78rem; }
+.awareness-console-section { max-width: 1640px; margin: 0 auto 14px; border: 1px solid var(--console-line); border-radius: 9px; background: var(--console-panel); overflow: clip; }
+.awareness-console-section > summary { display: grid; grid-template-columns: 1fr auto 20px; gap: 12px; align-items: center; list-style: none; cursor: pointer; padding: 14px 17px; background: #0a1512; }
+.awareness-console-section > summary::-webkit-details-marker { display: none; }
+.awareness-console-section > summary strong { font-size: .78rem; letter-spacing: .11em; }
+.awareness-console-section > summary span { color: #82958d; font-size: .72rem; }
+.awareness-console-section > summary b { color: var(--console-green); transition: transform .2s ease; }
+.awareness-console-section:not([open]) > summary b { transform: rotate(-90deg); }
+.awareness-console-section__body { border-top: 1px solid var(--console-line); padding: 16px; }
+.awareness-console-triad { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 14px; }
+.awareness-console-triad > section { min-width: 0; border: 1px solid var(--console-line); border-radius: 7px; background: #081310; overflow: hidden; }
+.awareness-console-triad > section > header { display: flex; justify-content: space-between; padding: 11px 13px; border-bottom: 1px solid var(--console-line); text-transform: uppercase; }
+.awareness-console-triad > section > header strong { font-size: .76rem; letter-spacing: .08em; }.awareness-console-triad > section > header span { color: #789087; font-size: .67rem; }
+.awareness-camera-column { grid-column: 1 / -1; }
+.admin-awareness-studio { display: block !important; position: relative !important; inset: auto !important; width: 100% !important; min-height: 760px; height: 760px; border-radius: 0; overflow: hidden !important; }
+.admin-awareness-studio > .training-stage { display: block !important; position: absolute !important; inset: 0 294px !important; width: auto !important; height: 760px !important; min-height: 760px !important; grid-area: auto !important; }
+.admin-awareness-studio > .training-panel { display: block !important; position: absolute !important; top: 12px !important; bottom: 12px !important; width: 270px !important; max-height: none !important; overflow-y: auto; z-index: 6; }
+.admin-awareness-studio > .training-panel--left { left: 12px !important; right: auto !important; }
+.admin-awareness-studio > .training-panel--right { right: 12px !important; left: auto !important; }
+.admin-awareness-studio > .feedback-banner { display: flex !important; position: absolute !important; z-index: 7; top: 16px !important; left: 310px !important; right: 310px !important; width: auto !important; }
+.admin-awareness-studio > .conversation-crate { display: block !important; position: absolute !important; z-index: 7; right: 310px !important; bottom: 16px !important; left: auto !important; width: min(390px, calc(100% - 640px)) !important; max-height: 270px !important; }
+.awareness-sensor-list { list-style: none; margin: 0; padding: 8px 13px; display: grid; gap: 6px; border-top: 1px solid var(--console-line); }
+.awareness-sensor-list li { display: flex; justify-content: space-between; gap: 12px; font-size: .7rem; }.awareness-sensor-list li span { color: #9baca5; }.awareness-sensor-list li strong { color: #667a72; }.awareness-sensor-list li strong.is-active { color: var(--console-green); }
+.awareness-world-graph { position: relative; min-height: 300px; }
+.world-node { position: absolute; z-index: 2; display: grid; place-items: center; width: 92px; height: 92px; border: 1px solid #39564c; border-radius: 50%; background: #10231d; color: #dce9e3; }.world-node small { display: block; color: #789087; }.world-node--user { left: calc(50% - 46px); top: 95px; }.world-node--camera { left: 18px; top: 25px; width: 70px; height: 70px; }.world-node--floor { right: 18px; bottom: 20px; width: 70px; height: 70px; opacity: .55; }.world-node.is-live { border-color: var(--console-green); box-shadow: 0 0 26px rgba(85,230,154,.18); }.world-edge { position: absolute; left: 78px; top: 94px; width: calc(50% - 70px); height: 1px; background: #39564c; transform: rotate(16deg); transform-origin: left; }
+.awareness-world-note { margin: 0; padding: 13px; color: #82958d; font-size: .7rem; line-height: 1.5; border-top: 1px solid var(--console-line); }.awareness-view-switch { display: flex; gap: 7px; padding: 0 13px 13px; }.awareness-view-switch button, .awareness-console-footer button { border: 1px solid var(--console-line); border-radius: 4px; background: #10201b; color: #91a69d; padding: 6px 9px; }.awareness-view-switch button.is-active { border-color: var(--console-green); color: var(--console-green); }
+.awareness-score-stack { padding: 13px; display: grid; gap: 8px; }.awareness-value { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(41,64,57,.65); }.awareness-value span { color: #879b92; font-size: .72rem; }.awareness-value strong { font-size: .76rem; text-align: right; text-transform: capitalize; }
+.awareness-current-column blockquote { margin: 5px 13px 14px; padding: 14px; border-left: 2px solid var(--console-green); background: #0d211a; color: #d8e7df; font-size: .84rem; line-height: 1.55; }.awareness-attention { margin: 0 13px 13px; display: grid; gap: 3px; }.awareness-attention span, .awareness-attention small { color: #789087; font-size: .68rem; }.awareness-attention strong { color: var(--console-green); text-transform: capitalize; }.awareness-current-column details { margin: 0 13px 13px; }.awareness-current-column details summary, .awareness-raw-data summary { cursor: pointer; color: #8eddb2; font-size: .72rem; }.awareness-current-column pre, .awareness-raw-data pre { max-height: 360px; overflow: auto; padding: 12px; background: #050b09; color: #9ce0ba; white-space: pre-wrap; font-size: .68rem; }
+.awareness-object-table > div[role="row"] { display: grid; grid-template-columns: 1fr 1.2fr .8fr .7fr 1fr .6fr; gap: 12px; align-items: center; padding: 11px 13px; border-bottom: 1px solid var(--console-line); font-size: .76rem; }.awareness-object-table .is-heading { color: #7f948b; text-transform: uppercase; font-size: .65rem !important; }.awareness-object-table a { color: var(--console-green); }
+.awareness-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; }.awareness-tabs a { padding: 7px 11px; border: 1px solid var(--console-line); border-radius: 4px; color: #91a69d; font-size: .7rem; text-transform: uppercase; }.awareness-tabs a:first-child { border-color: var(--console-green); color: var(--console-green); }
+.awareness-layer-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }.awareness-layer-card { border: 1px solid var(--console-line); border-radius: 6px; padding: 12px; background: #081310; }.awareness-layer-card header { display: flex; gap: 9px; align-items: center; margin-bottom: 9px; }.awareness-layer-card header > span { display: grid; place-items: center; width: 35px; height: 35px; border: 1px solid var(--console-green); border-radius: 50%; color: var(--console-green); font-size: .7rem; }.awareness-layer-card header div { display: grid; }.awareness-layer-card header small { color: #71877e; font-size: .63rem; }.awareness-raw-data { margin-top: 13px; border-top: 1px solid var(--console-line); padding-top: 12px; }
+.awareness-console-empty { grid-column: 1 / -1; margin: 0; padding: 22px; color: #7f948b; font-size: .76rem; }.awareness-prediction-line { display: grid; grid-template-columns: repeat(4,1fr); position: relative; }.awareness-prediction-line::before { content: ""; position: absolute; top: 17px; left: 12.5%; right: 12.5%; height: 1px; background: #416057; }.awareness-prediction-line article { position: relative; display: grid; justify-items: center; gap: 8px; padding: 10px; text-align: center; }.awareness-prediction-line i { z-index: 1; width: 14px; height: 14px; border: 3px solid #0c1916; border-radius: 50%; background: var(--console-green); }.awareness-prediction-line span { color: #7d9289; font-size: .66rem; }.awareness-prediction-line strong { font-size: .74rem; font-weight: 500; }
+.awareness-reasoning-flow { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 15px; }.awareness-reasoning-flow span { border: 1px solid var(--console-line); border-radius: 5px; padding: 9px 12px; font-size: .72rem; }.awareness-reasoning-flow b { color: #71877e; }.awareness-reasoning-flow strong { color: var(--console-green); font-size: 1.2rem; }.awareness-reasoning-result { padding: 13px 16px; border: 1px solid #345b4d; border-radius: 6px; background: #0c211a; }
+.awareness-event-list { display: grid; }.awareness-event-list > div { display: grid; grid-template-columns: 110px 10px 1fr; align-items: center; gap: 12px; min-height: 34px; }.awareness-event-list time { color: #71877e; font: .68rem ui-monospace, monospace; }.awareness-event-list i { width: 7px; height: 7px; border-radius: 50%; background: var(--console-green); }.awareness-event-list span { font-size: .75rem; }
+.awareness-console-footer { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--console-line); background: rgba(5,13,11,.98); overflow-x: auto; }.awareness-console-footer strong { color: #62766d; font-size: .65rem; text-transform: uppercase; }.awareness-console-footer a { color: #91a69d; font-size: .7rem; padding: 6px; white-space: nowrap; }.awareness-console-footer > span { margin-left: auto; color: var(--console-green); font-size: .68rem; white-space: nowrap; }
+@media (max-width: 1100px) { .awareness-console-triad { grid-template-columns: 1fr 1fr; }.awareness-camera-column { grid-column: 1 / -1; }.awareness-layer-grid { grid-template-columns: repeat(2,1fr); }.awareness-console-bar { position: static; flex-wrap: wrap; }.awareness-console-bar label { margin-left: 0; }.awareness-pipeline-strip { grid-template-columns: repeat(3,1fr); }.awareness-pipeline-strip > div:first-child { grid-column: 1 / -1; }.admin-awareness-studio { height: auto; min-height: 0; padding: 10px; overflow: visible !important; }.admin-awareness-studio > .training-stage,.admin-awareness-studio > .training-panel,.admin-awareness-studio > .feedback-banner,.admin-awareness-studio > .conversation-crate { position: relative !important; inset: auto !important; width: 100% !important; height: auto !important; min-height: 0 !important; max-height: none !important; margin: 0 0 10px !important; }.admin-awareness-studio > .training-stage { height: 520px !important; min-height: 520px !important; }.admin-awareness-studio > .feedback-banner { display: flex !important; } }
+@media (max-width: 700px) { .awareness-console { padding-inline: 8px; }.awareness-console-triad, .awareness-layer-grid { grid-template-columns: 1fr; }.awareness-camera-column { grid-column: auto; }.awareness-object-table > div[role="row"] { grid-template-columns: 1fr 1fr; }.awareness-object-table .is-heading { display: none !important; }.awareness-prediction-line { grid-template-columns: 1fr; }.awareness-prediction-line::before { display: none; }.awareness-console-footer label { display: none; } }
+
+/* Awareness console simplification: use the viewport and keep only actionable evidence. */
+.awareness-console { padding: 76px 8px 28px; }
+.awareness-console-bar,
+.awareness-studio-controls,
+.awareness-pipeline-strip,
+.awareness-console-section { width: 100%; max-width: none; margin-right: 0; margin-left: 0; }
+.awareness-console-bar { top: 64px; margin-bottom: 8px; }
+.awareness-studio-controls,
+.awareness-pipeline-strip,
+.awareness-console-section { margin-bottom: 8px; }
+#objects,
+#relations,
+.awareness-tabs,
+.awareness-console-footer { display: none !important; }
+.world-node.is-pending { opacity: .42; }
+.admin-awareness-studio { height: 820px; min-height: 820px; }
+.admin-awareness-studio > .training-stage { right: 310px !important; left: 310px !important; height: 820px !important; min-height: 820px !important; }
+.admin-awareness-studio > .training-panel { width: 286px !important; }
+.admin-awareness-studio > .feedback-banner { right: 326px !important; left: 326px !important; }
+.admin-awareness-studio > .conversation-crate { right: 326px !important; width: min(430px, calc(100% - 676px)) !important; }
+@media (max-width: 1100px) {
+  .admin-awareness-studio { height: auto; min-height: 0; }
+  .admin-awareness-studio > .training-stage { height: 540px !important; min-height: 540px !important; }
+}
+
+/* Compact awareness dashboard: Studio left, awareness evidence right. */
+.awareness-console-triad { position: relative; grid-template-columns: minmax(0, 7fr) minmax(330px, 3fr); align-items: stretch; }
+.awareness-console-triad > .awareness-studio-controls { position: absolute; z-index: 12; top: 42px; left: 0; width: calc(70% - 7px); min-height: 48px; margin: 0; border-width: 0 0 1px; border-radius: 0; background: rgba(5, 12, 11, .94); }
+.awareness-console-triad > .awareness-camera-column { grid-column: 1; grid-row: 1 / span 2; padding-top: 48px; }
+.awareness-console-triad > .awareness-world-column { grid-column: 2; grid-row: 1; }
+.awareness-console-triad > .awareness-current-column { grid-column: 2; grid-row: 2; }
+.admin-awareness-studio { height: 620px; min-height: 620px; }
+.admin-awareness-studio > .training-stage { right: 202px !important; left: 202px !important; height: 620px !important; min-height: 620px !important; }
+.admin-awareness-studio > .training-panel { width: 190px !important; font-size: .82em; }
+.admin-awareness-studio > .training-panel--left { left: 6px !important; }
+.admin-awareness-studio > .training-panel--right { right: 6px !important; }
+.admin-awareness-studio > .feedback-banner { top: 8px !important; right: 212px !important; left: 212px !important; }
+.admin-awareness-studio > .conversation-crate { right: 212px !important; bottom: 8px !important; width: min(300px, calc(100% - 436px)) !important; max-height: 220px !important; }
+.awareness-world-graph { min-height: 190px; }
+.world-node--user { top: 58px; }.world-node--camera { top: 18px; }.world-node--floor { bottom: 12px; }
+.awareness-score-stack { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 12px; }
+.awareness-current-column blockquote { padding: 10px 12px; }
+.awareness-sensor-list { grid-template-columns: repeat(2, minmax(0,1fr)); }
+@media (max-width: 1250px) {
+  .awareness-console-triad { grid-template-columns: 1fr; }
+  .awareness-console-triad > .awareness-studio-controls { position: relative; top: auto; left: auto; width: 100%; grid-column: 1; grid-row: 1; }
+  .awareness-console-triad > .awareness-camera-column { grid-column: 1; grid-row: 2; padding-top: 0; }
+  .awareness-console-triad > .awareness-world-column { grid-column: 1; grid-row: 3; }
+  .awareness-console-triad > .awareness-current-column { grid-column: 1; grid-row: 4; }
+}
+
+/* Dense desktop composition for side-by-side awareness testing. */
+@media (min-width: 1251px) {
+  .awareness-console { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .awareness-console > .awareness-console-bar,
+  .awareness-console > .awareness-pipeline-strip,
+  .awareness-console > #camera { grid-column: 1 / -1; margin-bottom: 0; }
+  .awareness-console > #selected-object,
+  .awareness-console > #prediction,
+  .awareness-console > #reasoning,
+  .awareness-console > #timeline { grid-column: auto; margin-bottom: 0; }
+  .awareness-console > #selected-object .awareness-layer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .awareness-console > #timeline,
+  .awareness-console > #reasoning { align-self: start; }
+}
+.awareness-backend-status strong { color: #81948c; text-transform: capitalize; }
+.awareness-backend-status.is-live strong { color: var(--console-green); }
+.awareness-backend-status.is-offline strong,
+.awareness-backend-status.is-error strong,
+.awareness-backend-status.is-authentication-required strong,
+.awareness-backend-status.is-admin-required strong { color: #ff8c94; }
+.awareness-decision-comparison { margin: 8px 10px 0; border: 1px solid var(--console-line); border-radius: 6px; background: rgba(5, 19, 15, .72); overflow: hidden; }
+.awareness-decision-comparison > header { display: flex; justify-content: space-between; gap: 8px; padding: 7px 9px; border-bottom: 1px solid var(--console-line); }
+.awareness-decision-comparison > header strong { font-size: 8px; letter-spacing: .05em; text-transform: uppercase; }
+.awareness-decision-comparison > header span { color: var(--console-green); font-size: 7px; text-transform: uppercase; }
+.awareness-decision-comparison > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8px; padding: 4px 9px; }
+.awareness-decision-comparison .awareness-value { min-width: 0; padding: 5px 0; }
+.awareness-decision-comparison .awareness-value span,
+.awareness-decision-comparison .awareness-value strong { overflow: hidden; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.awareness-governance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; }
+.awareness-governance-card { min-width: 0; border: 1px solid var(--console-line); border-radius: 6px; background: rgba(5,19,15,.72); overflow: hidden; }
+.awareness-governance-card > header { display: flex; justify-content: space-between; gap: 10px; padding: 9px 10px; border-bottom: 1px solid var(--console-line); }
+.awareness-governance-card > header strong { font-size: 9px; text-transform: uppercase; }
+.awareness-governance-card > header span { overflow: hidden; color: var(--console-muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.awareness-knowledge-thresholds,.awareness-evaluation-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 0 10px; padding: 7px 10px; }
+.awareness-governance-actions { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--console-line); }
+.awareness-governance-actions input { width: 100px; min-width: 0; border: 1px solid var(--console-line); border-radius: 4px; background: #07130f; color: #e5efeb; padding: 6px 8px; font-size: 8px; }
+.awareness-governance-actions button,.awareness-profile-list button { border: 1px solid #34795d; border-radius: 4px; background: #0c2a20; color: #bdf4d7; padding: 6px 8px; font-size: 8px; cursor: pointer; }
+.awareness-governance-message { margin: 0; padding: 0 10px 8px; color: var(--console-green); font-size: 8px; }
+.awareness-profile-list,.awareness-evaluation-list { max-height: 240px; overflow-y: auto; }
+.awareness-profile-list article { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid rgba(75,134,111,.22); }
+.awareness-profile-list article:first-child { border-top: 0; }
+.awareness-profile-list article > div { display: grid; gap: 2px; }
+.awareness-profile-list strong { font-size: 8px; }.awareness-profile-list span { color: var(--console-muted); font-size: 7px; }
+.awareness-governance-card--evaluations { grid-column: 1 / -1; }
+.awareness-evaluation-list article { display: grid; grid-template-columns: 45px minmax(0,1fr) auto; gap: 8px; padding: 7px 10px; border-top: 1px solid rgba(75,134,111,.22); font-size: 8px; }
+.awareness-evaluation-list article > span,.awareness-evaluation-list article > small { color: var(--console-muted); }
+@media (max-width: 900px) { .awareness-governance-grid { grid-template-columns: 1fr; }.awareness-governance-card--evaluations { grid-column: 1; } }
+
+/* Train Mode is embedded at half-page width, so use compact studio typography. */
+.admin-awareness-studio { font-size: 11px; }
+.admin-awareness-studio .eyebrow,
+.admin-awareness-studio .panel-heading,
+.admin-awareness-studio .technique-meta,
+.admin-awareness-studio .practice-copy,
+.admin-awareness-studio small { font-size: 9px !important; }
+.admin-awareness-studio h1 { font-size: 15px !important; line-height: 1.15 !important; }
+.admin-awareness-studio h2,
+.admin-awareness-studio h3,
+.admin-awareness-studio .master-focus,
+.admin-awareness-studio .master-status { font-size: 10px !important; }
+.admin-awareness-studio .step-button { min-height: 38px; padding: 7px 8px; font-size: 10px; line-height: 1.2; }
+.admin-awareness-studio .step-button > span { font-size: 9px; }
+.admin-awareness-studio .master-feedback-text { font-size: 17px !important; line-height: 1.15 !important; }
+.admin-awareness-studio .feedback-banner__message { padding: 8px 10px !important; }
+.admin-awareness-studio .conversation-crate { font-size: 10px; }
+.admin-awareness-studio .conversation-line { padding: 7px 8px; font-size: 10px; line-height: 1.3; }
+.admin-awareness-studio .conversation-crate__header,
+.admin-awareness-studio .coach-actions { padding: 7px 8px; }
+.admin-awareness-studio .panel-block { padding: 10px !important; }
+.admin-awareness-studio .awareness-panel,
+.admin-awareness-studio .data-layers-panel,
+.admin-awareness-studio .metrics-panel { font-size: 10px; }
+.admin-awareness-studio .advanced-analysis-button { min-height: 38px; padding: 7px 8px; font-size: 9px; }
+.admin-awareness-studio > .training-stage { right: 182px !important; left: 182px !important; }
+.admin-awareness-studio > .training-panel { width: 170px !important; }
+.admin-awareness-studio > .feedback-banner { right: 192px !important; left: 192px !important; }
+.admin-awareness-studio > .conversation-crate { right: 192px !important; width: min(280px, calc(100% - 394px)) !important; }
+.admin-awareness-studio .awareness-compact-session,
+.admin-awareness-studio .metrics-panel > .accuracy-card,
+.admin-awareness-studio .metrics-panel > .form-score-details { display: none !important; }
+.admin-awareness-studio > .feedback-banner { right: auto !important; left: 50% !important; width: min(560px, calc(100% - 400px)) !important; transform: translateX(-50%); }
+
+/* Final desktop workspace: sticky 40% Studio and scrollable 60% evidence column. */
+@media (min-width: 1251px) {
+  .awareness-console {
+    display: grid;
+    grid-template-columns: minmax(470px, 40fr) minmax(620px, 60fr);
+    grid-auto-flow: row;
+    align-items: start;
+    gap: 8px;
+  }
+  .awareness-console > .awareness-console-bar,
+  .awareness-console > .awareness-pipeline-strip { grid-column: 1 / -1; }
+  .awareness-console > #camera,
+  .awareness-console > #camera > .awareness-console-section__body,
+  .awareness-console > #camera .awareness-console-triad { display: contents; }
+  .awareness-console > #camera > summary { display: none; }
+  .awareness-console-triad > .awareness-studio-controls {
+    position: sticky;
+    top: 126px;
+    left: auto;
+    grid-column: 1;
+    grid-row: 3;
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--console-line);
+    border-radius: 8px 8px 0 0;
+  }
+  .awareness-console-triad > .awareness-camera-column {
+    position: sticky;
+    top: 176px;
+    grid-column: 1;
+    grid-row: 4 / span 5;
+    align-self: start;
+    max-height: calc(100vh - 186px);
+    overflow-y: auto;
+    padding-top: 0;
+  }
+  .awareness-console-triad > .awareness-world-column { grid-column: 2; grid-row: 3; }
+  .awareness-console-triad > .awareness-current-column { grid-column: 2; grid-row: 4; }
+  .awareness-console > #selected-object { grid-column: 2; grid-row: 5; }
+  .awareness-console > #prediction { grid-column: 2; grid-row: 6; }
+  .awareness-console > #reasoning { grid-column: 2; grid-row: 7; }
+  .awareness-console > #timeline { grid-column: 2; grid-row: 8; }
+  .awareness-console > #selected-object,
+  .awareness-console > #prediction,
+  .awareness-console > #reasoning,
+  .awareness-console > #timeline { width: 100%; margin: 0; }
+  .awareness-console > #selected-object .awareness-layer-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  .admin-awareness-studio {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    height: auto;
+    min-height: 0;
+    padding: 6px;
+    overflow: visible !important;
+  }
+  .admin-awareness-studio > .training-stage {
+    position: relative !important;
+    inset: auto !important;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100% !important;
+    height: 390px !important;
+    min-height: 390px !important;
+    border: 1px solid var(--console-line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .admin-awareness-studio > .feedback-banner {
+    position: relative !important;
+    inset: auto !important;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100% !important;
+    min-height: 48px;
+    margin: 0 !important;
+    transform: none;
+  }
+  .admin-awareness-studio > .training-panel {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-height: 310px !important;
+    overflow-y: auto;
+  }
+  .admin-awareness-studio > .training-panel--left { grid-column: 1; grid-row: 3; }
+  .admin-awareness-studio > .training-panel--right { grid-column: 2; grid-row: 3; }
+  .admin-awareness-studio > .conversation-crate {
+    position: relative !important;
+    inset: auto !important;
+    grid-column: 1 / -1;
+    grid-row: 4;
+    width: 100% !important;
+    max-height: 230px !important;
+    margin: 0 !important;
+  }
+  .awareness-sensor-list { grid-column: 1 / -1; }
+}
+
+/* Stable 40/60 console composition. This supersedes the experimental flattened grid. */
+@media (min-width: 1251px) {
+  .awareness-console {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .awareness-console > .awareness-console-bar,
+  .awareness-console > .awareness-pipeline-strip,
+  .awareness-console > #camera { grid-column: 1 / -1; display: block; }
+  .awareness-console > #camera > summary { display: grid; }
+  .awareness-console > #camera > .awareness-console-section__body { display: block; }
+  .awareness-console > #camera .awareness-console-triad {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(460px, 40fr) minmax(620px, 60fr);
+    grid-template-rows: auto auto;
+    gap: 8px;
+  }
+  .awareness-console-triad > .awareness-studio-controls {
+    position: absolute;
+    z-index: 12;
+    top: 42px;
+    left: 0;
+    width: calc(40% - 4px);
+    min-height: 40px;
+    margin: 0;
+  }
+  .awareness-console-triad > .awareness-camera-column {
+    position: relative;
+    top: auto;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 100%;
+    max-height: none;
+    overflow: hidden;
+    padding-top: 44px;
+  }
+  .awareness-console-triad > .awareness-world-column {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 300px;
+  }
+  .awareness-console-triad > .awareness-current-column {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 300px;
+  }
+  .awareness-console > #selected-object,
+  .awareness-console > #prediction,
+  .awareness-console > #reasoning,
+  .awareness-console > #timeline {
+    position: relative;
+    grid-column: auto;
+    grid-row: auto;
+    width: 100%;
+    margin: 0;
+  }
+  .awareness-console > #selected-object .awareness-layer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .admin-awareness-studio { font-size: 9px; }
+  .admin-awareness-studio .master-feedback-text { font-size: 13px !important; }
+  .admin-awareness-studio .conversation-line,
+  .admin-awareness-studio .focus-board p,
+  .admin-awareness-studio .coach-feedback { font-size: 9px !important; line-height: 1.3 !important; }
+  .admin-awareness-studio .metric-card strong { font-size: 10px !important; }
+  .admin-awareness-studio .metric-card small,
+  .admin-awareness-studio .metric-card em { font-size: 8px !important; }
+  .admin-awareness-studio > .training-stage { height: 340px !important; min-height: 340px !important; }
+  .admin-awareness-studio > .training-panel { max-height: 250px !important; }
+  .admin-awareness-studio > .conversation-crate { max-height: 180px !important; }
+  .awareness-sensor-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Awareness is a focused application workspace, not a marketing-site page. */
+.awareness-console { padding-top: 8px; }
+.awareness-console > .awareness-console-bar {
+  display: flex !important;
+  grid-column: 1 / -1 !important;
+  align-items: center !important;
+  min-height: 54px !important;
+  height: auto !important;
+  padding: 8px 12px !important;
+}
+.awareness-console > .awareness-console-bar .awareness-technique-select { margin-left: auto !important; }
+.awareness-console > .awareness-pipeline-strip {
+  display: grid !important;
+  grid-column: 1 / -1 !important;
+  grid-template-columns: minmax(210px, 1.5fr) repeat(6, minmax(92px, .7fr)) !important;
+  align-items: stretch !important;
+  min-height: 54px !important;
+  height: auto !important;
+}
+.awareness-console > .awareness-pipeline-strip > div {
+  min-height: 54px !important;
+  height: 54px !important;
+  align-content: center;
+}
+@media (max-width: 1100px) {
+  .awareness-console > .awareness-pipeline-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .awareness-console > .awareness-pipeline-strip > div:first-child { grid-column: 1 / -1; }
+}
+
+/* Three-column desktop: 40% camera, 30% Studio support, 30% awareness. */
+@media (min-width: 1251px) {
+  .awareness-console > #camera .awareness-console-triad {
+    grid-template-columns: minmax(760px, 70fr) minmax(330px, 30fr);
+  }
+  .awareness-console-triad > .awareness-studio-controls { width: calc(70% - 4px); }
+  .awareness-console-triad > .awareness-camera-column { grid-column: 1; grid-row: 1 / span 2; }
+  .awareness-console-triad > .awareness-world-column { grid-column: 2; grid-row: 1; }
+  .awareness-console-triad > .awareness-current-column { grid-column: 2; grid-row: 2; }
+
+  .admin-awareness-studio {
+    grid-template-columns: minmax(0, 4fr) minmax(260px, 3fr);
+    grid-template-rows: 240px 240px auto;
+    align-items: stretch;
+  }
+  .admin-awareness-studio > .training-stage {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    height: 486px !important;
+    min-height: 486px !important;
+  }
+  .admin-awareness-studio > .training-panel--left {
+    grid-column: 2;
+    grid-row: 1;
+    max-height: 240px !important;
+  }
+  .admin-awareness-studio > .training-panel--right {
+    grid-column: 2;
+    grid-row: 2;
+    max-height: 240px !important;
+  }
+  .admin-awareness-studio > .feedback-banner {
+    grid-column: 1;
+    grid-row: 3;
+    width: 100% !important;
+    min-height: 46px;
+  }
+  .admin-awareness-studio > .conversation-crate {
+    grid-column: 2;
+    grid-row: 3;
+    width: 100% !important;
+    max-height: 180px !important;
+  }
+  .admin-awareness-studio .panel-block { padding: 7px !important; }
+  .admin-awareness-studio .awareness-panel { font-size: 8px; }
+  .admin-awareness-studio .step-button { min-height: 32px; padding: 5px 6px; }
+}
+
+/* Corrected composition: all Studio content stays in 40%; awareness uses 30% + 30%. */
+@media (min-width: 1251px) {
+  .awareness-console > #camera .awareness-console-triad {
+    grid-template-columns: minmax(470px, 40fr) minmax(300px, 30fr) minmax(300px, 30fr);
+    grid-template-rows: auto;
+  }
+  .awareness-console-triad > .awareness-studio-controls { width: calc(40% - 5px); }
+  .awareness-console-triad > .awareness-camera-column {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .awareness-console-triad > .awareness-world-column {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .awareness-console-triad > .awareness-current-column {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .admin-awareness-studio {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+  .admin-awareness-studio > .training-stage {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    height: 350px !important;
+    min-height: 350px !important;
+  }
+  .admin-awareness-studio > .feedback-banner {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100% !important;
+  }
+  .admin-awareness-studio > .training-panel--left {
+    grid-column: 1;
+    grid-row: 3;
+    max-height: 270px !important;
+  }
+  .admin-awareness-studio > .training-panel--right {
+    grid-column: 2;
+    grid-row: 3;
+    max-height: 270px !important;
+  }
+  .admin-awareness-studio > .conversation-crate {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    width: 100% !important;
+    max-height: 180px !important;
+  }
+}
+.awareness-console-triad > .awareness-studio-controls { gap: 4px; padding: 5px; }
+.awareness-console-triad > .awareness-studio-controls button { min-height: 32px; padding: 0 8px; font-size: 9px; }
+.awareness-console-triad > .awareness-studio-controls label { min-height: 32px; font-size: 8px; }
+.awareness-console-triad > .awareness-studio-controls label select { height: 29px; font-size: 9px; }
+
+/* Dense admin summaries fill the awareness columns with actionable live state. */
+.awareness-admin-fill {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--console-line);
+}
+.awareness-admin-card {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--console-line);
+  border-radius: 6px;
+  background: rgba(8, 25, 20, .72);
+}
+.awareness-admin-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -2px 0 8px;
+  padding: 0;
+  border: 0;
+}
+.awareness-admin-card > header strong { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.awareness-admin-card > header span { color: var(--console-green); font-size: 8px; text-transform: uppercase; }
+.awareness-admin-card > p { margin: 8px 0 0; color: var(--console-muted); font-size: 8px; line-height: 1.45; }
+.awareness-admin-status { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.awareness-admin-status li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(77, 120, 104, .28);
+  color: var(--console-muted);
+  font-size: 8px;
+}
+.awareness-admin-status li:first-child { border-top: 0; }
+.awareness-admin-status strong { color: #70847c; text-align: right; }
+.awareness-admin-status strong.is-active { color: var(--console-green); }
+.awareness-admin-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; }
+.awareness-admin-values .awareness-value { min-width: 0; padding: 6px 0; }
+.awareness-admin-values .awareness-value span,
+.awareness-admin-values .awareness-value strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
+.awareness-world-column,
+.awareness-current-column { align-self: stretch; }
+.awareness-current-column .awareness-admin-fill { margin-top: 8px; }
+
+/* The camera output and overlay share the entire Studio stage. */
+.admin-awareness-studio > .training-stage .skeleton-canvas,
+.admin-awareness-studio > .training-stage .skeleton-canvas video,
+.admin-awareness-studio > .training-stage .skeleton-canvas canvas {
+  inset: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+@media (max-width: 1500px) {
+  .awareness-admin-fill { grid-template-columns: 1fr; }
+}
+
+.awareness-embedded-panel {
+  margin: 8px 10px 0;
+  border: 1px solid var(--console-line);
+  border-radius: 6px;
+  background: rgba(5, 19, 15, .76);
+  overflow: hidden;
+}
+.awareness-embedded-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--console-line);
+}
+.awareness-embedded-panel > header strong { font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
+.awareness-embedded-panel > header span { color: var(--console-muted); font-size: 8px; text-transform: uppercase; }
+.awareness-embedded-layers .awareness-layer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 8px;
+}
+.awareness-embedded-layers .awareness-layer-card { min-height: 150px; }
+.awareness-embedded-panel .awareness-admin-values { padding: 4px 9px; }
+.awareness-embedded-message { margin: 0 9px 9px; padding: 8px; border-left: 2px solid var(--console-green); background: rgba(52, 210, 139, .06); color: #cad8d2; font-size: 8px; line-height: 1.4; }
+.awareness-prediction-line--compact { padding: 14px 9px 12px; }
+.awareness-prediction-line--compact article strong { max-width: 100px; font-size: 8px; }
+.awareness-embedded-events { margin-bottom: 10px; }
+.awareness-embedded-events .awareness-event-list { max-height: 180px; padding: 7px 9px; overflow-y: auto; }
+.awareness-embedded-events .awareness-event-list > div { font-size: 8px; }
+
+@media (min-width: 1251px) {
+  /* These diagnostics now occupy the formerly empty awareness columns. */
+  .awareness-console > #selected-object,
+  .awareness-console > #prediction,
+  .awareness-console > #reasoning,
+  .awareness-console > #timeline { display: none; }
+}
+@media (max-width: 1250px) {
+  .awareness-embedded-panel { display: none; }
+}
+
+/* Use the unused side of the 4:3 camera stage for live admin telemetry. */
+.awareness-camera-telemetry {
+  position: absolute;
+  z-index: 8;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: calc(49% - 12px);
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  border: 1px solid rgba(75, 134, 111, .55);
+  border-radius: 6px;
+  background: linear-gradient(145deg, rgba(5, 18, 14, .97), rgba(3, 11, 9, .94));
+  color: #dce7e2;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .32);
+}
+.awareness-camera-telemetry > header,
+.awareness-camera-telemetry > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(75, 134, 111, .35);
+}
+.awareness-camera-telemetry > header > div { display: flex; align-items: center; gap: 6px; }
+.awareness-camera-telemetry > header strong { font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.awareness-camera-telemetry > header small { color: #55e7a3; font-size: 7px; text-transform: uppercase; }
+.awareness-camera-telemetry__pulse { width: 6px; height: 6px; border-radius: 50%; background: #55e7a3; box-shadow: 0 0 9px #55e7a3; }
+.awareness-camera-telemetry > section { padding: 9px 10px; border-bottom: 1px solid rgba(75, 134, 111, .25); }
+.awareness-camera-telemetry h3 { margin: 0 0 7px; color: #8aa298; font-size: 7px; letter-spacing: .08em; text-transform: uppercase; }
+.awareness-camera-telemetry dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; margin: 0; }
+.awareness-camera-telemetry dl div { display: flex; justify-content: space-between; gap: 6px; min-width: 0; padding: 5px 0; border-top: 1px solid rgba(75, 134, 111, .18); }
+.awareness-camera-telemetry dl div:nth-child(-n+2) { border-top: 0; }
+.awareness-camera-telemetry dt { color: #80948c; font-size: 7px; }
+.awareness-camera-telemetry dd { min-width: 0; margin: 0; overflow: hidden; color: #f2f7f5; font-size: 7px; font-weight: 700; text-align: right; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
+.awareness-camera-gates > div { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 7px; margin-top: 8px; }
+.awareness-camera-gates > div > span { color: #91a69d; font-size: 7px; }
+.awareness-camera-gates > div > i { height: 4px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.awareness-camera-gates > div > i > b { display: block; height: 100%; border-radius: inherit; background: #55e7a3; box-shadow: 0 0 8px rgba(85,231,163,.35); transition: width .2s ease; }
+.awareness-camera-telemetry > footer { align-self: end; border-top: 1px solid rgba(75, 134, 111, .35); border-bottom: 0; font-size: 7px; }
+.awareness-camera-telemetry > footer span { color: #80948c; text-transform: uppercase; }
+.awareness-camera-telemetry > footer strong { color: #55e7a3; text-transform: capitalize; }
+
+@media (max-width: 700px) {
+  .awareness-camera-telemetry { display: none; }
+}
+
+/* Compact joint-angle monitor occupying the unused side of the camera stage. */
+.awareness-camera-angles {
+  position: absolute;
+  z-index: 8;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: calc(49% - 12px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border: 1px solid rgba(75, 134, 111, .55);
+  border-radius: 6px;
+  background: linear-gradient(145deg, rgba(5, 18, 14, .97), rgba(3, 11, 9, .94));
+  color: #dce7e2;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .32);
+}
+.awareness-camera-angles > header,
+.awareness-camera-angles > footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border-bottom: 1px solid rgba(75, 134, 111, .35); }
+.awareness-camera-angles > header > div { display: flex; align-items: center; gap: 6px; }
+.awareness-camera-angles > header > div > span { width: 6px; height: 6px; border-radius: 50%; background: #55e7a3; box-shadow: 0 0 9px #55e7a3; }
+.awareness-camera-angles > header strong { font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.awareness-camera-angles > header small { color: #55e7a3; font-size: 7px; text-transform: uppercase; }
+.awareness-camera-angles__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-content: start; padding: 8px; overflow-y: auto; }
+.awareness-camera-angles__grid article { min-width: 0; padding: 7px; border: 1px solid rgba(127, 151, 142, .35); border-radius: 5px; background: rgba(255,255,255,.025); }
+.awareness-camera-angles__grid article.is-good { border-color: rgba(85, 231, 163, .65); background: rgba(85, 231, 163, .07); }
+.awareness-camera-angles__grid article.is-low { border-color: rgba(230, 93, 103, .65); background: rgba(230, 93, 103, .07); }
+.awareness-camera-angles__grid article > span { display: block; overflow: hidden; color: #91a69d; font-size: 7px; font-weight: 700; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.awareness-camera-angles__grid article > strong { display: block; margin: 5px 0 3px; color: #f4f8f6; font-size: 15px; }
+.awareness-camera-angles__grid article > small { display: block; color: #7f958c; font-size: 6px; white-space: nowrap; }
+.awareness-camera-angles__grid article > i { display: block; margin-top: 5px; color: #b8c8c1; font-size: 7px; font-style: normal; }
+.awareness-camera-angles__grid article.is-good > i { color: #55e7a3; }
+.awareness-camera-angles__grid article.is-low > i { color: #ff8c94; }
+.awareness-camera-angles > footer { border-top: 1px solid rgba(75, 134, 111, .35); border-bottom: 0; font-size: 7px; }
+.awareness-camera-angles > footer span { color: #80948c; text-transform: uppercase; }
+.awareness-camera-angles > footer strong { overflow: hidden; color: #e1ebe7; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) { .awareness-camera-angles { display: none; } }
+
+/* Camera-first compact Studio: 65% live view, 35% angle monitor. */
+@media (min-width: 1251px) {
+  .admin-awareness-studio > .training-stage {
+    grid-area: 1 / 1 / 2 / -1 !important;
+    width: 100% !important;
+    height: 410px !important;
+    min-height: 410px !important;
+  }
+  .admin-awareness-studio > .feedback-banner {
+    grid-area: 2 / 1 / 3 / -1 !important;
+  }
+  .admin-awareness-studio > .training-panel--left {
+    grid-area: 3 / 1 / 5 / 2 !important;
+    max-height: 360px !important;
+  }
+  .admin-awareness-studio > .training-panel--right {
+    grid-area: 3 / 2 / 4 / 3 !important;
+    max-height: 90px !important;
+    overflow: hidden;
+  }
+  .admin-awareness-studio > .conversation-crate {
+    grid-area: 4 / 2 / 5 / 3 !important;
+    width: 100% !important;
+    max-height: 264px !important;
+    min-height: 190px;
+  }
+  .awareness-camera-angles {
+    width: calc(35% - 10px);
+  }
+  .awareness-camera-angles__grid {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    overflow-x: hidden;
+  }
+  .awareness-camera-angles__grid article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 8px;
+    padding: 6px 7px;
+  }
+  .awareness-camera-angles__grid article > strong {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    font-size: 12px;
+  }
+  .awareness-camera-angles__grid article > small,
+  .awareness-camera-angles__grid article > i {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .awareness-camera-angles__grid article > small { grid-column: 1; margin: 0; }
+  .awareness-camera-angles__grid article > i { grid-column: 2; grid-row: 2; margin: 0; text-align: right; }
+}

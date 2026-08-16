@@ -25,6 +25,7 @@ const ModelTestPage = lazy(() => import("./pages/ModelTestPage"));
 const TemporalDataLab = lazy(() => import("./pages/TemporalDataLab"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const ManualTechniqueCatalogAdmin = lazy(() => import("./pages/ManualTechniqueCatalogAdmin"));
+const AdminAwareness = lazy(() => import("./pages/AdminAwareness"));
 
 function AppRoutes() {
   const location = useLocation();
@@ -35,14 +36,16 @@ function AppRoutes() {
     "/training",
     "/admin-training",
     "/admin-manual-catalog",
+    "/admin-awareness",
   ].includes(location.pathname);
   const showSharedParticles = location.pathname !== "/" && !isLiveStudioRoute;
   const isDashboard = location.pathname.startsWith("/dashboard");
+  const isAwarenessConsole = location.pathname === "/admin-awareness";
 
   return (
     <div className={`app-shell ${isStudio ? "app-shell--studio" : ""}`}>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <Navbar />
+      {!isAwarenessConsole ? <Navbar /> : null}
 
       <div id="main-content" tabIndex="-1">
         {showSharedParticles ? (
@@ -79,6 +82,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="admin">
               <TemporalDataLab />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-awareness"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminAwareness />
             </ProtectedRoute>
           }
         />
@@ -146,7 +157,7 @@ function AppRoutes() {
           </Routes>
         </Suspense>
       </div>
-      {!isStudio && !isDashboard ? <Footer /> : null}
+      {!isStudio && !isDashboard && !isAwarenessConsole ? <Footer /> : null}
     </div>
   );
 }

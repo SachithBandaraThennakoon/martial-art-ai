@@ -84,9 +84,14 @@ export default function Studio({ isAdminStudio = false }) {
                   View my analysis
                 </Link>
               ) : (
-                <Link className="btn btn--ghost" to="/model-test">
-                  Open model test
-                </Link>
+                <>
+                  <Link className="btn btn--ghost" to="/admin-awareness">
+                    Test awareness
+                  </Link>
+                  <Link className="btn btn--ghost" to="/model-test">
+                    Open model test
+                  </Link>
+                </>
               )}
             </div>
           </div>
