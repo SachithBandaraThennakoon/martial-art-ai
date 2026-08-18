@@ -77,3 +77,52 @@ class AwarenessDecisionEvaluation(Base):
     knowledge_profile_id = Column(String(96), nullable=False)
     knowledge_version = Column(String(32), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AwarenessObjectMemory(Base):
+    __tablename__ = "awareness_object_memories"
+    __table_args__ = (UniqueConstraint("user_id", "object_id", name="uq_awareness_object_memory"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    object_id = Column(String(96), nullable=False)
+    object_type = Column(String(48), nullable=False, index=True)
+    l4_json = Column(Text, nullable=False, default="{}")
+    session_keys_json = Column(Text, nullable=False, default="[]")
+    lifetime_observations = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AwarenessRelationshipMemory(Base):
+    __tablename__ = "awareness_relationship_memories"
+    __table_args__ = (UniqueConstraint("user_id", "relationship_id", name="uq_awareness_relationship_memory"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    relationship_id = Column(String(160), nullable=False)
+    relationship_type = Column(String(64), nullable=False, index=True)
+    l4_json = Column(Text, nullable=False, default="{}")
+    session_keys_json = Column(Text, nullable=False, default="[]")
+    lifetime_observations = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AwarenessActionDelivery(Base):
+    __tablename__ = "awareness_action_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "awareness_session_id", "revision", "action_id",
+            name="uq_awareness_action_delivery",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    awareness_session_id = Column(Integer, ForeignKey("awareness_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    revision = Column(Integer, nullable=False, index=True)
+    action_id = Column(String(128), nullable=False)
+    channel = Column(String(32), nullable=False, index=True)
+    command = Column(String(64), nullable=False)
+    status = Column(String(24), nullable=False, index=True)
+    latency_ms = Column(Float, nullable=False, default=0)
+    detail_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

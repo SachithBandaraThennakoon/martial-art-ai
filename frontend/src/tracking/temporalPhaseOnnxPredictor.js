@@ -1,4 +1,5 @@
 import * as ort from "onnxruntime-web/wasm";
+import { configureWasmRuntime } from "./onnxRuntimeAssets.js";
 import {
   logitsToStateProbabilities,
   validateTemporalModelMetadata
@@ -8,6 +9,8 @@ const MODEL_PATH = "/models/jab/temporal_phase_classifier.onnx?v=jab-temporal-v1
 const METADATA_PATH = "/models/jab/temporal_phase_classifier.metadata.json?v=jab-temporal-v1";
 const MINIMUM_FRAMES = 12;
 const INFERENCE_INTERVAL_MS = 100;
+
+configureWasmRuntime(ort);
 
 function distance(first, second) {
   return Math.hypot(

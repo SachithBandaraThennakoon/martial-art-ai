@@ -1,18 +1,22 @@
-import { WS_BASE_URL } from "./api";
-import { getAccessToken, subscribeAccessToken } from "./authSession";
+import { WS_BASE_URL } from "./api.js";
+import { getAccessToken, subscribeAccessToken } from "./authSession.js";
 
-export function createAwarenessStream({ onSnapshotAck, onStatus } = {}) {
+export function createAwarenessStream({
+  endpoint = "/admin/awareness/stream",
+  onSnapshotAck,
+  onStatus
+} = {}) {
   let socket = null;
   let disposed = false;
   let authenticated = false;
-  let pendingSnapshot = null;
+  let pendingMessage = null;
   let unsubscribeToken = null;
 
   const setStatus = (status) => onStatus?.(status);
   const sendPending = () => {
-    if (!authenticated || !pendingSnapshot || socket?.readyState !== WebSocket.OPEN) return;
-    socket.send(JSON.stringify({ type: "snapshot", payload: pendingSnapshot }));
-    pendingSnapshot = null;
+    if (!authenticated || !pendingMessage || socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify(pendingMessage));
+    pendingMessage = null;
   };
 
   const connect = () => {
@@ -23,7 +27,7 @@ export function createAwarenessStream({ onSnapshotAck, onStatus } = {}) {
       return;
     }
     setStatus("connecting");
-    socket = new WebSocket(`${WS_BASE_URL}/admin/awareness/stream`);
+    socket = new WebSocket(`${WS_BASE_URL}${endpoint}`);
     socket.onopen = () => socket.send(JSON.stringify({ type: "authenticate", token }));
     socket.onmessage = (event) => {
       let message;
@@ -53,7 +57,11 @@ export function createAwarenessStream({ onSnapshotAck, onStatus } = {}) {
   connect();
   return {
     publish(snapshot) {
-      pendingSnapshot = snapshot;
+      pendingMessage = { type: "snapshot", payload: snapshot };
+      sendPending();
+    },
+    publishPerception(perception) {
+      pendingMessage = { type: "perception", payload: perception };
       sendPending();
     },
     close() {

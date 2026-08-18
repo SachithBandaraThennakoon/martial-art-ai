@@ -60,6 +60,13 @@ class PerceptionFusionTests(unittest.TestCase):
             objects = next(item for item in perception_module_status() if item["key"] == "objects")
             self.assertEqual(objects["status"], "model_missing")
 
+    def test_builtin_scene_and_geometry_adapters_are_ready_by_default(self):
+        with patch.dict(os.environ, {}, clear=True):
+            statuses = {item["key"]: item for item in perception_module_status()}
+            self.assertEqual(statuses["scene"]["status"], "ready")
+            self.assertEqual(statuses["geometry"]["status"], "ready")
+            self.assertFalse(statuses["objects"]["enabled"])
+
 
 if __name__ == "__main__":
     unittest.main()

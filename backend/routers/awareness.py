@@ -6,13 +6,18 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
-from auth_context import get_user_from_token, require_admin_user
-from awareness.schemas import AwarenessSnapshotInput
+from auth_context import get_current_user, get_user_from_token, require_admin_user
+from awareness.schemas import ActionDeliveryBatch, AwarenessSnapshotInput
 from awareness.store import awareness_store
 from database import SessionLocal, get_db
 from models.user import User
 from sqlalchemy.orm import Session
-from awareness.repository import list_sessions, load_decision_evaluations, load_events, load_snapshot, persist_snapshot
+from awareness.repository import (
+    delete_long_term_memory, export_long_term_memory, list_sessions,
+    load_action_deliveries, load_decision_evaluations, load_events,
+    load_long_term_memory, load_snapshot, persist_action_deliveries,
+    persist_snapshot,
+)
 from awareness.world_model import world_model_engine
 from awareness.knowledge import DEFAULT_KNOWLEDGE, KnowledgeProfile
 from awareness.knowledge_repository import (
@@ -31,8 +36,10 @@ def _sync_active_knowledge(db: Session):
 
 
 router = APIRouter(prefix="/admin/awareness", tags=["Admin awareness"])
+user_router = APIRouter(prefix="/awareness", tags=["Awareness"])
 MAX_AWARENESS_MESSAGE_BYTES = 262_144
 AWARENESS_WS_MESSAGES_PER_SECOND = max(1, int(os.getenv("AWARENESS_WS_MESSAGES_PER_SECOND", "10")))
+AWARENESS_PROCESSING_BUDGET_MS = max(1, int(os.getenv("AWARENESS_PROCESSING_BUDGET_MS", "100")))
 
 
 def _process_snapshot(db: Session, owner_user_id: int, payload: AwarenessSnapshotInput, source: str):
@@ -42,7 +49,18 @@ def _process_snapshot(db: Session, owner_user_id: int, payload: AwarenessSnapsho
     previous_awareness = (
         previous_snapshot.awareness.get("backend_inference", {}) if previous_snapshot else None
     )
-    processed = world_model_engine.process(owner_user_id, payload, previous_awareness)
+    object_memory, relationship_memory = load_long_term_memory(db, owner_user_id)
+    processed = world_model_engine.process(
+        owner_user_id, payload, previous_awareness, object_memory, relationship_memory
+    )
+    processing_ms = (time.perf_counter() - started) * 1000
+    metadata = dict(processed.metadata)
+    metadata["latency"] = {
+        "processing_ms": round(processing_ms, 3),
+        "budget_ms": AWARENESS_PROCESSING_BUDGET_MS,
+        "within_budget": processing_ms <= AWARENESS_PROCESSING_BUDGET_MS,
+    }
+    processed = processed.model_copy(update={"metadata": metadata})
     snapshot = persist_snapshot(db, awareness_store.ingest(owner_user_id, processed))
     decision = snapshot.reasoning.get("backend_decision", {})
     inference = snapshot.awareness.get("backend_inference", {})
@@ -50,7 +68,7 @@ def _process_snapshot(db: Session, owner_user_id: int, payload: AwarenessSnapsho
         source=source,
         state=str(inference.get("situation_state", "unknown")),
         command=str(decision.get("command", "observe")),
-        duration_ms=(time.perf_counter() - started) * 1000,
+        duration_ms=processing_ms,
         verified_entities=sum(1 for item in snapshot.objects if item.verified),
     )
     return snapshot
@@ -71,6 +89,34 @@ def get_perception_modules(admin: User = Depends(require_admin_user)):
 @router.get("/retention")
 def get_retention_policy(admin: User = Depends(require_admin_user)):
     return retention_status()
+
+
+@router.get("/memory")
+def export_awareness_memory(
+    admin: User = Depends(require_admin_user), db: Session = Depends(get_db)
+):
+    return export_long_term_memory(db, admin.id)
+
+
+@router.delete("/memory")
+def clear_awareness_memory(
+    admin: User = Depends(require_admin_user), db: Session = Depends(get_db)
+):
+    return delete_long_term_memory(db, admin.id)
+
+
+@user_router.get("/memory")
+def export_user_awareness_memory(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    return export_long_term_memory(db, user.id)
+
+
+@user_router.delete("/memory")
+def clear_user_awareness_memory(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    return delete_long_term_memory(db, user.id)
 
 
 @router.post("/retention/prune")
@@ -190,8 +236,53 @@ def get_decision_evaluations(
     return load_decision_evaluations(db, admin.id, session_key, limit)
 
 
-@router.websocket("/stream")
-async def awareness_stream(websocket: WebSocket):
+@router.post("/sessions/{session_key}/deliveries")
+def record_action_deliveries(
+    session_key: str,
+    batch: ActionDeliveryBatch,
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        return persist_action_deliveries(db, admin.id, session_key, batch)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/sessions/{session_key}/deliveries")
+def get_action_deliveries(
+    session_key: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    admin: User = Depends(require_admin_user),
+    db: Session = Depends(get_db),
+):
+    return load_action_deliveries(db, admin.id, session_key, limit)
+
+
+@user_router.post("/sessions/{session_key}/deliveries")
+def record_user_action_deliveries(
+    session_key: str,
+    batch: ActionDeliveryBatch,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        return persist_action_deliveries(db, user.id, session_key, batch)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@user_router.get("/sessions/{session_key}/deliveries")
+def get_user_action_deliveries(
+    session_key: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return load_action_deliveries(db, user.id, session_key, limit)
+
+
+async def _run_awareness_stream(websocket: WebSocket, *, admin_only: bool):
     await websocket.accept()
     try:
         authentication_text = await websocket.receive_text()
@@ -206,7 +297,7 @@ async def awareness_stream(websocket: WebSocket):
 
         with SessionLocal() as auth_db:
             user = get_user_from_token(auth_db, authentication["token"])
-            if (user.role or "user").strip().lower() != "admin":
+            if admin_only and (user.role or "user").strip().lower() != "admin":
                 await websocket.send_json({"type": "error", "code": "admin_required"})
                 await websocket.close(code=4403)
                 return
@@ -265,6 +356,17 @@ async def awareness_stream(websocket: WebSocket):
                 "objects": [item.model_dump(mode="json") for item in snapshot.objects],
                 "relationships": [item.model_dump(mode="json") for item in snapshot.relationships],
                 "attention": snapshot.attention,
+                "latency": snapshot.metadata.get("latency", {}),
             })
     except (WebSocketDisconnect, json.JSONDecodeError, HTTPException):
         return
+
+
+@router.websocket("/stream")
+async def admin_awareness_stream(websocket: WebSocket):
+    await _run_awareness_stream(websocket, admin_only=True)
+
+
+@user_router.websocket("/stream")
+async def user_awareness_stream(websocket: WebSocket):
+    await _run_awareness_stream(websocket, admin_only=False)

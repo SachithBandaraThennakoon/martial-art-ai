@@ -48,6 +48,7 @@ class L1RelationshipEngine:
         explicit: list[WorldRelationship] | None = None,
         owner_user_id: int = 0,
         session_key: str = "default",
+        long_term_memory: dict[str, dict] | None = None,
     ) -> list[WorldRelationship]:
         relationships = {item.relationship_id: item for item in (explicit or [])}
         verified = [item for item in objects if item.verified]
@@ -101,8 +102,17 @@ class L1RelationshipEngine:
                 verified=True,
                 state=TemporalState(l1=l1),
             )
+        long_term_memory = long_term_memory or {}
         with self._lock:
-            return [self._enrich(owner_user_id, session_key, relation) for relation in relationships.values()]
+            enriched = []
+            for relation in relationships.values():
+                stored = long_term_memory.get(relation.relationship_id, {})
+                if stored:
+                    relation = relation.model_copy(update={"state": relation.state.model_copy(update={
+                        "l4": {**stored, **relation.state.l4}
+                    })})
+                enriched.append(self._enrich(owner_user_id, session_key, relation))
+            return enriched
 
     def _enrich(self, owner: int, session: str, relation: WorldRelationship) -> WorldRelationship:
         key = (owner, relation.relationship_id)

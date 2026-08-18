@@ -40,8 +40,14 @@ class WorldModelEngine:
     def process(
         self, owner_user_id: int, payload: AwarenessSnapshotInput,
         previous_awareness: dict | None = None,
+        object_memory: dict[str, dict] | None = None,
+        relationship_memory: dict[str, dict] | None = None,
     ) -> AwarenessSnapshotInput:
         objects = self.association.associate(owner_user_id, payload.session_key, payload.sequence, payload.objects)
+        object_memory = object_memory or {}
+        objects = [item.model_copy(update={"state": item.state.model_copy(update={
+            "l4": {**object_memory.get(item.object_id, {}), **item.state.l4}
+        })}) for item in objects]
         objects = self.temporal.enrich(owner_user_id, payload.session_key, payload.captured_at, objects)
         canonical_ids = {
             original.object_id: associated.object_id
@@ -54,6 +60,7 @@ class WorldModelEngine:
         relationships = self.relationships.build(
             objects, explicit_relationships,
             owner_user_id=owner_user_id, session_key=payload.session_key,
+            long_term_memory=relationship_memory,
         )
         attention = self.attention.score(payload.goal, objects, relationships)
         awareness_key = (owner_user_id, payload.session_key)

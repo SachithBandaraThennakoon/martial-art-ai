@@ -1,4 +1,5 @@
 import * as ortWasm from "onnxruntime-web/wasm";
+import { configureWasmRuntime, configureWebGpuRuntime } from "../tracking/onnxRuntimeAssets";
 
 const MODEL_PATH = "/models/acp_stgat_motion_predictor.onnx?v=acp-stgat-mediapipe33-opset18";
 const MODEL_NAME = "ACP-STGAT";
@@ -46,11 +47,7 @@ const MEDIAPIPE_JOINT_MAP = [
 const MODEL_TO_MEDIAPIPE = [null, 24, 26, 28, 23, 25, 27, null, null, 0, 11, 13, 15, 12, 14, 16, null];
 const MAX_VISUAL_JOINT_DELTA = 0.28;
 
-ortWasm.env.wasm.numThreads = 1;
-ortWasm.env.wasm.proxy = false;
-ortWasm.env.wasm.wasmPaths = {
-  wasm: "/ort-wasm/ort-wasm-simd-threaded.wasm"
-};
+configureWasmRuntime(ortWasm);
 
 function resolveDim(value, fallback) {
   return Number.isInteger(value) && value > 0 ? value : fallback;
@@ -411,11 +408,7 @@ export class StgatOnnxPredictor {
             throw new Error("WebGPU is unavailable in this browser");
           }
           runtime = await import("onnxruntime-web/webgpu");
-          runtime.env.wasm.numThreads = 1;
-          runtime.env.wasm.proxy = false;
-          runtime.env.wasm.wasmPaths = {
-            wasm: "/ort-wasm/ort-wasm-simd-threaded.asyncify.wasm"
-          };
+          configureWebGpuRuntime(runtime);
         } else if (backend === "webgl") {
           runtime = await import("onnxruntime-web/webgl");
         } else {

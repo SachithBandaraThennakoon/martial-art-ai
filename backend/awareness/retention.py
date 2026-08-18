@@ -4,7 +4,7 @@ import os
 
 from sqlalchemy.orm import Session
 
-from models.awareness import AwarenessDecisionEvaluation, AwarenessEventRecord, AwarenessSession
+from models.awareness import AwarenessActionDelivery, AwarenessDecisionEvaluation, AwarenessEventRecord, AwarenessSession
 
 
 def _days(name: str, default: int) -> int:
@@ -19,6 +19,7 @@ class AwarenessRetentionPolicy:
     sessions_days: int
     events_days: int
     evaluations_days: int
+    deliveries_days: int
 
 
 def retention_policy() -> AwarenessRetentionPolicy:
@@ -26,6 +27,7 @@ def retention_policy() -> AwarenessRetentionPolicy:
         sessions_days=_days("AWARENESS_SESSION_RETENTION_DAYS", 30),
         events_days=_days("AWARENESS_EVENT_RETENTION_DAYS", 14),
         evaluations_days=_days("AWARENESS_EVALUATION_RETENTION_DAYS", 30),
+        deliveries_days=_days("AWARENESS_DELIVERY_RETENTION_DAYS", 30),
     )
 
 
@@ -38,10 +40,12 @@ def prune_awareness_data(db: Session, *, now: datetime | None = None, dry_run: b
     policy = retention_policy()
     event_cutoff = current - timedelta(days=policy.events_days)
     evaluation_cutoff = current - timedelta(days=policy.evaluations_days)
+    delivery_cutoff = current - timedelta(days=policy.deliveries_days)
     session_cutoff = current - timedelta(days=policy.sessions_days)
     queries = {
         "events": db.query(AwarenessEventRecord).filter(AwarenessEventRecord.created_at < event_cutoff),
         "evaluations": db.query(AwarenessDecisionEvaluation).filter(AwarenessDecisionEvaluation.created_at < evaluation_cutoff),
+        "deliveries": db.query(AwarenessActionDelivery).filter(AwarenessActionDelivery.created_at < delivery_cutoff),
         "sessions": db.query(AwarenessSession).filter(AwarenessSession.updated_at < session_cutoff),
     }
     counts = {name: query.count() for name, query in queries.items()}
@@ -49,6 +53,7 @@ def prune_awareness_data(db: Session, *, now: datetime | None = None, dry_run: b
         # Children are removed first so this remains portable when SQLite foreign keys are disabled.
         queries["events"].delete(synchronize_session=False)
         queries["evaluations"].delete(synchronize_session=False)
+        queries["deliveries"].delete(synchronize_session=False)
         queries["sessions"].delete(synchronize_session=False)
         db.commit()
     return {
@@ -58,6 +63,7 @@ def prune_awareness_data(db: Session, *, now: datetime | None = None, dry_run: b
         "cutoffs": {
             "events": event_cutoff.isoformat(),
             "evaluations": evaluation_cutoff.isoformat(),
+            "deliveries": delivery_cutoff.isoformat(),
             "sessions": session_cutoff.isoformat(),
         },
         **retention_status(),

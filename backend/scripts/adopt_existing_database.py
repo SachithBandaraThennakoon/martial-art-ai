@@ -40,7 +40,9 @@ def baseline_metadata() -> MetaData:
         if table.name not in {
             "billing_events", "billing_subscriptions", "consent_records", "target_positions",
             "awareness_sessions", "awareness_events", "awareness_knowledge_profiles",
-            "awareness_decision_evaluations",
+            "awareness_decision_evaluations", "awareness_object_memories",
+            "awareness_relationship_memories",
+            "awareness_action_deliveries",
         }:
             table.to_metadata(metadata)
     users_table = metadata.tables["users"]

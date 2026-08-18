@@ -4,8 +4,8 @@
 
 **Project:** XMartialArt / Martial Art AI  
 **Primary admin interface:** `/admin-awareness`  
-**Document updated:** 2026-08-16  
-**Implementation status:** Working end-to-end non-YOLO architecture; external vision-model runtimes remain evidence adapters until model assets are configured.
+**Document updated:** 2026-08-17
+**Implementation status:** Complete end-to-end software architecture except the deliberately deferred YOLO/object-detector runtime. Scene geometry, durable memory governance, action-delivery audit, and the live admin console are implemented and verified.
 
 ---
 
@@ -180,7 +180,7 @@ The engine represents:
 - Sessions and lifetime observations.
 - Existing long-term Studio user context, including learning trend and persistent weakness.
 
-Current L4 state is included in persisted awareness snapshots. A dedicated durable aggregate store for indefinite cross-session histories is listed in the roadmap because awareness-session retention is intentionally bounded.
+Current L4 state is included in persisted awareness snapshots and in dedicated object and relationship memory aggregates. These aggregates survive bounded awareness-session retention and hydrate a later session for the same user. Cross-session identity is deliberately conservative: only stable IDs already supplied by verified evidence are reused; future detector-specific identity policies must not guess that two people or pieces of equipment are the same entity.
 
 ---
 
@@ -375,8 +375,9 @@ Safety remains evidence-gated. A verified hazard is the only state that forces a
 - MediaPipe-derived human pose/hands/face data from Studio.
 - Strict human, object, surface, and geometry contracts.
 - Confidence-gated perception fusion.
-- Floor and wall surface evidence contracts.
-- 3D position, ground-plane, and scale evidence contracts.
+- Built-in privacy-safe pose-ground scene segmentation that emits compact floor and camera-field wall polygons.
+- MediaPipe world-landmark geometry that emits a camera-relative ground plane, user 3D position, scale estimate, camera pose metadata, and calibration metadata.
+- Live floor and wall world nodes with confidence and verification state.
 - Rejection of raw frame fields at the backend contract boundary.
 - Truthful module status: ready, disabled, or model missing.
 - No raw media persistence in awareness records.
@@ -387,12 +388,12 @@ Safety remains evidence-gated. A verified hazard is the only state that forces a
 
 YOLO remains disabled until a future integration supplies a real model, preprocessing contract, label policy, confidence calibration, and performance validation.
 
-### Asset-dependent adapters
+### Optional future perception upgrades
 
-- Semantic segmentation runtime.
-- Depth/geometry neural runtime.
+- Dense semantic segmentation may later refine the built-in floor/wall regions.
+- Metric monocular/stereo depth may later refine the current camera-relative MediaPipe geometry.
 
-The downstream contracts and fusion paths are complete. These modules must not report `ready` until real model paths are configured and available.
+These are accuracy upgrades, not missing architecture components. The current scene and geometry modules truthfully report `ready` when live pose-ground evidence is available.
 
 ---
 
@@ -424,7 +425,17 @@ The page intentionally omits the general site footer and focuses available space
 
 ## 13. Backend API
 
-All HTTP routes require an authenticated administrator.
+User runtime routes require an authenticated account and are always scoped to that account's user ID. Governance, global diagnostics, retention administration, knowledge activation, and admin session inspection remain administrator-only.
+
+### User runtime
+
+| Method | Route | Purpose |
+|---|---|---|
+| WS | `/awareness/stream` | Process live user Studio perception and return governed actions. |
+| GET | `/awareness/memory` | Export the authenticated user's long-term awareness memory. |
+| DELETE | `/awareness/memory` | Delete the authenticated user's long-term awareness memory. |
+| POST | `/awareness/sessions/{session_key}/deliveries` | Record user action-delivery acknowledgements. |
+| GET | `/awareness/sessions/{session_key}/deliveries` | Read the user's delivery history for that session. |
 
 ### Sessions and snapshots
 
@@ -461,10 +472,11 @@ Pruning defaults to `dry_run=true`. Actual deletion requires an explicit `dry_ru
 ### WebSocket
 
 ```text
+WS /awareness/stream
 WS /admin/awareness/stream
 ```
 
-The client first sends an authentication message, then publishes `snapshot` or `perception` messages. Acknowledgements include:
+The user route accepts any authenticated account and the admin route additionally enforces the admin role. The client first sends an authentication message, then publishes `snapshot` or `perception` messages. Acknowledgements include:
 
 - Backend inference.
 - Multiscale prediction.
@@ -484,6 +496,9 @@ PostgreSQL tables:
 - `awareness_events`
 - `awareness_knowledge_profiles`
 - `awareness_decision_evaluations`
+- `awareness_object_memories`
+- `awareness_relationship_memories`
+- `awareness_action_deliveries`
 
 Persisted data includes:
 
@@ -492,11 +507,13 @@ Persisted data includes:
 - Client/backend agreement evaluations.
 - Knowledge version used for each evaluation.
 - Object and relationship L1–L4 state embedded in snapshots.
+- Durable per-user object and relationship L4 aggregates across sessions.
+- Idempotent action-delivery acknowledgements for audit and evaluation.
 
 Current migration head:
 
 ```text
-c7a1d9e3f425
+e9c3a5b7d812
 ```
 
 Migration portability was corrected so upgrade/check/downgrade works with PostgreSQL and the SQLite migration test environment.
@@ -505,7 +522,8 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 
 ## 15. Security, privacy, and operations
 
-- Admin authorization is required for awareness APIs and WebSocket access.
+- Authentication and per-user ownership are required for user awareness processing, memory, and delivery audit routes.
+- Admin authorization is required for governance, global diagnostics, retention administration, and `/admin/awareness/*` access.
 - Strict Pydantic contracts reject unexpected perception fields.
 - Raw RGB/depth media is not persisted by awareness services.
 - WebSocket payload size is limited.
@@ -523,13 +541,14 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 | `AWARENESS_SESSION_RETENTION_DAYS` | `30` | Session retention. |
 | `AWARENESS_EVENT_RETENTION_DAYS` | `14` | Event retention. |
 | `AWARENESS_EVALUATION_RETENTION_DAYS` | `30` | Evaluation retention. |
+| `AWARENESS_DELIVERY_RETENTION_DAYS` | `30` | Action-delivery audit retention. |
+| `AWARENESS_MEMORY_HALF_LIFE_DAYS` | `180` | Dynamic L4 memory-confidence half-life. |
+| `AWARENESS_PROCESSING_BUDGET_MS` | `100` | Backend snapshot-processing latency budget reported to the admin client. |
 | `MEDIAPIPE_ENABLED` | `true` | Human-perception status. |
 | `OBJECT_DETECTOR_ENABLED` | `false` | Future detector switch. |
 | `OBJECT_DETECTOR_MODEL_PATH` | empty | Future detector asset. |
-| `SCENE_SEGMENTATION_ENABLED` | `false` | Segmentation switch. |
-| `SCENE_SEGMENTATION_MODEL_PATH` | empty | Segmentation asset. |
-| `DEPTH_GEOMETRY_ENABLED` | `false` | Depth/geometry switch. |
-| `DEPTH_GEOMETRY_MODEL_PATH` | empty | Depth/geometry asset. |
+| `SCENE_SEGMENTATION_ENABLED` | `true` | Built-in pose-ground scene adapter switch. |
+| `DEPTH_GEOMETRY_ENABLED` | `true` | Built-in MediaPipe world-geometry adapter switch. |
 
 ---
 
@@ -550,9 +569,11 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 | Knowledge | `backend/awareness/knowledge.py` and `backend/data/awareness/default.v1.json` |
 | Persistence | `backend/awareness/repository.py` |
 | Retention | `backend/awareness/retention.py` |
-| Admin/API transport | `backend/routers/awareness.py` |
+| User/admin API transport | `backend/routers/awareness.py` |
 | Database models | `backend/models/awareness.py` |
 | Admin UI | `frontend/src/pages/AdminAwareness.jsx` |
+| Shared user/admin perception envelope | `frontend/src/perception/awarenessEnvelope.js` |
+| User Studio awareness delivery | `frontend/src/modes/TrainMode.jsx` |
 | WebSocket client | `frontend/src/services/awarenessStream.js` |
 
 ---
@@ -569,6 +590,14 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 - Added world, object, relationship, prediction, reasoning, event, governance, and evaluation panels.
 - Removed page-specific duplicate panels and the general footer.
 - Connected the page to the authenticated awareness WebSocket.
+- Connected ordinary authenticated Train Mode sessions to the shared backend orchestrator through `/awareness/stream`.
+- Made governed backend visual/audio/system/haptic actions authoritative in user Train Mode while retaining local Studio guidance as the offline/low-latency fallback.
+- Added user-scoped delivery audit and memory export/delete routes without exposing admin governance.
+- Added strict `perception/v1` publishing from the live Studio rather than trusting a client-authored awareness result.
+- Added built-in floor/wall and camera-relative geometry evidence without transmitting raw camera pixels.
+- Added action-delivery acknowledgements for visual, audio, browser haptic, and system actions.
+- Added persisted action-delivery history and long-term-memory export, delete, refresh, confidence, and lifetime-summary controls.
+- Added backend processing latency and budget status to the decision diagnostics.
 
 ### Backend
 
@@ -577,23 +606,32 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 - Added client/backend comparison and evaluation recording.
 - Added knowledge governance and version activation.
 - Added persistence, retention, rate limiting, and observability.
+- Added durable L4 object/relationship memory hydration across sessions.
+- Added exponential L4 confidence decay plus scoped memory export and deletion.
+- Added idempotent action-delivery persistence and retention pruning.
+- Added per-snapshot processing latency and budget metadata to HTTP/WebSocket output.
 - Added REST and WebSocket interfaces.
 
 ### Database and migrations
 
 - Added awareness session/event persistence.
 - Added knowledge and evaluation tables.
+- Added durable object and relationship memory tables and upsert persistence.
+- Added the action-delivery audit table and endpoints.
 - Applied migrations to the configured PostgreSQL development database.
 - Corrected legacy migration portability and unique-index metadata alignment.
 
 ### Verification completed
 
-- **120 backend tests passed.**
+- **126 backend tests passed.**
 - **326 backend subtests passed.**
+- **180 frontend tests passed.**
 - Awareness architecture tests passed.
 - Migration upgrade/check/downgrade passed.
 - Frontend ESLint passed.
 - Frontend production build passed.
+- Live `/admin-awareness` camera acceptance passed in an authenticated admin session. Human tracking, floor/wall confidence, scene and geometry readiness, Studio feedback, diagnostics, and action delivery updated together.
+- ONNX Runtime now uses valid version-matched runtime sidecars, eliminating the previous loader/MIME failure.
 - OpenAPI and knowledge-profile validation passed.
 
 Build output reports existing large ONNX/WebAssembly chunks; this is a performance optimization opportunity, not a build failure.
@@ -607,11 +645,13 @@ Build output reports existing large ONNX/WebAssembly chunks; this is a performan
 | Camera and human perception | Implemented | Studio MediaPipe-derived evidence. |
 | Strict perception fusion | Implemented | Human/object/surface/geometry contracts. |
 | Object detector runtime | Deferred | YOLO intentionally held for future work. |
-| Scene segmentation runtime | Adapter ready | Requires real model asset/runtime. |
-| Depth/geometry runtime | Adapter ready | Requires real model asset/runtime. |
+| Scene segmentation runtime | Implemented | Privacy-safe pose-ground floor and camera-field wall regions. |
+| Depth/geometry runtime | Implemented | Camera-relative MediaPipe ground plane, position, scale, and calibration metadata. |
 | Object association | Implemented | Stable per-session IDs using evidence and proximity. |
 | Every object L1–L4 | Implemented | Derived while preserving classifier evidence. |
 | Every relationship L1–L4 | Implemented | Requires verified endpoints and spatial evidence. |
+| Durable L4 memory | Implemented | Dedicated per-user object/relationship aggregates hydrate later sessions. |
+| Memory governance | Implemented | Export, scoped delete, confidence decay, summaries, and retention. |
 | World graph | Implemented | Objects, relationships, confidence, and history. |
 | Dynamic goal | Implemented | Four admin-selectable goals. |
 | Level-specific attention | Implemented | Per-level priorities and compute budgets. |
@@ -621,46 +661,46 @@ Build output reports existing large ONNX/WebAssembly chunks; this is a performan
 | L1–L4 prediction | Implemented | Evidence-gated multiscale forecasts. |
 | Utility decision | Implemented | Governed bounded argmax selection. |
 | Feedback/action contracts | Implemented | Visual/audio/haptic/system outputs. |
-| Physical haptic delivery | Adapter required | No hardware device is configured. |
+| User feedback orchestration | Implemented | The same governed backend orchestrator serves user Train Mode and the admin test console; local feedback is the fallback. |
+| Action delivery audit | Implemented | Idempotent delivery acknowledgements persisted per user and exposed to the owning user/admin. |
+| Haptic delivery | Browser simulator implemented | Uses `navigator.vibrate` where supported; physical device adapters still require hardware. |
 | Closed loop | Implemented | Live snapshots continuously update the next state. |
 
 ---
 
 ## 19. What to do next
 
-### Priority 1 — live acceptance and operational readiness
+The requested non-YOLO architecture is complete. The items below are production hardening or optional accuracy/capability upgrades; they are not missing system layers.
 
-1. Run browser-based acceptance tests with a real admin account and camera.
+### Priority 1 — cross-device and operational hardening
+
+1. Repeat camera-permission acceptance on each supported browser/device combination.
 2. Verify goal switching changes attention and decisions during a live session.
 3. Verify network reconnect, browser refresh, backend restart, and duplicate snapshot behavior.
-4. Add frontend automated tests for the admin awareness panels and WebSocket reconnect flow.
-5. Establish latency budgets for perception, world update, prediction, decision, and feedback.
+4. Add component-level visual/regression tests for the admin awareness panels.
+5. Split the current end-to-end backend budget into perception, world update, prediction, decision, and feedback stage budgets.
 
-### Priority 2 — durable long-term memory
+### Priority 2 — longitudinal evaluation
 
-1. Add a dedicated long-term object/relationship aggregate store separate from bounded session retention.
-2. Define identity policy across sessions for the user, known equipment, environments, and future opponents.
-3. Add L4 aggregation jobs and confidence decay.
-4. Add data deletion/export behavior for long-term awareness memory.
-5. Add longitudinal admin charts and knowledge-version comparisons.
+1. Define identity policy across sessions for known equipment, environments, and future opponents.
+2. Add scheduled L4 compaction; dynamic confidence decay is already active at read time.
+3. Add longitudinal admin charts and knowledge-version comparisons.
+4. Evaluate whether each delivered intervention improved following repetitions.
 
-### Priority 3 — segmentation and geometry runtimes
+### Priority 3 — optional perception refinement
 
-1. Select licensed, deployable segmentation and depth models.
-2. Define preprocessing, coordinate systems, calibration, and output confidence.
-3. Build adapter workers that emit the existing perception contracts.
-4. Validate floor/wall planes, user-floor support, user-wall restriction, and distance estimates.
-5. Benchmark CPU, WebGPU, and optional GPU execution.
+1. Consider dense semantic segmentation only if pose-ground floor/wall regions are insufficient.
+2. Consider metric depth only if camera-relative MediaPipe geometry is insufficient.
+3. Validate any replacement against the existing surface/geometry contracts and privacy boundary.
+4. Benchmark CPU, WebGPU, and optional GPU execution before enabling an upgrade.
 
-### Priority 4 — action delivery
+### Priority 4 — optional delivery refinement
 
-1. Connect backend audio actions to the Studio speech queue without duplicate feedback.
+1. Harden audio deduplication between backend actions and the existing Studio speech queue.
 2. Define visual urgency and accessibility behavior.
-3. Add an optional haptic device adapter and capability negotiation.
-4. Record action delivery acknowledgements and latency.
-5. Evaluate whether each delivered intervention improved the following repetitions.
+3. Add optional physical haptic device capability negotiation.
 
-### Priority 5 — model and policy evaluation
+### Priority 5 — policy evaluation
 
 1. Create labeled evaluation tapes for tracking, actions, mistakes, relationships, predictions, and decisions.
 2. Measure precision, recall, calibration, false safety alerts, and missed hazards.
@@ -715,8 +755,9 @@ MediaPipe/derived evidence
 → multiscale prediction
 → governed utility decision
 → structured actions
-→ persisted events/evaluations
+→ persisted events/evaluations/delivery audit
+→ durable L4 memory with export/delete/decay governance
 → live admin diagnostics
 ```
 
-YOLO remains off by design. Segmentation and depth are contract-complete but must remain disabled until real, validated model assets are integrated.
+YOLO/object detection remains off by design and is the only deferred architecture subsystem. Built-in scene segmentation and MediaPipe world geometry are enabled, evidence-gated, privacy-safe, and verified in the live admin console.

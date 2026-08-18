@@ -1,12 +1,17 @@
 import json
-from datetime import timezone
+import math
+import os
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from models.awareness import AwarenessDecisionEvaluation, AwarenessEventRecord, AwarenessSession
+from models.awareness import (
+    AwarenessActionDelivery, AwarenessDecisionEvaluation, AwarenessEventRecord, AwarenessObjectMemory,
+    AwarenessRelationshipMemory, AwarenessSession,
+)
 
-from .schemas import AwarenessEvent, AwarenessSessionSummary, AwarenessSnapshot
+from .schemas import ActionDeliveryBatch, AwarenessEvent, AwarenessSessionSummary, AwarenessSnapshot
 
 
 def _event_signature(snapshot: AwarenessSnapshot) -> tuple:
@@ -88,8 +93,166 @@ def persist_snapshot(db: Session, snapshot: AwarenessSnapshot) -> AwarenessSnaps
                 knowledge_profile_id=knowledge.get("profile_id") or "unknown",
                 knowledge_version=knowledge.get("version") or "unknown",
             ))
+    _persist_long_term_memory(db, snapshot)
     db.commit()
     return snapshot
+
+
+def _persist_long_term_memory(db: Session, snapshot: AwarenessSnapshot) -> None:
+    for item in snapshot.objects:
+        row = db.query(AwarenessObjectMemory).filter(
+            AwarenessObjectMemory.user_id == snapshot.owner_user_id,
+            AwarenessObjectMemory.object_id == item.object_id,
+        ).first()
+        if row is None:
+            row = AwarenessObjectMemory(
+                user_id=snapshot.owner_user_id, object_id=item.object_id,
+                object_type=item.object_type, l4_json="{}", session_keys_json="[]",
+                lifetime_observations=0,
+            )
+            db.add(row)
+        sessions = set(json.loads(row.session_keys_json or "[]"))
+        sessions.add(snapshot.session_key)
+        l4 = dict(item.state.l4)
+        l4["sessions_observed"] = max(int(l4.get("sessions_observed") or 0), len(sessions))
+        l4["lifetime_observations"] = max(int(l4.get("lifetime_observations") or 0), row.lifetime_observations + 1)
+        row.object_type = item.object_type
+        row.l4_json = json.dumps(l4, separators=(",", ":"), default=str)
+        row.session_keys_json = json.dumps(sorted(sessions), separators=(",", ":"))
+        row.lifetime_observations += 1
+    for relation in snapshot.relationships:
+        row = db.query(AwarenessRelationshipMemory).filter(
+            AwarenessRelationshipMemory.user_id == snapshot.owner_user_id,
+            AwarenessRelationshipMemory.relationship_id == relation.relationship_id,
+        ).first()
+        if row is None:
+            row = AwarenessRelationshipMemory(
+                user_id=snapshot.owner_user_id, relationship_id=relation.relationship_id,
+                relationship_type=relation.relationship_type, l4_json="{}",
+                session_keys_json="[]", lifetime_observations=0,
+            )
+            db.add(row)
+        sessions = set(json.loads(row.session_keys_json or "[]"))
+        sessions.add(snapshot.session_key)
+        l4 = dict(relation.state.l4)
+        l4["sessions_observed"] = max(int(l4.get("sessions_observed") or 0), len(sessions))
+        l4["lifetime_observations"] = max(int(l4.get("lifetime_observations") or 0), row.lifetime_observations + 1)
+        row.relationship_type = relation.relationship_type
+        row.l4_json = json.dumps(l4, separators=(",", ":"), default=str)
+        row.session_keys_json = json.dumps(sorted(sessions), separators=(",", ":"))
+        row.lifetime_observations += 1
+
+
+def load_long_term_memory(db: Session, owner_user_id: int) -> tuple[dict, dict]:
+    try:
+        half_life_days = max(1, int(os.getenv("AWARENESS_MEMORY_HALF_LIFE_DAYS", "180")))
+    except (TypeError, ValueError):
+        half_life_days = 180
+    current = datetime.now(timezone.utc)
+
+    def payload(row):
+        l4 = json.loads(row.l4_json or "{}")
+        updated = row.updated_at
+        if updated.tzinfo is None:
+            updated = updated.replace(tzinfo=timezone.utc)
+        age_days = max(0, (current - updated).total_seconds() / 86_400)
+        l4["memory_confidence"] = round(math.pow(.5, age_days / half_life_days), 6)
+        l4["memory_age_days"] = round(age_days, 3)
+        return l4
+
+    objects = {
+        row.object_id: payload(row)
+        for row in db.query(AwarenessObjectMemory).filter(AwarenessObjectMemory.user_id == owner_user_id)
+    }
+    relationships = {
+        row.relationship_id: payload(row)
+        for row in db.query(AwarenessRelationshipMemory).filter(AwarenessRelationshipMemory.user_id == owner_user_id)
+    }
+    return objects, relationships
+
+
+def export_long_term_memory(db: Session, owner_user_id: int) -> dict:
+    object_memory, relationship_memory = load_long_term_memory(db, owner_user_id)
+    object_rows = db.query(AwarenessObjectMemory).filter(AwarenessObjectMemory.user_id == owner_user_id).all()
+    relationship_rows = db.query(AwarenessRelationshipMemory).filter(AwarenessRelationshipMemory.user_id == owner_user_id).all()
+    return {
+        "schema_version": "awareness-memory/v1",
+        "exported_at": datetime.now(timezone.utc),
+        "objects": [{
+            "object_id": row.object_id,
+            "object_type": row.object_type,
+            "sessions": json.loads(row.session_keys_json or "[]"),
+            "lifetime_observations": row.lifetime_observations,
+            "l4": object_memory[row.object_id],
+        } for row in object_rows],
+        "relationships": [{
+            "relationship_id": row.relationship_id,
+            "relationship_type": row.relationship_type,
+            "sessions": json.loads(row.session_keys_json or "[]"),
+            "lifetime_observations": row.lifetime_observations,
+            "l4": relationship_memory[row.relationship_id],
+        } for row in relationship_rows],
+    }
+
+
+def delete_long_term_memory(db: Session, owner_user_id: int) -> dict:
+    relationships = db.query(AwarenessRelationshipMemory).filter(
+        AwarenessRelationshipMemory.user_id == owner_user_id
+    ).delete(synchronize_session=False)
+    objects = db.query(AwarenessObjectMemory).filter(
+        AwarenessObjectMemory.user_id == owner_user_id
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"deleted": {"objects": objects, "relationships": relationships}}
+
+
+def persist_action_deliveries(
+    db: Session, owner_user_id: int, session_key: str, batch: ActionDeliveryBatch
+) -> list[dict]:
+    session = db.query(AwarenessSession).filter(
+        AwarenessSession.user_id == owner_user_id,
+        AwarenessSession.session_key == session_key,
+    ).first()
+    if session is None:
+        raise LookupError("awareness session not found")
+    for delivery in batch.deliveries:
+        row = db.query(AwarenessActionDelivery).filter(
+            AwarenessActionDelivery.awareness_session_id == session.id,
+            AwarenessActionDelivery.revision == batch.revision,
+            AwarenessActionDelivery.action_id == delivery.action_id,
+        ).first()
+        if row is None:
+            row = AwarenessActionDelivery(
+                awareness_session_id=session.id,
+                revision=batch.revision,
+                action_id=delivery.action_id,
+            )
+            db.add(row)
+        row.channel = delivery.channel
+        row.command = delivery.command
+        row.status = delivery.status
+        row.latency_ms = delivery.latency_ms
+        row.detail_json = json.dumps(delivery.detail, separators=(",", ":"), default=str)
+    db.commit()
+    return load_action_deliveries(db, owner_user_id, session_key)
+
+
+def load_action_deliveries(db: Session, owner_user_id: int, session_key: str, limit: int = 100) -> list[dict]:
+    rows = db.query(AwarenessActionDelivery).join(AwarenessSession).filter(
+        AwarenessSession.user_id == owner_user_id,
+        AwarenessSession.session_key == session_key,
+    ).order_by(AwarenessActionDelivery.created_at.desc()).limit(max(1, min(limit, 500))).all()
+    return [{
+        "id": row.id,
+        "revision": row.revision,
+        "action_id": row.action_id,
+        "channel": row.channel,
+        "command": row.command,
+        "status": row.status,
+        "latency_ms": row.latency_ms,
+        "detail": json.loads(row.detail_json or "{}"),
+        "created_at": row.created_at,
+    } for row in rows]
 
 
 def load_snapshot(db: Session, owner_user_id: int, session_key: str) -> AwarenessSnapshot | None:

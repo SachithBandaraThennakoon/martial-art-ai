@@ -211,6 +211,7 @@ app.include_router(dashboard_router.router)
 app.include_router(privacy_router.router)
 app.include_router(catalog_admin_router.router)
 app.include_router(awareness_router.router)
+app.include_router(awareness_router.user_router)
 
 
 # -----------------------------

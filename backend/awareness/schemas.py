@@ -99,3 +99,19 @@ class AwarenessSessionSummary(BaseModel):
     object_count: int
     relationship_count: int
     last_received_at: datetime
+
+
+class ActionDeliveryItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action_id: str = Field(min_length=1, max_length=128)
+    channel: str = Field(min_length=1, max_length=32)
+    command: str = Field(min_length=1, max_length=64)
+    status: Literal["delivered", "unsupported", "rejected", "failed"]
+    latency_ms: float = Field(default=0, ge=0, le=60_000)
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
+class ActionDeliveryBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    revision: int = Field(ge=1)
+    deliveries: list[ActionDeliveryItem] = Field(min_length=1, max_length=16)

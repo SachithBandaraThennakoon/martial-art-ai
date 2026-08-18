@@ -48,6 +48,8 @@ class GeometryObservation(BaseModel):
     positions: dict[str, list[float]] = Field(default_factory=dict)
     ground_plane: list[float] | None = Field(default=None, min_length=3, max_length=4)
     scale_estimate: float | None = Field(default=None, gt=0)
+    camera_pose: dict[str, Any] = Field(default_factory=dict)
+    calibration: dict[str, Any] = Field(default_factory=dict)
 
 
 class PerceptionEnvelope(BaseModel):
@@ -68,12 +70,12 @@ def perception_module_status() -> list[dict[str, Any]]:
     specifications = [
         ("human", "MediaPipe", "MEDIAPIPE_ENABLED", None),
         ("objects", "YOLO / external detector", "OBJECT_DETECTOR_ENABLED", "OBJECT_DETECTOR_MODEL_PATH"),
-        ("scene", "Semantic segmentation adapter", "SCENE_SEGMENTATION_ENABLED", "SCENE_SEGMENTATION_MODEL_PATH"),
-        ("geometry", "Depth / geometry adapter", "DEPTH_GEOMETRY_ENABLED", "DEPTH_GEOMETRY_MODEL_PATH"),
+        ("scene", "Pose-ground scene segmentation", "SCENE_SEGMENTATION_ENABLED", None),
+        ("geometry", "MediaPipe world geometry", "DEPTH_GEOMETRY_ENABLED", None),
     ]
     results = []
     for key, label, enabled_env, path_env in specifications:
-        enabled = os.getenv(enabled_env, "true" if key == "human" else "false").lower() in {"1", "true", "yes"}
+        enabled = os.getenv(enabled_env, "false" if key == "objects" else "true").lower() in {"1", "true", "yes"}
         configured_path = os.getenv(path_env, "").strip() if path_env else ""
         model_present = bool(configured_path and Path(configured_path).is_file()) if path_env else enabled
         results.append({
@@ -143,6 +145,7 @@ class PerceptionFusionEngine:
                 attributes=attributes,
             ))
         metadata = dict(envelope.metadata)
+        client_awareness = metadata.get("client_awareness", {})
         metadata["perception"] = {
             "schema_version": envelope.schema_version,
             "human_observations": 1 if envelope.human else 0,
@@ -157,6 +160,14 @@ class PerceptionFusionEngine:
             captured_at=envelope.captured_at,
             goal=envelope.goal,
             objects=world_objects,
+            attention=client_awareness.get("attention", {}),
+            awareness={
+                "situation_state": client_awareness.get("situation_state", "observing"),
+                "feedback_decision": client_awareness.get("feedback_decision", {}),
+                "next_action": client_awareness.get("next_action", {}),
+            },
+            prediction=client_awareness.get("prediction", {}),
+            reasoning=client_awareness.get("reasoning", {}),
             metadata=metadata,
         )
 

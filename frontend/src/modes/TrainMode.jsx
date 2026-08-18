@@ -31,6 +31,12 @@ import {
   parseTrainingStepCommand
 } from "../utils/trainingStepNavigation";
 import { evaluatePositionFeedback } from "../utils/positionFeedback";
+import { deriveSceneGeometry } from "../perception/sceneGeometryAdapter";
+import { buildAwarenessPerceptionEnvelope } from "../perception/awarenessEnvelope";
+import { createAwarenessStream } from "../services/awarenessStream";
+import { deliverAwarenessActions } from "../services/awarenessActions";
+import { API_BASE_URL } from "../services/api";
+import { authFetch } from "../services/authSession";
 
 const VOICE_PROFILES = {
   calmMale: {
@@ -152,6 +158,16 @@ export default function TrainMode({
   const [level3State, setLevel3State] = useState(null);
   const [level4State, setLevel4State] = useState(null);
   const [situationAwarenessState, setSituationAwarenessState] = useState(null);
+  const [perceptionObservation, setPerceptionObservation] = useState(null);
+  const [backendAwarenessStatus, setBackendAwarenessStatus] = useState("connecting");
+  const [backendAwarenessSnapshot, setBackendAwarenessSnapshot] = useState(null);
+  const [backendFeedback, setBackendFeedback] = useState(null);
+  const [backendPaused, setBackendPaused] = useState(false);
+  const backendAwarenessStreamRef = useRef(null);
+  const backendAwarenessRunIdRef = useRef("");
+  const backendAwarenessSequenceRef = useRef(0);
+  const backendAwarenessPublishRef = useRef(0);
+  const backendDeliveredRevisionRef = useRef(0);
 
   useEffect(() => {
     onDiagnosticsUpdate?.({
@@ -160,7 +176,8 @@ export default function TrainMode({
       level2State,
       level3State,
       level4State,
-      situationAwarenessState
+      situationAwarenessState,
+      perceptionObservation
     });
   }, [
     awareness,
@@ -169,6 +186,7 @@ export default function TrainMode({
     level3State,
     level4State,
     onDiagnosticsUpdate,
+    perceptionObservation,
     situationAwarenessState
   ]);
   const [trainSessionStarted, setTrainSessionStarted] = useState(false);
@@ -260,6 +278,11 @@ export default function TrainMode({
     if (now - lastPositionUpdateRef.current < 250) return;
     lastPositionUpdateRef.current = now;
     setLiveMeasurementPose(frame?.measurementPose || null);
+    setPerceptionObservation(deriveSceneGeometry({
+      imagePose: frame?.observedPose || frame?.pose,
+      worldPose: frame?.measurementPose,
+      trackingConfidence: frame?.trackingConfidence,
+    }));
   }, []);
   const feedbackAngleParts = useMemo(() => {
     const profile = currentStep?.difficulty_profiles?.[formDifficulty];
@@ -292,13 +315,18 @@ export default function TrainMode({
   }, []);
   const masterMessage =
     textEnabled
-      ? (voiceEnabled && currentVoiceMessage ? currentVoiceMessage : coachText(coachEvent)) ||
+      ? (voiceEnabled && currentVoiceMessage ? currentVoiceMessage : backendFeedback?.message) ||
+        coachText(coachEvent) ||
         feedback ||
         "Step into frame. Feedback starts when your pose is detected."
       : "Text feedback is off.";
   const coachStateLabel =
     textEnabled
-      ? ACTION_LABELS[coachEvent?.action] ||
+      ? backendPaused
+        ? "Safety hold"
+        : backendAwarenessStatus === "live" && backendFeedback?.message
+          ? "Awareness guidance"
+          : ACTION_LABELS[coachEvent?.action] ||
         ACTION_LABELS[coachEvent?.state] ||
         "Master watching"
       : "Text off";
@@ -318,9 +346,9 @@ export default function TrainMode({
     "confirm_session_complete",
     "session_complete"
   ].includes(coachEvent?.state) || coachEvent?.action === "session_complete_prompt";
-  const trainSessionActive = trainSessionStarted && !trainSessionComplete;
+  const trainSessionActive = trainSessionStarted && !trainSessionComplete && !backendPaused;
   const trainSessionPaused =
-    trainSessionActive && Boolean(coachEvent?.memory?.paused);
+    backendPaused || (trainSessionActive && Boolean(coachEvent?.memory?.paused));
   const trainSessionState = trainSessionComplete
     ? "SESSION_COMPLETE"
     : trainSessionPaused
@@ -1008,10 +1036,113 @@ export default function TrainMode({
   }, [interruptVoicePlayback, playVoiceQueue]);
 
   useEffect(() => {
+    if (isAdminStudio) return undefined;
+    backendAwarenessRunIdRef.current =
+      globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    backendAwarenessSequenceRef.current = 0;
+    backendDeliveredRevisionRef.current = 0;
+    setBackendAwarenessSnapshot(null);
+    setBackendFeedback(null);
+    setBackendPaused(false);
+    const stream = createAwarenessStream({
+      endpoint: "/awareness/stream",
+      onSnapshotAck: (snapshot) => {
+        setBackendAwarenessSnapshot(snapshot);
+        setBackendAwarenessStatus("live");
+      },
+      onStatus: (status) => {
+        setBackendAwarenessStatus(status);
+        if (["offline", "unauthenticated", "error"].includes(status)) {
+          setBackendFeedback(null);
+          setBackendPaused(false);
+        }
+      }
+    });
+    backendAwarenessStreamRef.current = stream;
+    return () => {
+      stream.close();
+      backendAwarenessStreamRef.current = null;
+    };
+  }, [currentTechnique?.id, isAdminStudio]);
+
+  useEffect(() => {
+    if (isAdminStudio || !level1State || !backendAwarenessRunIdRef.current) return;
+    const now = Date.now();
+    if (now - backendAwarenessPublishRef.current < 500) return;
+    backendAwarenessPublishRef.current = now;
+    backendAwarenessSequenceRef.current += 1;
+    backendAwarenessStreamRef.current?.publishPerception(buildAwarenessPerceptionEnvelope({
+      diagnostics: {
+        awareness,
+        level1State,
+        level2State,
+        level3State,
+        level4State,
+        situationAwarenessState,
+        perceptionObservation
+      },
+      sequence: backendAwarenessSequenceRef.current,
+      sessionKey: `user.${String(currentTechnique?.id || "unknown")}.${backendAwarenessRunIdRef.current}`,
+      techniqueName: currentTechnique?.name,
+      metadata: {
+        source: "studio-train-mode",
+        performance_mode: performanceMode
+      }
+    }));
+  }, [
+    awareness,
+    currentTechnique?.id,
+    currentTechnique?.name,
+    isAdminStudio,
+    level1State,
+    level2State,
+    level3State,
+    level4State,
+    perceptionObservation,
+    performanceMode,
+    situationAwarenessState
+  ]);
+
+  useEffect(() => {
+    if (isAdminStudio) return;
+    const snapshot = backendAwarenessSnapshot;
+    if (!snapshot?.revision || backendDeliveredRevisionRef.current >= snapshot.revision) return;
+    backendDeliveredRevisionRef.current = snapshot.revision;
+    const backendDecision = snapshot.backend_decision || {};
+    const audioAdapter = voiceEnabled
+      ? ({ message }) => queueVoiceMessage(message || "", {
+          feedbackIntent: `backend:${backendDecision.feedback?.type || "guidance"}`,
+          interrupt: backendDecision.feedback?.type === "safety"
+        })
+      : null;
+    deliverAwarenessActions(backendDecision.actions || [], {
+      visual: (payload) => {
+        if (payload?.message) setBackendFeedback(payload);
+      },
+      audio: audioAdapter,
+      system: (command, payload) => {
+        if (payload?.pause_training || command === "pause_training") setBackendPaused(true);
+        else setBackendPaused(false);
+      }
+    }).then(async (deliveries) => {
+      if (!deliveries.length || !snapshot.session_key) return;
+      await authFetch(
+        `${API_BASE_URL}/awareness/sessions/${encodeURIComponent(snapshot.session_key)}/deliveries`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ revision: snapshot.revision, deliveries })
+        }
+      );
+    }).catch(() => {});
+  }, [backendAwarenessSnapshot, isAdminStudio, queueVoiceMessage, voiceEnabled]);
+
+  useEffect(() => {
     const message = coachText(coachEvent);
 
     if (
       !voiceEnabled ||
+      (backendAwarenessStatus === "live" && backendFeedback?.message) ||
       !message ||
       message === lastSpokenMessageRef.current
     ) {
@@ -1022,7 +1153,7 @@ export default function TrainMode({
       feedbackIntent: getCoachFeedbackIntent(coachEvent),
       interrupt: VOICE_INTERRUPT_ACTIONS.has(coachEvent?.action)
     });
-  }, [coachEvent, queueVoiceMessage, voiceEnabled]);
+  }, [backendAwarenessStatus, backendFeedback?.message, coachEvent, queueVoiceMessage, voiceEnabled]);
 
   useEffect(() => {
     if (!voiceEnabled) {

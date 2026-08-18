@@ -8,6 +8,8 @@ import { STUDIO_PERFORMANCE_MODES } from "../performance/studioPerformanceConfig
 import { createAwarenessStream } from "../services/awarenessStream";
 import { API_BASE_URL } from "../services/api";
 import { authFetch } from "../services/authSession";
+import { deliverAwarenessActions } from "../services/awarenessActions";
+import { buildAwarenessPerceptionEnvelope } from "../perception/awarenessEnvelope";
 
 const label = (value, fallback = "Waiting") => value ? String(value).replaceAll("_", " ") : fallback;
 const percent = (value) => Number.isFinite(Number(value)) ? `${Math.round(Number(value) * 100)}%` : "--";
@@ -48,6 +50,9 @@ export default function AdminAwareness() {
   const [knowledgeMessage, setKnowledgeMessage] = useState("");
   const [decisionEvaluations, setDecisionEvaluations] = useState([]);
   const [perceptionModules, setPerceptionModules] = useState([]);
+  const [actionDelivery, setActionDelivery] = useState([]);
+  const [actionDeliveryHistory, setActionDeliveryHistory] = useState([]);
+  const [longTermMemory, setLongTermMemory] = useState({ objects: [], relationships: [] });
   const previousRef = useRef({});
   const frozenRef = useRef(false);
   const awarenessStreamRef = useRef(null);
@@ -55,6 +60,7 @@ export default function AdminAwareness() {
   const lastAwarenessPublishRef = useRef(0);
   const awarenessRunIdRef = useRef("");
   const evaluationFetchRef = useRef(0);
+  const deliveredRevisionRef = useRef(0);
   const bodyCalibration = useBodyCalibration();
   const selected = techniques.find((item) => String(item.id) === techniqueId) || defaultTechnique;
   const handleDiagnosticsUpdate = useCallback((next) => {
@@ -98,6 +104,8 @@ export default function AdminAwareness() {
   const backendObjects = backendSnapshot?.objects || [];
   const backendRelationships = backendSnapshot?.relationships || [];
   const backendUser = backendObjects.find((item) => item.object_id === "user:primary") || backendObjects.find((item) => item.object_type === "human");
+  const backendFloor = backendObjects.find((item) => item.object_type === "floor");
+  const backendWall = backendObjects.find((item) => item.object_type === "wall");
   const backendTemporal = backendUser?.state || {};
   const toggleSkeletonLayer = (layer) => setSkeletonLayers((current) => ({ ...current, [layer]: !current[layer] }));
   const layerStatus = [
@@ -133,12 +141,43 @@ export default function AdminAwareness() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!backendSnapshot?.revision || deliveredRevisionRef.current >= backendSnapshot.revision) return;
+    deliveredRevisionRef.current = backendSnapshot.revision;
+    const audioAdapter = voiceEnabled && typeof speechSynthesis !== "undefined" && typeof SpeechSynthesisUtterance !== "undefined"
+      ? ({ message }) => speechSynthesis.speak(new SpeechSynthesisUtterance(message))
+      : null;
+    deliverAwarenessActions(backendSnapshot.backend_decision?.actions || [], {
+      visual: () => {},
+      audio: audioAdapter,
+      system: (_command, payload) => {
+        if (payload?.pause_training) {
+          frozenRef.current = true;
+          setFrozen(true);
+        }
+      },
+    }).then(async (deliveries) => {
+      setActionDelivery(deliveries);
+      if (!deliveries.length || !backendSnapshot.session_key) return;
+      const response = await authFetch(
+        `${API_BASE_URL}/admin/awareness/sessions/${encodeURIComponent(backendSnapshot.session_key)}/deliveries`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ revision: backendSnapshot.revision, deliveries }),
+        },
+      );
+      if (response.ok) setActionDeliveryHistory(await response.json());
+    }).catch(() => {});
+  }, [backendSnapshot, voiceEnabled]);
+
   const refreshKnowledge = useCallback(async () => {
     try {
-      const [activeResponse, profilesResponse, modulesResponse] = await Promise.all([
+      const [activeResponse, profilesResponse, modulesResponse, memoryResponse] = await Promise.all([
         authFetch(`${API_BASE_URL}/admin/awareness/knowledge`),
         authFetch(`${API_BASE_URL}/admin/awareness/knowledge/profiles`),
-        authFetch(`${API_BASE_URL}/admin/awareness/perception/modules`)
+        authFetch(`${API_BASE_URL}/admin/awareness/perception/modules`),
+        authFetch(`${API_BASE_URL}/admin/awareness/memory`)
       ]);
       if (activeResponse.ok) {
         const active = await activeResponse.json();
@@ -146,6 +185,7 @@ export default function AdminAwareness() {
       }
       if (profilesResponse.ok) setKnowledgeProfiles(await profilesResponse.json());
       if (modulesResponse.ok) setPerceptionModules(await modulesResponse.json());
+      if (memoryResponse.ok) setLongTermMemory(await memoryResponse.json());
     } catch {
       setKnowledgeMessage("Knowledge API unavailable");
     }
@@ -182,54 +222,43 @@ export default function AdminAwareness() {
     if (response.ok) refreshKnowledge();
   };
 
+  const exportMemory = () => {
+    const blob = new Blob([JSON.stringify(longTermMemory, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `awareness-memory-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearMemory = async () => {
+    if (!window.confirm("Delete all long-term awareness memory for this admin user?")) return;
+    const response = await authFetch(`${API_BASE_URL}/admin/awareness/memory`, { method: "DELETE" });
+    if (response.ok) {
+      setLongTermMemory({ objects: [], relationships: [] });
+      setKnowledgeMessage("Long-term awareness memory cleared");
+    }
+  };
+
   useEffect(() => {
     if (!diagnostics.level1State || !awarenessRunIdRef.current) return;
     const now = Date.now();
     if (now - lastAwarenessPublishRef.current < 500) return;
     lastAwarenessPublishRef.current = now;
     awarenessSequenceRef.current += 1;
-    const safeConfidence = Math.max(0, Math.min(1, Number(tracking.confidence || 0)));
-    const actionContext = diagnostics.level2State?.action_context || {};
-    const sessionContext = diagnostics.level3State?.session_context || {};
-    const userContext = diagnostics.level4State?.user_context || {};
-    const situationContext = diagnostics.situationAwarenessState?.situation_context || {};
-    awarenessStreamRef.current?.publish({
-      schema_version: "awareness/v1",
-      session_key: `admin.${String(selected?.id || "unknown")}.${awarenessRunIdRef.current}`,
+    awarenessStreamRef.current?.publishPerception(buildAwarenessPerceptionEnvelope({
+      diagnostics,
+      goalType: awarenessGoal,
       sequence: awarenessSequenceRef.current,
-      captured_at: new Date().toISOString(),
-      goal: { type: awarenessGoal, technique: selected?.name, mode: "training" },
-      objects: [{
-        object_id: "user:primary",
-        object_type: "human",
-        source: "mediapipe",
-        confidence: safeConfidence,
-        verified: live,
-        observed_at: new Date().toISOString(),
-        state: {
-          l1: {
-            tracking: diagnostics.level1State?.tracking || {},
-            angles_deg: diagnostics.level1State?.motion_context?.angles_deg || {},
-            prediction_confidence: diagnostics.level1State?.motion_context?.prediction_confidence ?? null,
-            motion_energy: diagnostics.level1State?.motion_context?.motion_energy ?? null
-          },
-          l2: actionContext,
-          l3: sessionContext,
-          l4: userContext
-        },
-        attributes: { technique: selected?.name, step: actionContext.step_id || null }
-      }],
-      relationships: [],
-      attention: situationContext.attention_target || {},
-      awareness: {
-        situation_state: situationContext.situation_state || "observing",
-        feedback_decision: situationContext.feedback_decision || {},
-        next_action: situationContext.next_action || {}
-      },
-      prediction: actionContext.forecast_awareness || {},
-      reasoning: situationContext.reasoning || {},
-      metadata: { source: "admin-awareness", frozen, performance_mode: performanceMode }
-    });
+      sessionKey: `admin.${String(selected?.id || "unknown")}.${awarenessRunIdRef.current}`,
+      techniqueName: selected?.name,
+      metadata: {
+        source: "admin-awareness",
+        frozen,
+        performance_mode: performanceMode
+      }
+    }));
   }, [awarenessGoal, diagnostics, frozen, live, performanceMode, selected?.id, selected?.name, tracking.confidence]);
   const studioControls = <section className="awareness-studio-controls" aria-label="Studio awareness controls">
     <label><span>Performance</span><select aria-label="Performance mode" value={performanceMode} onChange={(event) => setPerformanceMode(event.target.value)}>{Object.entries(STUDIO_PERFORMANCE_MODES).map(([key, option]) => <option key={key} value={key}>{option.label}</option>)}</select></label>
@@ -263,8 +292,8 @@ export default function AdminAwareness() {
         <section className="awareness-camera-column"><header><strong>Studio Train Mode · {selected?.name}</strong><span>{selected?.difficulty} · Live feedback</span></header><div className="training-shell training-shell--admin admin-awareness-studio"><TrainMode key={selected?.id} awarenessCompact categorySlug={selected?.categorySlug} subcategorySlug={selected?.subcategorySlug} selectedTechniqueName={selected?.name} displayMirrored={displayMirrored} textEnabled={textEnabled} voiceEnabled={voiceEnabled} isAdminStudio performanceProfile="admin" performanceMode={performanceMode} skeletonLayers={skeletonLayers} bodyCalibration={bodyCalibration} inputSource="live" onDiagnosticsUpdate={handleDiagnosticsUpdate} onPredictionStatus={setPredictionStatus} /></div><ul className="awareness-sensor-list"><SensorRow name="MediaPipe Pose / Hands / Face" status={live ? "✓ Live" : perceptionStatus("human", "Starting")} active={live} /><SensorRow name="YOLO object detection" status={perceptionStatus("objects")} active={perceptionReady("objects")} /><SensorRow name="Scene segmentation" status={perceptionStatus("scene")} active={perceptionReady("scene")} /><SensorRow name="Depth geometry" status={perceptionStatus("geometry")} active={perceptionReady("geometry")} /></ul></section>
         <section className="awareness-world-column">
           <header><strong>World foundation</strong><span>Verified entities only</span></header>
-          <div className="awareness-world-graph"><div className={live ? "world-node world-node--user is-live" : "world-node world-node--user"}>User<small>{percent(tracking.confidence)}</small></div><div className="world-node world-node--camera">Camera<small>source</small></div><div className="world-node world-node--floor is-pending">Floor<small>pending</small></div><i className="world-edge" aria-hidden="true" /></div>
-          <p className="awareness-world-note">Opponent, weapon, floor and wall nodes remain inactive until verified perception modules produce evidence.</p>
+          <div className="awareness-world-graph"><div className={live ? "world-node world-node--user is-live" : "world-node world-node--user"}>User<small>{percent(tracking.confidence)}</small></div><div className="world-node world-node--camera">Camera<small>source</small></div><div className={`world-node world-node--floor ${backendFloor?.verified ? "is-live" : "is-pending"}`}>Floor<small>{backendFloor ? percent(backendFloor.confidence) : "pending"}</small></div><div className={`world-node world-node--wall ${backendWall?.verified ? "is-live" : "is-pending"}`}>Wall<small>{backendWall ? percent(backendWall.confidence) : "pending"}</small></div><i className="world-edge" aria-hidden="true" /></div>
+          <p className="awareness-world-note">Floor and camera-field wall regions come from privacy-safe pose-ground geometry. Opponent, weapon, equipment and other-object nodes remain inactive until the future object detector produces evidence.</p>
           <div className="awareness-admin-fill">
             <article className="awareness-admin-card">
               <header><strong>Perception readiness</strong><span>{live ? "1 live" : "Starting"}</span></header>
@@ -317,6 +346,9 @@ export default function AdminAwareness() {
               <Value name="Object L4">{label(backendTemporal.l4?.evolution, "Collecting")}</Value>
               <Value name="Previous A(t)">{label(backendSnapshot?.backend_inference?.previous_state, "First frame")}</Value>
               <Value name="Utility choice">{label(backendSnapshot?.backend_decision?.utility?.selected, "Collecting")}</Value>
+              <Value name="Backend latency">{backendSnapshot?.latency?.processing_ms == null ? "--" : `${backendSnapshot.latency.processing_ms} ms`}</Value>
+              <Value name="Latency budget">{backendSnapshot?.latency?.within_budget == null ? "Pending" : backendSnapshot.latency.within_budget ? "Within budget" : "Over budget"}</Value>
+              <Value name="Action delivery">{actionDelivery.length ? `${actionDelivery.filter((item) => item.status === "delivered").length}/${actionDelivery.length} delivered` : "Pending"}</Value>
             </div>
           </section>
           <div className="awareness-admin-fill awareness-admin-fill--audit">
@@ -372,6 +404,11 @@ export default function AdminAwareness() {
           <header><strong>Decision evaluation history</strong><span>{backendSnapshot?.session_key || "Waiting for session"}</span></header>
           <div className="awareness-evaluation-summary"><Value name="State matches">{decisionEvaluations.filter((item) => item.state_agreement === true).length}</Value><Value name="State reviews">{decisionEvaluations.filter((item) => item.state_agreement === false).length}</Value><Value name="Command matches">{decisionEvaluations.filter((item) => item.command_agreement === true).length}</Value><Value name="Average confidence">{decisionEvaluations.length ? percent(decisionEvaluations.reduce((sum, item) => sum + Number(item.backend_confidence || 0), 0) / decisionEvaluations.length) : "--"}</Value></div>
           <div className="awareness-evaluation-list">{decisionEvaluations.length ? decisionEvaluations.map((item) => <article key={item.id}><span>r{item.revision}</span><strong>{label(item.client_state)} → {label(item.backend_state)}</strong><small>{item.state_agreement == null ? "Pending" : item.state_agreement ? "State match" : "Review state"} · {percent(item.backend_confidence)} · K v{item.knowledge_version}</small></article>) : <EmptyState>Meaningful client/backend transitions will appear during the live session.</EmptyState>}</div>
+        </section>
+        <section className="awareness-governance-card">
+          <header><strong>Long-term memory</strong><span>{longTermMemory.objects?.length || 0} objects · {longTermMemory.relationships?.length || 0} relations</span></header>
+          <div className="awareness-evaluation-summary"><Value name="Observations">{(longTermMemory.objects || []).reduce((sum, item) => sum + Number(item.lifetime_observations || 0), 0)}</Value><Value name="Sessions">{new Set((longTermMemory.objects || []).flatMap((item) => item.sessions || [])).size}</Value><Value name="Delivery records">{actionDeliveryHistory.length}</Value><Value name="Memory confidence">{longTermMemory.objects?.length ? percent(longTermMemory.objects.reduce((sum, item) => sum + Number(item.l4?.memory_confidence || 0), 0) / longTermMemory.objects.length) : "--"}</Value></div>
+          <div className="awareness-governance-actions"><button type="button" onClick={exportMemory}>Export memory</button><button type="button" onClick={clearMemory}>Clear memory</button><button type="button" onClick={refreshKnowledge}>Refresh</button></div>
         </section>
       </div>
     </ConsoleSection>

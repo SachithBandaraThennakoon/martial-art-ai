@@ -1,4 +1,5 @@
 import * as ort from "onnxruntime-web/wasm";
+import { configureWasmRuntime } from "./onnxRuntimeAssets.js";
 import {
   logitsToStateProbabilities,
   validateUniversalTemporalMetadata
@@ -9,6 +10,8 @@ const METADATA_PATH =
   "/models/universal-temporal/martial_arts_temporal.metadata.json";
 const MINIMUM_FRAMES = 12;
 const INFERENCE_INTERVAL_MS = 70;
+
+configureWasmRuntime(ort);
 
 function distance(first, second) {
   return Math.hypot(
