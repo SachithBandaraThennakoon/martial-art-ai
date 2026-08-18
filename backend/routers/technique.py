@@ -13,8 +13,26 @@ router = APIRouter(prefix="/techniques", tags=["Techniques"])
 
 
 @router.get("/guide/{technique_id}")
-def get_technique_guide(technique_id: str):
+def get_technique_guide(technique_id: str, db: Session = Depends(get_db)):
     """Return reviewed learning content and animation keyframes for one technique."""
+    technique = db.query(Technique).filter(
+        Technique.slug == technique_id,
+        Technique.status == "active",
+    ).first()
+    if technique and technique.learning_content:
+        content = technique.learning_content
+        if content.get("status") != "PUBLISHED":
+            raise HTTPException(404, "Technique Guide is not available")
+        return {
+            "id": technique.slug,
+            "name": technique.name,
+            "difficulty": technique.difficulty,
+            "learning_content": content,
+            "steps": (technique.training_config or {}).get("steps", []),
+        }
+
+    # File packages remain the transition fallback until an environment has
+    # been migrated and synchronized for the first time.
     package = next(
         (
             item for item in load_technique_packages()
@@ -32,6 +50,57 @@ def get_technique_guide(technique_id: str):
         "learning_content": content,
         "steps": package["training_steps"].get("steps", []),
     }
+
+
+def _technique_payload(technique: Technique) -> dict:
+    return {
+        "id": technique.id,
+        "slug": technique.slug,
+        "name": technique.name,
+        "description": technique.description,
+        "difficulty": technique.difficulty,
+        "status": technique.status,
+        "version": technique.version,
+        "category": technique.category,
+        "subcategory": technique.subcategory,
+        "price": technique.price,
+        "required_plan": technique.required_plan,
+        "family_id": technique.family_id,
+        "metadata": technique.metadata_json,
+    }
+
+
+@router.get("/{technique_slug}/training")
+def get_technique_training(technique_slug: str, db: Session = Depends(get_db)):
+    technique = db.query(Technique).filter(
+        Technique.slug == technique_slug,
+        Technique.status == "active",
+    ).first()
+    if not technique or technique.training_config is None:
+        raise HTTPException(404, "Technique training configuration not found")
+    return {"technique": _technique_payload(technique), "training_config": technique.training_config}
+
+
+@router.get("/{technique_slug}/learning")
+def get_technique_learning(technique_slug: str, db: Session = Depends(get_db)):
+    technique = db.query(Technique).filter(
+        Technique.slug == technique_slug,
+        Technique.status == "active",
+    ).first()
+    if not technique or technique.learning_content is None:
+        raise HTTPException(404, "Technique learning content not found")
+    return {"technique": _technique_payload(technique), "learning_content": technique.learning_content}
+
+
+@router.get("/{technique_slug}")
+def get_technique(technique_slug: str, db: Session = Depends(get_db)):
+    technique = db.query(Technique).filter(
+        Technique.slug == technique_slug,
+        Technique.status == "active",
+    ).first()
+    if not technique:
+        raise HTTPException(404, "Technique not found")
+    return _technique_payload(technique)
 
 
 # -------------------------

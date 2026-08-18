@@ -18,6 +18,7 @@ from models import (  # noqa: E402,F401
     awareness,
     billing,
     body_calibration,
+    catalog,
     contact_message,
     password_reset_token,
     privacy,
@@ -38,6 +39,8 @@ def baseline_metadata() -> MetaData:
     metadata = MetaData()
     for table in Base.metadata.sorted_tables:
         if table.name not in {
+            "catalog_items", "catalog_nodes", "catalog_placements", "technique_families",
+            "technique_revisions",
             "billing_events", "billing_subscriptions", "consent_records", "target_positions",
             "awareness_sessions", "awareness_events", "awareness_knowledge_profiles",
             "awareness_decision_evaluations", "awareness_object_memories",
@@ -68,6 +71,17 @@ def baseline_metadata() -> MetaData:
     for column_name in post_baseline_columns:
         tapes_table._columns.remove(tapes_table.c[column_name])
     tapes_table.c.payload.nullable = False
+    techniques_table = metadata.tables["techniques"]
+    catalog_columns = {
+        "slug", "family_id", "status", "version", "training_config",
+        "learning_content", "biomechanics_config", "optimization_config",
+        "visualization_config", "metadata_json", "created_at", "updated_at",
+    }
+    for index in list(techniques_table.indexes):
+        if any(column.name in catalog_columns for column in index.columns):
+            techniques_table.indexes.remove(index)
+    for column_name in catalog_columns:
+        techniques_table._columns.remove(techniques_table.c[column_name])
     return metadata
 
 

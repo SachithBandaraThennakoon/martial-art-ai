@@ -52,6 +52,7 @@ export default function ManualCatalogWorkspace() {
   const [poseEditorRevision, setPoseEditorRevision] = useState(0);
   const [workspacePanel, setWorkspacePanel] = useState("pose");
   const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [revisions, setRevisions] = useState([]);
 
   const loadPackages = useCallback(async () => {
     setIsLoading(true);
@@ -88,9 +89,28 @@ export default function ManualCatalogWorkspace() {
     return { ...current, training_steps: { ...current.training_steps, steps } };
   });
 
-  const selectPackage = (item) => {
+  const loadRevisions = useCallback(async (techniqueId) => {
+    if (!techniqueId) return setRevisions([]);
+    const response = await authFetch(`${API_BASE_URL}/admin/techniques/${techniqueId}/revisions`);
+    if (!response.ok) return setRevisions([]);
+    const data = await response.json();
+    setRevisions(data.revisions || []);
+  }, []);
+
+  const selectPackage = async (item) => {
     setStatus({ type: "", message: "" });
-    const editable = clone(item);
+    let editable = clone(item);
+    if (packages.some((entry) => entry.id === item.id)) {
+      try {
+        const response = await authFetch(`${API_BASE_URL}/admin/techniques/${item.id}/runtime`);
+        if (response.ok) editable = { ...editable, ...(await response.json()) };
+        await loadRevisions(item.id);
+      } catch {
+        setStatus({ type: "error", message: "Runtime data could not be loaded; showing the package fallback." });
+      }
+    } else {
+      setRevisions([]);
+    }
     editable.training_steps.biomechanics = { ...newBiomechanics(), ...editable.training_steps.biomechanics };
     setDraft(editable);
     setSavedSnapshot(JSON.stringify(editable));
@@ -190,16 +210,24 @@ export default function ManualCatalogWorkspace() {
     setIsSaving(true);
     setStatus({ type: "", message: "" });
     try {
-      const response = await authFetch(
-        `${API_BASE_URL}/admin/catalog${creating ? "" : `/${draft.id}`}`,
-        { method: creating ? "POST" : "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
-      );
+      const endpoint = creating
+        ? `${API_BASE_URL}/admin/catalog`
+        : `${API_BASE_URL}/admin/techniques/${draft.id}/publish`;
+      const body = creating ? payload : {
+        catalog: payload.catalog,
+        training_config: payload.training_steps,
+        learning_content: payload.learning_content || null,
+      };
+      const response = await authFetch(endpoint, {
+        method: creating ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Unable to save this technique");
-      setStatus({ type: "success", message: `${payload.catalog.name} saved. The database catalog is synchronized.` });
-      const refreshedPackages = await loadPackages();
-      const savedPackage = refreshedPackages?.find((item) => item.id === generatedId);
-      const currentDraft = clone(savedPackage || payload);
+      setStatus({ type: "success", message: `${payload.catalog.name} ${creating ? "created and synchronized" : `published as version ${data.version}`}.` });
+      if (creating) await loadPackages();
+      const currentDraft = clone(payload);
       currentDraft.training_steps.biomechanics = {
         ...newBiomechanics(),
         ...currentDraft.training_steps.biomechanics,
@@ -209,6 +237,24 @@ export default function ManualCatalogWorkspace() {
       setPoseStepIndex((current) =>
         Math.min(current, currentDraft.training_steps.steps.length - 1),
       );
+      if (!creating) await loadRevisions(generatedId);
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const rollback = async (revision) => {
+    if (!draft || !window.confirm(`Restore version ${revision.version}? This creates a new published version.`)) return;
+    setIsSaving(true);
+    try {
+      const response = await authFetch(`${API_BASE_URL}/admin/techniques/${draft.id}/revisions/${revision.id}/rollback`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Unable to restore this revision");
+      setStatus({ type: "success", message: `Version ${revision.version} restored as ${data.version}.` });
+      const source = packages.find((item) => item.id === draft.id);
+      if (source) await selectPackage(source);
     } catch (error) {
       setStatus({ type: "error", message: error.message });
     } finally {
@@ -309,9 +355,9 @@ export default function ManualCatalogWorkspace() {
         <label className="catalog-admin__technique-select"><span>Technique</span><select disabled={isLoading} onChange={(event) => choosePackage(packages.find((entry) => entry.id === event.target.value))} value={isExisting ? draft.id : ""}><option value="">{isLoading ? "Loading techniques…" : `Select from ${packages.length} technique${packages.length === 1 ? "" : "s"}…`}</option>{packages.map((item) => <option key={item.id} value={item.id}>{item.catalog.name}</option>)}</select></label>
         <label className="catalog-admin__technique-select catalog-admin__step-select-top"><span>Step</span><select disabled={!draft} onChange={(event) => setPoseStepIndex(Number(event.target.value))} value={poseStepIndex}>{draft?.training_steps.steps.map((step, index) => <option key={step.step_number} value={index}>{index + 1}. {step.step_name}</option>)}</select></label>
         <nav className="catalog-admin__workspace-tabs" aria-label="Catalog workspace panels">
-          {[['details', 'Details'], ['pose', 'Pose Studio'], ['steps', 'Step Data'], ['guide', 'Guide Studio']].map(([id, label]) => <button aria-pressed={workspacePanel === id} className={workspacePanel === id ? "is-active" : ""} disabled={!draft} key={id} onClick={() => setWorkspacePanel(id)} type="button">{label}</button>)}
+          {[['details', 'Details'], ['pose', 'Pose Studio'], ['steps', 'Step Data'], ['guide', 'Guide Studio'], ['history', 'History']].map(([id, label]) => <button aria-pressed={workspacePanel === id} className={workspacePanel === id ? "is-active" : ""} disabled={!draft} key={id} onClick={() => setWorkspacePanel(id)} type="button">{label}</button>)}
         </nav>
-        <div className="catalog-admin__app-actions">{draft ? <span className={`catalog-admin__save-state ${isDirty ? "is-dirty" : ""}`}>{isDirty ? "Unsaved" : "Saved"}</span> : null}<button className="btn btn--ghost btn--small" onClick={() => { if (!isDirty || window.confirm("Discard your unsaved catalog changes?")) selectPackage(newPackage()); }} type="button">New</button>{isExisting ? <button className="btn btn--danger btn--small" onClick={archive} type="button">Archive</button> : null}<button className="btn btn--light btn--small" disabled={!draft || isSaving || !isDirty || draftIssues.length > 0} onClick={save} title={draftIssues[0] || "Save catalog item (Ctrl+S)"} type="button">{isSaving ? "Saving…" : "Save"}</button></div>
+        <div className="catalog-admin__app-actions">{draft ? <span className={`catalog-admin__save-state ${isDirty ? "is-dirty" : ""}`}>{isDirty ? "Unpublished" : "Published"}</span> : null}<button className="btn btn--ghost btn--small" onClick={() => { if (!isDirty || window.confirm("Discard your unsaved catalog changes?")) selectPackage(newPackage()); }} type="button">New</button>{isExisting ? <button className="btn btn--danger btn--small" onClick={archive} type="button">Archive</button> : null}<button className="btn btn--light btn--small" disabled={!draft || isSaving || !isDirty || draftIssues.length > 0} onClick={save} title={draftIssues[0] || "Publish runtime data (Ctrl+S)"} type="button">{isSaving ? "Publishing…" : isExisting ? "Publish" : "Create"}</button></div>
       </header>
       <section className="catalog-admin__workspace">
         <aside className="catalog-admin__tool-rail" aria-label="Workspace tools">
@@ -319,6 +365,7 @@ export default function ManualCatalogWorkspace() {
           <button className={workspacePanel === "pose" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("pose")} title="Pose studio" type="button"><b>P</b><span>Pose</span></button>
           <button className={workspacePanel === "steps" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("steps")} title="Step data" type="button"><b>S</b><span>Steps</span></button>
           <button className={workspacePanel === "guide" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("guide")} title="Guide studio" type="button"><b>G</b><span>Guide</span></button>
+          <button className={workspacePanel === "history" ? "is-active" : ""} disabled={!draft} onClick={() => setWorkspacePanel("history")} title="Publication history" type="button"><b>H</b><span>History</span></button>
         </aside>
         <section className="catalog-admin__editor-panel">
           {!draft ? <div className="catalog-admin__empty"><span className="catalog-admin__empty-mark" aria-hidden="true">+</span><h2>Build a training technique</h2><p>Select one of {packages.length} existing techniques, or create a new catalog item and author each pose by hand.</p><button className="btn btn--light" onClick={() => selectPackage(newPackage())} type="button">Create technique</button></div> : <>
@@ -365,6 +412,10 @@ export default function ManualCatalogWorkspace() {
                 steps={draft.training_steps.steps}
                 techniqueId={draft.catalog.id || draft.id}
               />
+            </section> : null}
+            {workspacePanel === "history" ? <section className="catalog-admin__panel-view catalog-admin__panel-view--history">
+              <div className="catalog-admin__steps-heading"><div><h3>Publication history</h3><p>Every publish and rollback creates an immutable database revision.</p></div></div>
+              <div className="catalog-admin__steps">{revisions.length ? revisions.map((revision) => <article className="catalog-admin__step" key={revision.id}><div className="catalog-admin__step-top"><strong>Version {revision.version}</strong><span>{new Date(revision.created_at).toLocaleString()}</span><button className="btn btn--ghost btn--small" disabled={isSaving} onClick={() => rollback(revision)} type="button">Restore</button></div><small>{revision.action}</small></article>) : <p>No database publications yet. Publish this technique to create the first revision.</p>}</div>
             </section> : null}
           </>}
         </section>

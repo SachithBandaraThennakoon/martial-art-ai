@@ -12,12 +12,7 @@ const CATEGORY_ORDER = [
   "Fighting"
 ];
 
-function buildTechniqueCatalog({
-  techniques = [],
-  technique_steps = [],
-  target_angles = []
-}) {
-  const normalizePackageStep = (step, index, techniqueId) => {
+export function normalizePackageStep(step, index, techniqueId) {
     const angleTargets = Array.isArray(step.angle_targets)
       ? step.angle_targets.map((angle) => ({
           body_part: angle.body_part,
@@ -84,7 +79,42 @@ function buildTechniqueCatalog({
         max
       }))
     };
+}
+
+export function normalizeRuntimeTechnique({ technique, trainingConfig, fallback }) {
+  const techniqueId = technique.slug || fallback?.id || slugify(technique.name);
+  const steps = (trainingConfig?.steps || []).map((step, index) =>
+    normalizePackageStep(
+      {
+        ...step,
+        difficulty_profiles: step.difficulty_profiles || trainingConfig?.difficulty_profiles || null
+      },
+      index,
+      techniqueId
+    )
+  );
+
+  return {
+    ...fallback,
+    id: techniqueId,
+    name: technique.name,
+    trackingPackage: technique.metadata?.tracking_package || fallback?.trackingPackage || techniqueId,
+    trackingVersion: technique.metadata?.tracking_version || fallback?.trackingVersion || null,
+    category: technique.category || fallback?.category || "Technique Training",
+    subcategory: technique.subcategory || fallback?.subcategory || "General",
+    difficulty: technique.difficulty || fallback?.difficulty || "Beginner",
+    price: technique.price ?? fallback?.price ?? 0,
+    requiredPlan: technique.required_plan || fallback?.requiredPlan || "FREE_PLAN",
+    description: technique.description || fallback?.description || "",
+    steps
   };
+}
+
+function buildTechniqueCatalog({
+  techniques = [],
+  technique_steps = [],
+  target_angles = []
+}) {
 
   const stepAngles = target_angles.reduce((items, angle) => {
     const list = items.get(angle.step_id) || [];

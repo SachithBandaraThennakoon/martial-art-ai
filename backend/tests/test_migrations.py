@@ -13,6 +13,7 @@ from models import (  # noqa: F401
     awareness,
     billing,
     body_calibration,
+    catalog,
     contact_message,
     password_reset_token,
     privacy,

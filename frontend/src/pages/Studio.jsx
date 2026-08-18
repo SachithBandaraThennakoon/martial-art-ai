@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { slugify, techniqueCatalog } from "../data/techniqueCatalog";
+import { slugify } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 
 const CATEGORY_DETAILS = {
   "Flexibility & Mobility": { code: "FM", description: "Build range, control, and movement quality." },
@@ -14,12 +15,13 @@ const CATEGORY_DETAILS = {
 };
 
 export default function Studio({ isAdminStudio = false }) {
+  const { catalog } = useCatalog();
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
 
   const totals = useMemo(
     () =>
-      techniqueCatalog.reduce(
+      catalog.reduce(
         (summary, category) => {
           category.subcategories.forEach((subcategory) => {
             summary.subcategories += 1;
@@ -33,13 +35,13 @@ export default function Studio({ isAdminStudio = false }) {
         },
         { subcategories: 0, techniques: 0, steps: 0 }
       ),
-    []
+    [catalog]
   );
 
   const visibleCategories = useMemo(() => {
-    if (!normalizedQuery) return techniqueCatalog;
+    if (!normalizedQuery) return catalog;
 
-    return techniqueCatalog
+    return catalog
       .map((category) => {
         const categoryMatches = category.category.toLowerCase().includes(normalizedQuery);
         const matches = category.subcategories.flatMap((subcategory) =>
@@ -54,7 +56,7 @@ export default function Studio({ isAdminStudio = false }) {
         return { ...category, matches };
       })
       .filter((category) => category.matches.length > 0);
-  }, [normalizedQuery]);
+  }, [catalog, normalizedQuery]);
 
   return (
     <main className={`studio-page ${isAdminStudio ? "studio-page--admin" : ""}`}>
@@ -106,7 +108,7 @@ export default function Studio({ isAdminStudio = false }) {
               <span>guided techniques</span>
             </div>
             <div className="studio-overview__metrics">
-              <div><strong>{techniqueCatalog.length}</strong><span>Disciplines</span></div>
+              <div><strong>{catalog.length}</strong><span>Disciplines</span></div>
               <div><strong>{totals.subcategories}</strong><span>Programs</span></div>
               <div><strong>{totals.steps}</strong><span>Tracked steps</span></div>
             </div>

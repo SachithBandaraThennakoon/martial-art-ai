@@ -1,8 +1,12 @@
 import { Link } from "react-router";
 import { XCEED_COMPANY } from "../data/companyInfo";
-import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
+import { slugify } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 
 export default function Footer() {
+  const { catalog } = useCatalog();
+  const mainCategories = catalog.map((category) => category.category);
+
   return (
     <footer className="site-footer">
       <div className="site-footer__main">
@@ -28,7 +32,7 @@ export default function Footer() {
           </div>
           <div>
             <strong>Train</strong>
-            {MAIN_CATEGORIES.slice(0, 4).map((category) => (
+            {mainCategories.slice(0, 4).map((category) => (
               <Link key={category} to={`/categories/${slugify(category)}`}>{category}</Link>
             ))}
           </div>

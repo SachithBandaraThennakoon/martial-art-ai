@@ -1,10 +1,13 @@
 import { Link, NavLink, useLocation } from "react-router";
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../context/auth";
-import { MAIN_CATEGORIES, slugify } from "../data/techniqueCatalog";
+import { slugify } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 
 export default function Navbar() {
   const { token, logout, userName, userRole } = useContext(AuthContext);
+  const { catalog } = useCatalog();
+  const mainCategories = catalog.map((category) => category.category);
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = () => setIsMenuOpen(false);
@@ -70,7 +73,7 @@ export default function Navbar() {
             </div>
             <div className="navbar__menu-section">
               <span>Disciplines</span>
-              {MAIN_CATEGORIES.map((category) => (
+              {mainCategories.map((category) => (
                 <NavLink className={navClass} key={category} onClick={closeMenu} to={`/categories/${slugify(category)}`}>
                   {category}
                 </NavLink>
@@ -98,7 +101,7 @@ export default function Navbar() {
       </div>
 
       <div className="navbar__center navbar__categories" aria-label="Training disciplines">
-        {MAIN_CATEGORIES.map((category) => (
+        {mainCategories.map((category) => (
           <NavLink className={navClass} key={category} to={`/categories/${slugify(category)}`}>{category}</NavLink>
         ))}
       </div>

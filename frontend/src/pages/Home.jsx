@@ -1,12 +1,14 @@
 import { useContext } from "react";
 import { Link } from "react-router";
 import { AuthContext } from "../context/auth";
-import { techniqueCatalog, slugify } from "../data/techniqueCatalog";
+import { slugify } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 import MeditationHero from "../components/MeditationHero/MeditationHero";
 import FloatingParticles from "../components/MeditationHero/components/FloatingParticles";
 
 export default function Home() {
   const { token, userName } = useContext(AuthContext);
+  const { catalog } = useCatalog();
 
   return (
     <main className="page page--home">
@@ -46,7 +48,7 @@ export default function Home() {
       <section className="home-catalog">
         <div className="section-heading"><p className="eyebrow">Training library</p><h2>Choose the skill you want to sharpen.</h2></div>
         <div className="home-categories" aria-label="Main categories">
-          {techniqueCatalog.map((category, index) => (
+          {catalog.map((category, index) => (
             <Link className="home-category-link" key={category.category} to={`/categories/${slugify(category.category)}`}>
               <span>{String(index + 1).padStart(2, "0")} · {category.subcategories.length} {category.subcategories.length === 1 ? "program" : "programs"}</span><strong>{category.category}</strong><b aria-hidden="true">↗</b>
             </Link>

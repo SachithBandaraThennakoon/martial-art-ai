@@ -5,10 +5,8 @@ import DataLayersPanel from "../components/DataLayersPanel";
 import Level1DebugPanel from "../components/Level1DebugPanel";
 import Level2DebugPanel from "../components/Level2DebugPanel";
 import SkeletonCanvas from "../components/SkeletonCanvas";
-import {
-  getTechniqueFromCatalog,
-  getTechniqueTrackingPackage
-} from "../data/techniqueCatalog";
+import { getTechniqueTrackingPackage } from "../data/techniqueCatalog";
+import useRuntimeTechnique from "../hooks/useRuntimeTechnique";
 import { API_BASE_URL } from "../services/api";
 import { authFetch, getAccessToken } from "../services/authSession";
 import {
@@ -1196,15 +1194,11 @@ export default function PracticeMode({
   onInputStatus,
   onPredictionStatus
 }) {
-  const currentTechnique = useMemo(
-    () =>
-      getTechniqueFromCatalog({
-        categorySlug,
-        subcategorySlug,
-        techniqueName: selectedTechniqueName
-      }),
-    [categorySlug, selectedTechniqueName, subcategorySlug]
-  );
+  const { technique: currentTechnique } = useRuntimeTechnique({
+    categorySlug,
+    subcategorySlug,
+    techniqueName: selectedTechniqueName
+  });
   const practiceSessionConfig = useMemo(
     () => ({
       technique_name: currentTechnique?.name || null,

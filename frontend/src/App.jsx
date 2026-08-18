@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router";
 import { AuthProvider } from "./context/AuthContext";
+import { CatalogProvider } from "./context/CatalogContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -166,7 +167,9 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <CatalogProvider>
+          <AppRoutes />
+        </CatalogProvider>
       </BrowserRouter>
     </AuthProvider>
   );

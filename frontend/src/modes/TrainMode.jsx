@@ -10,7 +10,7 @@ import SkeletonCanvas from "../components/SkeletonCanvas";
 import MetricsPanel from "../components/MetricsPanel";
 import { AuthContext } from "../context/auth";
 import { canAccessPlan, formatPlanName } from "../data/planAccess";
-import { getTechniqueFromCatalog } from "../data/techniqueCatalog";
+import useRuntimeTechnique from "../hooks/useRuntimeTechnique";
 import {
   createBrowserAudio,
   playBrowserAudio,
@@ -129,15 +129,11 @@ export default function TrainMode({
   onDiagnosticsUpdate,
   awarenessCompact = false
 }) {
-  const currentTechnique = useMemo(
-    () =>
-      getTechniqueFromCatalog({
-        categorySlug,
-        subcategorySlug,
-        techniqueName: selectedTechniqueName
-      }),
-    [categorySlug, selectedTechniqueName, subcategorySlug]
-  );
+  const { technique: currentTechnique } = useRuntimeTechnique({
+    categorySlug,
+    subcategorySlug,
+    techniqueName: selectedTechniqueName
+  });
   const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
 
   const steps = useMemo(() => currentTechnique?.steps || [], [currentTechnique]);

@@ -1,7 +1,8 @@
 import { useContext, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router";
 import { AuthContext } from "../context/auth";
-import { getCategoryBySlug, slugify } from "../data/techniqueCatalog";
+import { slugify } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 import { canAccessPlan, formatPlanName } from "../data/planAccess";
 
 function formatPrice(price) {
@@ -11,7 +12,8 @@ function formatPrice(price) {
 export default function CategoryPage() {
   const { categorySlug } = useParams();
   const location = useLocation();
-  const category = getCategoryBySlug(categorySlug);
+  const { catalog } = useCatalog();
+  const category = catalog.find((item) => slugify(item.category) === categorySlug);
   const { userPlan = "FREE_PLAN" } = useContext(AuthContext) || {};
   const isAdminStudio = new URLSearchParams(location.search).get("admin") === "1";
   const [query, setQuery] = useState("");
