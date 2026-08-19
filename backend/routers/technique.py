@@ -92,6 +92,19 @@ def get_technique_learning(technique_slug: str, db: Session = Depends(get_db)):
     return {"technique": _technique_payload(technique), "learning_content": technique.learning_content}
 
 
+@router.get("/{technique_slug}/tracking")
+def get_technique_tracking(technique_slug: str, db: Session = Depends(get_db)):
+    """Return the temporal tracking package stored inside the DB training JSONB."""
+    technique = db.query(Technique).filter(
+        Technique.slug == technique_slug,
+        Technique.status == "active",
+    ).first()
+    tracking = (technique.training_config or {}).get("temporal_runtime") if technique else None
+    if not technique or not tracking:
+        raise HTTPException(404, "Technique tracking configuration not found")
+    return {"technique": _technique_payload(technique), "tracking_config": tracking}
+
+
 @router.get("/{technique_slug}")
 def get_technique(technique_slug: str, db: Session = Depends(get_db)):
     technique = db.query(Technique).filter(

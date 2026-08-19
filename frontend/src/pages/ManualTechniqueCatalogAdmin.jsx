@@ -211,9 +211,9 @@ export default function ManualCatalogWorkspace() {
     setStatus({ type: "", message: "" });
     try {
       const endpoint = creating
-        ? `${API_BASE_URL}/admin/catalog`
+        ? `${API_BASE_URL}/admin/techniques/create`
         : `${API_BASE_URL}/admin/techniques/${draft.id}/publish`;
-      const body = creating ? payload : {
+      const body = {
         catalog: payload.catalog,
         training_config: payload.training_steps,
         learning_content: payload.learning_content || null,
@@ -226,7 +226,10 @@ export default function ManualCatalogWorkspace() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Unable to save this technique");
       setStatus({ type: "success", message: `${payload.catalog.name} ${creating ? "created and synchronized" : `published as version ${data.version}`}.` });
-      if (creating) await loadPackages();
+      if (creating) {
+        const createdPackage = { ...payload, id: generatedId, has_tracking: false };
+        setPackages((current) => [...current, createdPackage]);
+      }
       const currentDraft = clone(payload);
       currentDraft.training_steps.biomechanics = {
         ...newBiomechanics(),

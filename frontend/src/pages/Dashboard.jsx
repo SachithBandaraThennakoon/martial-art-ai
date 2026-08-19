@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams, useSearchParams } from "react-router";
 import SessionAnalysisPanel from "../components/SessionAnalysisPanel";
 import StoredSessionTapePanel from "../components/StoredSessionTapePanel";
-import { techniqueCatalog } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 import { API_BASE_URL } from "../services/api";
 import { authFetch, getAccessToken } from "../services/authSession";
 
@@ -120,11 +120,12 @@ function Panel({ eyebrow, title, meta, className = "", children }) {
 }
 
 function DashboardFilters({ searchParams, setSearchParams, data, collapsed, onToggle }) {
+  const { catalog } = useCatalog();
   const category = searchParams.get("category") || "";
   const subcategory = searchParams.get("subcategory") || "";
   const taxonomy = useMemo(() => Object.fromEntries(
-    techniqueCatalog.map((item) => [item.category, Object.fromEntries(item.subcategories.map((sub) => [sub.name, sub.techniques.map((technique) => technique.name)]))])
-  ), []);
+    catalog.map((item) => [item.category, Object.fromEntries(item.subcategories.map((sub) => [sub.name, sub.techniques.map((technique) => technique.name)]))])
+  ), [catalog]);
   const subcategories = category ? Object.keys(taxonomy[category] || {}) : [];
   const techniques = subcategory ? taxonomy[category]?.[subcategory] || [] : [];
   const update = (key, value, clear = []) => {

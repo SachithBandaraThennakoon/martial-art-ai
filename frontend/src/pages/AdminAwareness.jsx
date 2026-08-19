@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DataLayersPanel from "../components/DataLayersPanel";
 import TrainMode from "../modes/TrainMode";
 import useBodyCalibration from "../hooks/useBodyCalibration";
-import { slugify, techniqueCatalog } from "../data/techniqueCatalog";
+import { slugify } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 import { buildCoachContextPacket } from "../situationAwareness/buildCoachContextPacket";
 import { STUDIO_PERFORMANCE_MODES } from "../performance/studioPerformanceConfig";
 import { createAwarenessStream } from "../services/awarenessStream";
@@ -14,13 +15,6 @@ import { buildAwarenessPerceptionEnvelope } from "../perception/awarenessEnvelop
 const label = (value, fallback = "Waiting") => value ? String(value).replaceAll("_", " ") : fallback;
 const percent = (value) => Number.isFinite(Number(value)) ? `${Math.round(Number(value) * 100)}%` : "--";
 const decimal = (value) => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : "--";
-const techniques = techniqueCatalog.flatMap((category) => category.subcategories.flatMap((subcategory) =>
-  subcategory.techniques.map((technique) => ({ ...technique, categoryName: category.category, subcategoryName: subcategory.name, categorySlug: slugify(category.category), subcategorySlug: slugify(subcategory.name) }))));
-const techniqueGroups = techniqueCatalog.map((category) => ({
-  name: category.category,
-  items: techniques.filter((technique) => technique.categoryName === category.category)
-})).filter((group) => group.items.length);
-
 function ConsoleSection({ id, title, meta, defaultOpen = true, children }) {
   return <details className="awareness-console-section" id={id} open={defaultOpen}><summary><strong>{title}</strong><span>{meta}</span><b>⌄</b></summary><div className="awareness-console-section__body">{children}</div></details>;
 }
@@ -30,6 +24,13 @@ function SensorRow({ name, status, active }) { return <li><span>{name}</span><st
 function EmptyState({ children }) { return <p className="awareness-console-empty">{children}</p>; }
 
 export default function AdminAwareness() {
+  const { catalog } = useCatalog();
+  const techniques = catalog.flatMap((category) => category.subcategories.flatMap((subcategory) =>
+    subcategory.techniques.map((technique) => ({ ...technique, categoryName: category.category, subcategoryName: subcategory.name, categorySlug: slugify(category.category), subcategorySlug: slugify(subcategory.name) }))));
+  const techniqueGroups = catalog.map((category) => ({
+    name: category.category,
+    items: techniques.filter((technique) => technique.categoryName === category.category)
+  })).filter((group) => group.items.length);
   const defaultTechnique = techniques.find((item) => item.name.toLowerCase() === "jab") || techniques[0];
   const [techniqueId, setTechniqueId] = useState(String(defaultTechnique?.id || ""));
   const [diagnostics, setDiagnostics] = useState({});
@@ -86,7 +87,7 @@ export default function AdminAwareness() {
   const situation = diagnostics.situationAwarenessState?.situation_context || {};
   const tracking = l1.tracking || {};
   const live = Boolean(diagnostics.awareness?.active && l1.timestamp);
-  const coachPacket = useMemo(() => buildCoachContextPacket({ level1State: diagnostics.level1State, level2State: diagnostics.level2State, level3State: diagnostics.level3State, level4State: diagnostics.level4State, situationAwarenessState: diagnostics.situationAwarenessState, mode: "train", techniqueName: selected?.name, currentStepId: action.step_id, currentStepName: action.step_state }), [action.step_id, action.step_state, diagnostics, selected?.name]);
+  const coachPacket = buildCoachContextPacket({ level1State: diagnostics.level1State, level2State: diagnostics.level2State, level3State: diagnostics.level3State, level4State: diagnostics.level4State, situationAwarenessState: diagnostics.situationAwarenessState, mode: "train", techniqueName: selected?.name, currentStepId: action.step_id, currentStepName: action.step_state });
 
   useEffect(() => {
     const current = { live, phase: action.step_state, issue: action.likely_mistake?.issue, situation: situation.situation_state, feedback: situation.feedback_decision?.message };
@@ -243,6 +244,7 @@ export default function AdminAwareness() {
 
   useEffect(() => {
     if (!diagnostics.level1State || !awarenessRunIdRef.current) return;
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     if (now - lastAwarenessPublishRef.current < 500) return;
     lastAwarenessPublishRef.current = now;

@@ -12,6 +12,8 @@ from auth_context import require_admin_user
 import logging
 from database import get_db
 from models.user import User
+from models.technique import Technique
+from models.catalog import CatalogItem
 from services.catalog_sync import sync_technique_catalog
 from services.reference_pose_schema import normalize_reference_pose
 from services.technique_package_loader import LEARNING_CONTENT_FILE, TECHNIQUE_ROOT, TRACKING_FILES
@@ -212,6 +214,31 @@ def _validate_learning_content(content, package_id):
                 if str(joint).strip()
             ][:12],
         },
+    }
+
+
+def _database_package_payload(technique: Technique):
+    metadata = technique.metadata_json or {}
+    catalog = {
+        "schema_version": metadata.get("catalog_schema_version") or "1.0",
+        "id": technique.slug,
+        "name": technique.name,
+        "tracking_package": metadata.get("tracking_package") or technique.slug,
+        "tracking_version": metadata.get("tracking_version") or "1.0.0",
+        "category": technique.category or "Technique Training",
+        "subcategory": technique.subcategory or "General",
+        "difficulty": technique.difficulty or "Beginner",
+        "price": technique.price or 0,
+        "required_plan": technique.required_plan or "FREE_PLAN",
+        "description": technique.description or "",
+    }
+    return {
+        "id": technique.slug,
+        "enabled": technique.status == "active",
+        "catalog": catalog,
+        "training_steps": technique.training_config or {},
+        "learning_content": technique.learning_content,
+        "has_tracking": bool(metadata.get("has_tracking")),
     }
 
 
@@ -426,16 +453,21 @@ def _save_package(package_id, catalog, training_steps, learning_content, enabled
 
 
 @router.get("")
-def list_packages(_admin: User = Depends(require_admin_user)):
-    return {"techniques": [_package_payload(item) for item in _load_all_packages()]}
+def list_packages(db: Session = Depends(get_db), _admin: User = Depends(require_admin_user)):
+    return {
+        "techniques": [
+            _database_package_payload(technique)
+            for technique in db.query(Technique).order_by(Technique.name).all()
+        ]
+    }
 
 
 @router.get("/{technique_id}")
-def get_package(technique_id: str, _admin: User = Depends(require_admin_user)):
-    package = next((item for item in _load_all_packages() if item["catalog"]["id"] == technique_id), None)
-    if not package:
+def get_package(technique_id: str, db: Session = Depends(get_db), _admin: User = Depends(require_admin_user)):
+    technique = db.query(Technique).filter(Technique.slug == technique_id).first()
+    if not technique:
         raise HTTPException(404, "Technique package not found")
-    return _package_payload(package)
+    return _database_package_payload(technique)
 
 
 @router.post("")
@@ -466,11 +498,15 @@ def update_package(technique_id: str, payload: PackagePayload, db: Session = Dep
 
 @router.delete("/{technique_id}")
 def archive_package(technique_id: str, db: Session = Depends(get_db), _admin: User = Depends(require_admin_user)):
-    index = _read_index()
-    entry = next((item for item in index.get("techniques", []) if item.get("id") == technique_id), None)
-    if not entry:
+    technique = db.query(Technique).filter(Technique.slug == technique_id).first()
+    if not technique:
         raise HTTPException(404, "Technique package not found")
-    entry["enabled"] = False
-    _write_json(TECHNIQUE_ROOT / "index.json", index)
-    sync_technique_catalog(db)
+    technique.status = "archived"
+    item = db.query(CatalogItem).filter(
+        CatalogItem.resource_type == "technique",
+        CatalogItem.resource_id == technique.id,
+    ).first()
+    if item:
+        item.active = False
+    db.commit()
     return {"message": "Technique archived", "id": technique_id}

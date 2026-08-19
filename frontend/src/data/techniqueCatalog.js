@@ -1,5 +1,5 @@
-import { listTechniqueDataPackages } from "./techniqueDataRegistry.js";
 import { getTrackingTechniquePackage } from "../tracking/techniquePackageRegistry.js";
+import { createTechniquePackage } from "../tracking/techniquePackage.js";
 
 const CATEGORY_ORDER = [
   "Flexibility & Mobility",
@@ -106,7 +106,8 @@ export function normalizeRuntimeTechnique({ technique, trainingConfig, fallback 
     price: technique.price ?? fallback?.price ?? 0,
     requiredPlan: technique.required_plan || fallback?.requiredPlan || "FREE_PLAN",
     description: technique.description || fallback?.description || "",
-    steps
+    steps,
+    temporalRuntime: trainingConfig?.temporal_runtime || fallback?.temporalRuntime || null
   };
 }
 
@@ -197,15 +198,11 @@ function buildTechniqueCatalog({
     }));
 }
 
-export const techniqueCatalog = buildTechniqueCatalog({
-  techniques: listTechniqueDataPackages().map(({ catalog, trainingSteps }) => ({
-    ...catalog,
-    steps: (trainingSteps.steps || []).map((step) => ({
-      ...step,
-      difficulty_profiles: trainingSteps.difficulty_profiles || null
-    }))
-  }))
-});
+// The database catalog is now the authoritative browser catalog. This empty
+// compatibility value remains for callers that have not yet migrated to the
+// CatalogContext/API adapter.
+export const techniqueCatalog = [];
+export { buildTechniqueCatalog };
 
 export const MAIN_CATEGORIES = techniqueCatalog.map((category) => category.category);
 
@@ -279,6 +276,9 @@ export function getTechniqueFromCatalog({
 }
 
 export function getTechniqueTrackingPackage(techniqueOrId) {
+  if (techniqueOrId?.temporalRuntime) {
+    return createTechniquePackage(techniqueOrId.temporalRuntime);
+  }
   const packageId =
     typeof techniqueOrId === "string"
       ? techniqueOrId

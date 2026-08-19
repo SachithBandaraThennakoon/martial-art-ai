@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import re
 
 from database import get_db
 from models.catalog import CatalogItem, CatalogNode, CatalogPlacement
@@ -52,9 +53,18 @@ def get_catalog(db: Session = Depends(get_db)):
         items_by_node.setdefault(placement.catalog_node_id, []).append(payload)
 
     def build_tree(node):
+        children = [
+            child for child in nodes
+            if child.parent_id == node.id
+            and (child.metadata_json or {}).get("resource_kind") == "catalog_node"
+        ]
+        # The legacy sync created duplicate top-level groups. The imported
+        # taxonomy is the numbered hierarchy and is the single public tree.
+        if node.parent_id is None:
+            children = [child for child in children if re.match(r"^[1-8]\.\s", child.name or "")]
         return {
             **_node_payload(node),
-            "children": [build_tree(child) for child in nodes if child.parent_id == node.id],
+            "children": [build_tree(child) for child in children],
             "items": items_by_node.get(node.id, []),
         }
 

@@ -3,9 +3,9 @@ import { Link } from "react-router";
 import SkeletonCanvas from "../components/SkeletonCanvas";
 import {
   getTechniqueTrackingPackage,
-  slugify,
-  techniqueCatalog
+  slugify
 } from "../data/techniqueCatalog";
+import { useCatalog } from "../context/CatalogContext";
 import { API_BASE_URL } from "../services/api";
 import { authFetch, getAccessToken } from "../services/authSession";
 import { validateTemporalModelMetadata } from "../tracking/temporalModelContract";
@@ -46,16 +46,6 @@ const POSE_CONNECTIONS = [
   [11, 23], [12, 24], [23, 24], [23, 25], [25, 27],
   [24, 26], [26, 28]
 ];
-
-const techniques = techniqueCatalog.flatMap((category) =>
-  category.subcategories.flatMap((subcategory) =>
-    subcategory.techniques.map((technique) => ({
-      ...technique,
-      category: category.category,
-      subcategory: subcategory.name
-    }))
-  )
-).filter((technique) => getTechniqueTrackingPackage(technique));
 
 function downloadJson(payload, filename) {
   const url = URL.createObjectURL(
@@ -253,6 +243,9 @@ function SkeletonPreview({ frame }) {
 }
 
 export default function TemporalDataLab() {
+  const { catalog } = useCatalog();
+  const techniques = catalog.flatMap((category) => category.subcategories.flatMap((subcategory) =>
+    subcategory.techniques.map((technique) => ({ ...technique, category: category.category, subcategory: subcategory.name }))));
   const [techniqueId, setTechniqueId] = useState(techniques[0]?.id || "");
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -280,7 +273,7 @@ export default function TemporalDataLab() {
 
   const technique = useMemo(
     () => techniques.find((item) => item.id === techniqueId) || techniques[0],
-    [techniqueId]
+    [techniqueId, techniques]
   );
   const trackingPackage = useMemo(
     () => getTechniqueTrackingPackage(technique),

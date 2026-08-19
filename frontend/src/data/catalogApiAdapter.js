@@ -1,3 +1,7 @@
+function displayName(value) {
+  return String(value || "").replace(/^\d+(?:\.\d+)*\.\s*/, "").trim();
+}
+
 function techniqueFromItem(item, category, subcategory) {
   const metadata = item.metadata || {};
   return {
@@ -10,7 +14,7 @@ function techniqueFromItem(item, category, subcategory) {
     difficulty: metadata.difficulty || "Beginner",
     price: Number(metadata.price || 0),
     requiredPlan: metadata.required_plan || "FREE_PLAN",
-    description: metadata.description || "",
+    description: metadata.description || `A focused ${String(subcategory || "training").toLowerCase()} activity. Practice ${item.title} with controlled movement, clear form, and a pace that feels safe for you.`,
     // Train and Practice continue to use their validated local package until
     // their asynchronous DB configuration adapter is introduced.
     steps: []
@@ -19,7 +23,9 @@ function techniqueFromItem(item, category, subcategory) {
 
 function descendantTechniqueItems(node) {
   return [
-    ...(node.items || []).filter((item) => item.resource_type === "technique"),
+    // Catalog-only resources are intentionally visible in Studio and browsing;
+    // their runtime steps remain empty until authored.
+    ...(node.items || []).filter((item) => ["technique", "catalog_node"].includes(item.resource_type)),
     ...(node.children || []).flatMap(descendantTechniqueItems)
   ];
 }
@@ -32,7 +38,7 @@ export function catalogTreeToTechniqueCatalog(payload) {
     const subcategoryNodes = categoryNode.children || [];
     const subcategories = subcategoryNodes.length
       ? subcategoryNodes.map((subcategoryNode) => ({
-          name: subcategoryNode.name,
+          name: displayName(subcategoryNode.name),
           techniques: descendantTechniqueItems(subcategoryNode).map((item) =>
             techniqueFromItem(item, categoryNode.name, subcategoryNode.name)
           )
@@ -44,6 +50,6 @@ export function catalogTreeToTechniqueCatalog(payload) {
           )
         }];
 
-    return { category: categoryNode.name, subcategories };
+    return { category: displayName(categoryNode.name), subcategories };
   });
 }
