@@ -33,7 +33,12 @@ function descendantTechniqueItems(node) {
 
 export function catalogTreeToTechniqueCatalog(payload) {
   const roots = Array.isArray(payload?.nodes) ? payload.nodes : [];
-  const categoryNodes = roots.flatMap((root) => root.children || []);
+  // The API normally wraps categories in a single root node. Accept a
+  // category-only snapshot as well so a generated/filtered snapshot cannot
+  // make the entire catalog appear empty in the UI.
+  const categoryNodes = roots.flatMap((root) =>
+    root.node_type === "root" || !root.node_type ? (root.children || []) : [root]
+  );
 
   return categoryNodes.map((categoryNode) => {
     const subcategoryNodes = categoryNode.children || [];

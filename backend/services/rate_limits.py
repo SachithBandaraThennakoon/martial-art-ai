@@ -65,6 +65,8 @@ if APP_ENV == "production" and len(_HASH_SECRET) < 32:
 _HASH_KEY = _HASH_SECRET.encode("utf-8")
 _cleanup_lock = Lock()
 _last_cleanup = 0.0
+_development_buckets: dict[tuple[str, str, int], int] = {}
+_development_lock = Lock()
 
 
 def utcnow_naive() -> datetime:
@@ -135,7 +137,6 @@ def _increment_bucket(
         db.flush()
         count = bucket.request_count
 
-    db.commit()
     return int(count), retry_after
 
 
@@ -147,7 +148,44 @@ def _maybe_prune(db: Session, now: datetime) -> None:
             return
         _last_cleanup = monotonic_now
     db.execute(delete(RateLimitBucket).where(RateLimitBucket.expires_at < now))
-    db.commit()
+
+
+def _enforce_development_fallback(
+    checks: tuple[tuple[RateLimitRule, str], ...],
+    now: datetime,
+) -> None:
+    """Keep local development usable when a remote rate-limit table is down.
+
+    Production deliberately remains fail-closed below. This fallback only
+    prevents a transient Supabase outage from making local login, registration,
+    and reset flows impossible to test.
+    """
+    results = []
+    with _development_lock:
+        current_epoch = int(now.replace(tzinfo=timezone.utc).timestamp())
+        for rule, subject in checks:
+            window_start = current_epoch - (current_epoch % rule.window_seconds)
+            key = (rule.scope, hash_subject(subject), window_start)
+            _development_buckets[key] = _development_buckets.get(key, 0) + 1
+            retry_after = max(1, window_start + rule.window_seconds - current_epoch)
+            results.append((rule, _development_buckets[key], retry_after))
+
+        # Bound the development-only structure as time advances.
+        expired_before = current_epoch - 7_200
+        for key in list(_development_buckets):
+            if key[2] < expired_before:
+                _development_buckets.pop(key, None)
+
+    for rule, count, retry_after in results:
+        if count > rule.limit:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please wait before trying again.",
+                headers={
+                    "Retry-After": str(retry_after),
+                    "X-RateLimit-Code": "rate_limited",
+                },
+            )
 
 
 def enforce_rate_limits(
@@ -158,8 +196,16 @@ def enforce_rate_limits(
     current_time = now or utcnow_naive()
     try:
         _maybe_prune(db, current_time)
+        results = []
         for rule, subject in checks:
             count, retry_after = _increment_bucket(db, rule, subject, current_time)
+            results.append((rule, count, retry_after))
+
+        # A request can have more than one protection rule. Keep their updates
+        # in one transaction so remote PostgreSQL latency is paid once instead
+        # of once per rule (notably for login and token refresh).
+        db.commit()
+        for rule, count, retry_after in results:
             if count > rule.limit:
                 raise HTTPException(
                     status_code=429,
@@ -173,6 +219,13 @@ def enforce_rate_limits(
         raise
     except SQLAlchemyError as exc:
         db.rollback()
+        if APP_ENV != "production":
+            logger.warning(
+                "Shared rate-limit store is unavailable; using development fallback: %s",
+                exc,
+            )
+            _enforce_development_fallback(checks, current_time)
+            return
         logger.error("Shared rate-limit store is unavailable: %s", exc)
         raise HTTPException(
             status_code=503,

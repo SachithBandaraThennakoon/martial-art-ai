@@ -12,10 +12,26 @@ from pathlib import Path
 from typing import Any
 
 
-SNAPSHOT_ROOT = Path(
-    os.getenv("SYSTEM_DATA_SNAPSHOT_DIR")
-    or Path(__file__).resolve().parent.parent / "data" / "system-catalog"
-)
+_DEFAULT_SNAPSHOT_ROOT = Path(__file__).resolve().parent.parent / "data" / "system-catalog"
+
+
+def _snapshot_root() -> Path:
+    """Resolve the optional snapshot override without breaking local/container paths.
+
+    Relative overrides are resolved from the backend directory (the same place
+    operators normally run uvicorn from). If an override is stale or points to
+    a missing directory, use the checked-in catalog instead of returning a 503.
+    """
+    configured = os.getenv("SYSTEM_DATA_SNAPSHOT_DIR", "").strip()
+    if not configured:
+        return _DEFAULT_SNAPSHOT_ROOT
+    candidate = Path(configured)
+    if not candidate.is_absolute():
+        candidate = _DEFAULT_SNAPSHOT_ROOT.parent.parent / candidate
+    return candidate if candidate.is_dir() else _DEFAULT_SNAPSHOT_ROOT
+
+
+SNAPSHOT_ROOT = _snapshot_root()
 CATALOG_SNAPSHOT_PATH = SNAPSHOT_ROOT / "catalog-index.json"
 TECHNIQUE_SNAPSHOT_DIR = SNAPSHOT_ROOT / "techniques"
 

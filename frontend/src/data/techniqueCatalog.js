@@ -1,7 +1,7 @@
 import { getTrackingTechniquePackage } from "../tracking/techniquePackageRegistry.js";
 import { createTechniquePackage } from "../tracking/techniquePackage.js";
 
-const CATEGORY_ORDER = [
+export const CATEGORY_ORDER = [
   "Flexibility & Mobility",
   "Conditioning & Fitness",
   "Technique Training",

@@ -151,9 +151,17 @@ async def request_observability(request, call_next):
             reset_request_id(context_token)
 
 
+_DEDICATED_RATE_LIMIT_PATHS = {
+    "/login", "/register", "/refresh", "/forgot-password", "/reset-password",
+}
+
+
 @app.middleware("http")
 async def shared_write_rate_limit(request, call_next):
-    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+    if (
+        request.method in {"POST", "PUT", "PATCH", "DELETE"}
+        and request.url.path not in _DEDICATED_RATE_LIMIT_PATHS
+    ):
         with SessionLocal() as rate_limit_db:
             try:
                 enforce_rate_limits(

@@ -1,8 +1,28 @@
 import { API_BASE_URL } from "./api.js";
 
-let accessToken = null;
+const ACCESS_TOKEN_STORAGE_KEY = "xma-tab-access-token-v1";
+
+function readTabAccessToken() {
+  try {
+    return window.sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveTabAccessToken(token) {
+  try {
+    if (token) window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+    else window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    // In-memory authentication remains available when storage is blocked.
+  }
+}
+
+let accessToken = typeof window === "undefined" ? null : readTabAccessToken();
 let refreshPromise = null;
 const tokenListeners = new Set();
+const REFRESH_TIMEOUT_MS = 10_000;
 
 export function getAccessToken() {
   return accessToken;
@@ -10,6 +30,7 @@ export function getAccessToken() {
 
 export function setAccessToken(token) {
   accessToken = token || null;
+  saveTabAccessToken(accessToken);
   tokenListeners.forEach((listener) => listener(accessToken));
 }
 
@@ -20,23 +41,26 @@ export function subscribeAccessToken(listener) {
 
 export async function refreshAccessToken() {
   if (!refreshPromise) {
-    const requestRefresh = () => fetch(`${API_BASE_URL}/refresh`, {
-      method: "POST",
-      credentials: "include"
-    })
+    const requestRefresh = () => {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+      return fetch(`${API_BASE_URL}/refresh`, {
+        method: "POST",
+        credentials: "include",
+        signal: controller.signal
+      })
       .then(async (response) => {
-        if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
           setAccessToken(null);
           return null;
         }
+        if (!response.ok) throw new Error(`Session refresh failed (${response.status})`);
         const session = await response.json();
         setAccessToken(session.access_token);
         return session;
       })
-      .catch(() => {
-        setAccessToken(null);
-        return null;
-      });
+      .finally(() => window.clearTimeout(timeout));
+    };
 
     const coordinatedRefresh =
       typeof navigator !== "undefined" && navigator.locks?.request
@@ -53,6 +77,10 @@ export async function refreshAccessToken() {
 
 export async function authFetch(input, options = {}) {
   let token = getAccessToken();
+  if (token && accessTokenExpiresAt(token) <= Date.now()) {
+    setAccessToken(null);
+    token = null;
+  }
   if (!token) {
     const session = await refreshAccessToken();
     token = session?.access_token || null;

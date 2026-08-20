@@ -28,7 +28,14 @@ if not DATABASE_URL:
 # is especially noticeable for the public catalog.  Keep it for direct/local
 # databases, but let the pooler reuse its healthy sessions without that cost.
 is_supabase_pooler = "pooler.supabase.com" in DATABASE_URL.lower()
-engine = create_engine(DATABASE_URL, pool_pre_ping=not is_supabase_pooler)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=not is_supabase_pooler,
+    # Bound pool waits so a saturated or unavailable database cannot hold an
+    # HTTP request indefinitely. The Supabase pooler maintains connection
+    # health, while this process keeps reusable sessions per worker.
+    pool_timeout=int(os.getenv("DATABASE_POOL_TIMEOUT_SECONDS", "10")),
+)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -38,16 +45,17 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
+_ALEMBIC_CONFIG = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+_EXPECTED_MIGRATION_HEADS = set(ScriptDirectory.from_config(_ALEMBIC_CONFIG).get_heads())
+
 
 def database_readiness() -> dict:
     started = time.perf_counter()
     try:
-        alembic_config = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
-        expected_heads = set(ScriptDirectory.from_config(alembic_config).get_heads())
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
             current_heads = set(MigrationContext.configure(connection).get_current_heads())
-        if current_heads != expected_heads:
+        if current_heads != _EXPECTED_MIGRATION_HEADS:
             return {
                 "ready": False,
                 "database": "reachable",

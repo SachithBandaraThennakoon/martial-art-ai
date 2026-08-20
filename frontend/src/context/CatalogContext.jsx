@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../services/api";
-import { techniqueCatalog as localTechniqueCatalog } from "../data/techniqueCatalog";
+import { CATEGORY_ORDER, techniqueCatalog as localTechniqueCatalog } from "../data/techniqueCatalog";
 import { catalogTreeToTechniqueCatalog } from "../data/catalogApiAdapter";
 
 const CatalogContext = createContext({
@@ -12,11 +12,29 @@ const CatalogContext = createContext({
 
 // Bump this when a catalog migration changes what should be visible to users.
 const CATALOG_CACHE_KEY = "xma-catalog-v2";
-const CATALOG_CACHE_MAX_AGE_MS = 2 * 60 * 1000;
+const CATALOG_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const CATALOG_REQUEST_TIMEOUT_MS = 10_000;
+const navigationCatalog = CATEGORY_ORDER.map((category) => ({
+  category,
+  subcategories: []
+}));
+
+async function fetchCatalog(signal) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), CATALOG_REQUEST_TIMEOUT_MS);
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    return await fetch(`${API_BASE_URL}/catalog`, { signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", abort);
+  }
+}
 
 function readCachedCatalog() {
   try {
-    const cached = JSON.parse(window.sessionStorage.getItem(CATALOG_CACHE_KEY) || "null");
+    const cached = JSON.parse(window.localStorage.getItem(CATALOG_CACHE_KEY) || "null");
     if (
       cached
       && Date.now() - cached.savedAt < CATALOG_CACHE_MAX_AGE_MS
@@ -33,7 +51,7 @@ function readCachedCatalog() {
 
 function saveCatalog(catalog) {
   try {
-    window.sessionStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), catalog }));
+    window.localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), catalog }));
   } catch {
     // Storage is an optional speed-up; the live API remains authoritative.
   }
@@ -44,11 +62,15 @@ export function CatalogProvider({ children }) {
     const cachedCatalog = readCachedCatalog();
     return cachedCatalog
       ? { catalog: cachedCatalog, source: "cache", status: "ready" }
-      : { catalog: localTechniqueCatalog, source: "local", status: "loading" };
+      : {
+          catalog: localTechniqueCatalog.length ? localTechniqueCatalog : navigationCatalog,
+          source: "local",
+          status: "loading"
+        };
   });
 
   const refreshCatalog = useCallback(async (signal) => {
-    const response = await fetch(`${API_BASE_URL}/catalog`, { signal });
+    const response = await fetchCatalog(signal);
     if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
     const payload = await response.json();
     const catalog = catalogTreeToTechniqueCatalog(payload);
@@ -61,7 +83,7 @@ export function CatalogProvider({ children }) {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch(`${API_BASE_URL}/catalog`, { signal: controller.signal })
+    fetchCatalog(controller.signal)
       .then((response) => {
         if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
         return response.json();
@@ -75,7 +97,7 @@ export function CatalogProvider({ children }) {
       .catch((error) => {
         if (error.name !== "AbortError") {
           setState((current) => ({
-            catalog: current.catalog.length ? current.catalog : localTechniqueCatalog,
+            catalog: current.catalog.length ? current.catalog : navigationCatalog,
             source: current.catalog.length ? current.source : "local",
             status: "fallback"
           }));

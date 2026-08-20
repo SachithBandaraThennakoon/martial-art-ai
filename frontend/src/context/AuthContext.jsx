@@ -11,17 +11,42 @@ import {
   subscribeAccessToken
 } from "../services/authSession";
 
+const PROFILE_CACHE_KEY = "xma-session-profile-v1";
+
+function readProfileCache() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY) || "null") || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProfileCache(profile) {
+  try {
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+      plan: profile.plan || "FREE_PLAN",
+      role: profile.role || "user",
+      name: profile.name || "",
+      subscription_status: profile.subscription_status || "inactive"
+    }));
+  } catch {
+    // The cache only prevents navigation flicker; authentication uses the cookie.
+  }
+}
+
 export function AuthProvider({ children }) {
+  const [cachedProfile] = useState(readProfileCache);
   const [token, setTokenState] = useState(() => {
     const legacyToken = localStorage.getItem("token");
     localStorage.removeItem("token");
-    setAccessToken(legacyToken);
-    return legacyToken;
+    const restoredToken = legacyToken || getAccessToken();
+    setAccessToken(restoredToken);
+    return restoredToken;
   });
-  const [userPlan, setUserPlan] = useState("FREE_PLAN");
-  const [userRole, setUserRole] = useState("user");
-  const [userName, setUserName] = useState("");
-  const [subscriptionStatus, setSubscriptionStatus] = useState("inactive");
+  const [userPlan, setUserPlan] = useState(cachedProfile.plan || "FREE_PLAN");
+  const [userRole, setUserRole] = useState(cachedProfile.role || "user");
+  const [userName, setUserName] = useState(cachedProfile.name || "");
+  const [subscriptionStatus, setSubscriptionStatus] = useState(cachedProfile.subscription_status || "inactive");
   const [authReady, setAuthReady] = useState(false);
 
   const applyProfile = useCallback((profile = {}) => {
@@ -29,6 +54,7 @@ export function AuthProvider({ children }) {
     setUserRole(profile.role || "user");
     setUserName(profile.name || "");
     setSubscriptionStatus(profile.subscription_status || "inactive");
+    if (profile.name) saveProfileCache(profile);
   }, []);
 
   const login = useCallback((newToken, plan = "FREE_PLAN", profile = {}) => {
@@ -46,6 +72,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("userPlan");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userName");
+    localStorage.removeItem(PROFILE_CACHE_KEY);
     endSession();
     applyProfile();
     setAuthReady(true);
@@ -114,8 +141,12 @@ export function AuthProvider({ children }) {
     const expiresAt = accessTokenExpiresAt(token);
     const delay = Math.max(1000, expiresAt - Date.now() - 60_000);
     const timer = window.setTimeout(async () => {
-      const session = await refreshAccessToken();
-      if (session) applyProfile(session);
+      try {
+        const session = await refreshAccessToken();
+        if (session) applyProfile(session);
+      } catch {
+        // Keep the current session during a temporary API or network outage.
+      }
     }, delay);
     return () => window.clearTimeout(timer);
   }, [applyProfile, token]);
