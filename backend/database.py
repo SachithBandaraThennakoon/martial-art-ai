@@ -10,10 +10,11 @@ from sqlalchemy.orm import sessionmaker
 import logging
 import os
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,12 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set. Add it to backend/.env.")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Supabase's session pooler already owns connection health.  A client-side
+# pre-ping makes every request perform an additional remote round trip, which
+# is especially noticeable for the public catalog.  Keep it for direct/local
+# databases, but let the pooler reuse its healthy sessions without that cost.
+is_supabase_pooler = "pooler.supabase.com" in DATABASE_URL.lower()
+engine = create_engine(DATABASE_URL, pool_pre_ping=not is_supabase_pooler)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -83,9 +89,9 @@ def check_database_ready():
 def get_db():
     db = SessionLocal()
     try:
-        db.execute(text("SELECT 1"))
         yield db
     except SQLAlchemyError as exc:
+        db.rollback()
         raise HTTPException(
             status_code=503,
             detail="Database unavailable. Start PostgreSQL and check DATABASE_URL."

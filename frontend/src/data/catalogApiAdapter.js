@@ -5,7 +5,7 @@ function displayName(value) {
 function techniqueFromItem(item, category, subcategory) {
   const metadata = item.metadata || {};
   return {
-    id: item.slug,
+    id: metadata.runtime_technique_slug || item.slug.replace(/^catalog-/, ""),
     name: item.title,
     trackingPackage: metadata.tracking_package || item.slug,
     trackingVersion: metadata.tracking_version || null,
@@ -15,6 +15,7 @@ function techniqueFromItem(item, category, subcategory) {
     price: Number(metadata.price || 0),
     requiredPlan: metadata.required_plan || "FREE_PLAN",
     description: metadata.description || `A focused ${String(subcategory || "training").toLowerCase()} activity. Practice ${item.title} with controlled movement, clear form, and a pace that feels safe for you.`,
+    runtimeReady: item.resource_type === "technique" || metadata.runtime_ready === true,
     // Train and Practice continue to use their validated local package until
     // their asynchronous DB configuration adapter is introduced.
     steps: []

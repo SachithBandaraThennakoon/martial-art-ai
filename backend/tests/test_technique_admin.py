@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from database import Base
-from models import catalog, target_angle, target_position, technique, technique_step, training_memory, user  # noqa: F401
+from models import technique, training_memory, user  # noqa: F401
 from models.technique import Technique, TechniqueRevision
 from models.user import User
 from routers.technique_admin import (
@@ -17,7 +17,7 @@ from routers.technique_admin import (
     update_learning_content,
     update_training_config,
 )
-from services.catalog_sync import sync_technique_catalog
+from services.system_snapshots import load_technique_snapshot
 
 
 class TechniqueAdminTests(unittest.TestCase):
@@ -28,7 +28,26 @@ class TechniqueAdminTests(unittest.TestCase):
         self.admin = User(id=99, name="Catalog Admin", email="admin@example.test", role="admin")
         self.session.add(self.admin)
         self.session.commit()
-        sync_technique_catalog(self.session)
+        snapshot = load_technique_snapshot("jab")
+        self.assertIsNotNone(snapshot)
+        payload = snapshot["technique"]
+        self.session.add(Technique(
+            id=payload["id"],
+            slug=payload["slug"],
+            name=payload["name"],
+            category=payload["category"],
+            subcategory=payload["subcategory"],
+            difficulty=payload["difficulty"],
+            price=payload["price"],
+            required_plan=payload["required_plan"],
+            description=payload["description"],
+            status=payload["status"],
+            version=payload["version"],
+            training_config=copy.deepcopy(snapshot["training_config"]),
+            learning_content=copy.deepcopy(snapshot["learning_content"]),
+            metadata_json=copy.deepcopy(payload["metadata"]),
+        ))
+        self.session.commit()
 
     def tearDown(self):
         self.session.close()
@@ -59,6 +78,9 @@ class TechniqueAdminTests(unittest.TestCase):
         self.assertEqual(stored.training_config, original)
 
     def test_learning_content_can_be_cleared_without_changing_json_files(self):
+        jab = self.session.query(Technique).filter(Technique.slug == "jab").one()
+        jab.learning_content = {**(jab.learning_content or {}), "status": "DRAFT"}
+        self.session.commit()
         response = update_learning_content("jab", None, self.session, self.admin)
         self.assertIsNone(response["learning_content"])
         self.assertIsNone(self.session.query(Technique).filter(Technique.slug == "jab").one().learning_content)

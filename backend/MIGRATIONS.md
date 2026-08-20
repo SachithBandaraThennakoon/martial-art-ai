@@ -45,9 +45,9 @@ python -m alembic current
 python -m alembic check
 ```
 
-The unused legacy `martial_categories`, `technique_groups`, and associated
-`techniques` columns are deliberately retained to avoid deleting historical
-data. Remove them only through a separately reviewed retention migration.
+The prototype taxonomy was retired through a reviewed retention migration.
+Use `catalog_nodes`, `catalog_items`, and `catalog_placements` for all catalog
+navigation going forward.
 
 ## Create a schema change
 

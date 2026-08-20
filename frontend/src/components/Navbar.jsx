@@ -6,7 +6,7 @@ import { useCatalog } from "../context/CatalogContext";
 
 export default function Navbar() {
   const { token, logout, userName, userRole } = useContext(AuthContext);
-  const { catalog } = useCatalog();
+  const { catalog, status: catalogStatus } = useCatalog();
   const mainCategories = catalog.map((category) => category.category);
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -104,6 +104,9 @@ export default function Navbar() {
         {mainCategories.map((category) => (
           <NavLink className={navClass} key={category} to={`/categories/${slugify(category)}`}>{category}</NavLink>
         ))}
+        {!mainCategories.length && catalogStatus === "loading" ? (
+          <span className="navbar__catalog-loading">Loading disciplines…</span>
+        ) : null}
       </div>
 
       <div className="navbar__right">

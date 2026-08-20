@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { slugify } from "../data/techniqueCatalog";
 import { useCatalog } from "../context/CatalogContext";
+import { API_BASE_URL } from "../services/api";
+import { authFetch } from "../services/authSession";
 
 const CATEGORY_DETAILS = {
   "Flexibility & Mobility": { code: "FM", description: "Build range, control, and movement quality." },
@@ -15,9 +17,31 @@ const CATEGORY_DETAILS = {
 };
 
 export default function Studio({ isAdminStudio = false }) {
-  const { catalog } = useCatalog();
+  const { catalog, status: catalogStatus, refreshCatalog } = useCatalog();
   const [query, setQuery] = useState("");
+  const [refreshingCatalog, setRefreshingCatalog] = useState(false);
+  const [catalogRefreshMessage, setCatalogRefreshMessage] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
+
+  const handleSystemCatalogRefresh = useCallback(async () => {
+    setRefreshingCatalog(true);
+    setCatalogRefreshMessage("");
+    try {
+      const response = await authFetch(`${API_BASE_URL}/admin/catalog/refresh-cache`, {
+        method: "POST"
+      });
+      if (!response.ok) throw new Error("System catalog refresh failed");
+      const result = await response.json();
+      await refreshCatalog();
+      setCatalogRefreshMessage(
+        `${result.disciplines} disciplines and ${result.technique_snapshots} technique snapshots refreshed from PostgreSQL.`
+      );
+    } catch {
+      setCatalogRefreshMessage("Could not refresh the system catalog. Please try again.");
+    } finally {
+      setRefreshingCatalog(false);
+    }
+  }, [refreshCatalog]);
 
   const totals = useMemo(
     () =>
@@ -93,9 +117,20 @@ export default function Studio({ isAdminStudio = false }) {
                   <Link className="btn btn--ghost" to="/model-test">
                     Open model test
                   </Link>
+                  <button
+                    className="btn btn--ghost"
+                    disabled={refreshingCatalog}
+                    onClick={handleSystemCatalogRefresh}
+                    type="button"
+                  >
+                    {refreshingCatalog ? "Refreshing…" : "Refresh system data"}
+                  </button>
                 </>
               )}
             </div>
+            {isAdminStudio && catalogRefreshMessage ? (
+              <p className="studio-catalog-refresh-status" role="status">{catalogRefreshMessage}</p>
+            ) : null}
           </div>
 
           <aside className="studio-overview" aria-label="Studio overview">
@@ -104,7 +139,7 @@ export default function Studio({ isAdminStudio = false }) {
               <strong>Ready</strong>
             </div>
             <div className="studio-overview__score">
-              <strong>{totals.techniques}</strong>
+              <strong>{catalogStatus === "loading" ? "…" : totals.techniques}</strong>
               <span>guided techniques</span>
             </div>
             <div className="studio-overview__metrics">
@@ -138,7 +173,13 @@ export default function Studio({ isAdminStudio = false }) {
             </label>
           </div>
 
-          {visibleCategories.length ? (
+          {catalogStatus === "loading" ? (
+            <div className="studio-empty">
+              <span>…</span>
+              <h3>Loading cloud library</h3>
+              <p>Retrieving the current catalog from the training database.</p>
+            </div>
+          ) : visibleCategories.length ? (
             <div className="studio-category-grid">
               {visibleCategories.map((category, index) => {
                 const techniqueCount = category.subcategories.reduce(

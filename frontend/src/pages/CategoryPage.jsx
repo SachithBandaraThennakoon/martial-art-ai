@@ -124,7 +124,7 @@ export default function CategoryPage() {
                     </small>
                   </div>
                   <div className="technique-row__actions">
-                    {hasAccess ? (
+                    {hasAccess && technique.runtimeReady ? (
                       <Link
                         className="btn btn--light btn--small"
                         to={`/${isAdminStudio ? "admin-training" : "training"}?category=${slugify(
@@ -135,10 +135,12 @@ export default function CategoryPage() {
                       >
                         {isAdminStudio ? "Open lab" : "Open Studio"}
                       </Link>
-                    ) : (
+                    ) : technique.runtimeReady ? (
                       <Link className="btn btn--ghost btn--small" to="/pricing">
                         Upgrade
                       </Link>
+                    ) : (
+                      <span className="technique-row__status">Content coming soon</span>
                     )}
                   </div>
                 </div>

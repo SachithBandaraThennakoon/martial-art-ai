@@ -13,8 +13,9 @@ import logging
 from database import get_db
 from models.user import User
 from models.technique import Technique
-from models.catalog import CatalogItem
 from services.catalog_sync import sync_technique_catalog
+from services.cache import invalidate_catalog_cache
+from services.system_snapshots import load_catalog_snapshot, write_system_snapshots
 from services.reference_pose_schema import normalize_reference_pose
 from services.technique_package_loader import LEARNING_CONTENT_FILE, TECHNIQUE_ROOT, TRACKING_FILES
 
@@ -74,6 +75,31 @@ class PackagePayload(BaseModel):
     training_steps: dict
     learning_content: dict | None = None
     enabled: bool = True
+
+
+@router.post("/refresh-cache")
+def refresh_catalog_cache(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin_user),
+):
+    """Rebuild derived technique snapshots from the backend system catalog.
+
+    This is deliberately read-only with respect to techniques and never reads
+    user accounts, sessions, progress, or other personal data.
+    """
+    invalidate_catalog_cache()
+    catalog = load_catalog_snapshot()
+    if catalog is None:
+        raise HTTPException(503, "System catalog snapshot is unavailable")
+    techniques = db.query(Technique).filter(Technique.status == "active").order_by(Technique.slug).all()
+    snapshot_summary = write_system_snapshots(catalog, techniques)
+    roots = catalog.get("nodes", [])
+    disciplines = sum(len(node.get("children", [])) for node in roots)
+    return {
+        "message": "System data snapshots refreshed from backend files",
+        "disciplines": disciplines,
+        "technique_snapshots": snapshot_summary["techniques"],
+    }
 
 
 def _read_index():
@@ -502,11 +528,6 @@ def archive_package(technique_id: str, db: Session = Depends(get_db), _admin: Us
     if not technique:
         raise HTTPException(404, "Technique package not found")
     technique.status = "archived"
-    item = db.query(CatalogItem).filter(
-        CatalogItem.resource_type == "technique",
-        CatalogItem.resource_id == technique.id,
-    ).first()
-    if item:
-        item.active = False
     db.commit()
+    invalidate_catalog_cache()
     return {"message": "Technique archived", "id": technique_id}

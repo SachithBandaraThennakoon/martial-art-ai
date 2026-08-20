@@ -1,0 +1,853 @@
+pg_restore: connecting to database for restore
+pg_restore: executing SELECT pg_catalog.set_config('search_path', '', false);
+pg_restore: creating CONSTRAINT "public.alembic_version alembic_version_pkc"
+pg_restore: creating CONSTRAINT "public.awareness_action_deliveries awareness_action_deliveries_pkey"
+pg_restore: creating CONSTRAINT "public.awareness_decision_evaluations awareness_decision_evaluations_pkey"
+pg_restore: creating CONSTRAINT "public.awareness_events awareness_events_event_id_key"
+pg_restore: creating CONSTRAINT "public.awareness_events awareness_events_pkey"
+pg_restore: creating CONSTRAINT "public.awareness_knowledge_profiles awareness_knowledge_profiles_pkey"
+pg_restore: while PROCESSING TOC:
+pg_restore: from TOC entry 5288; 2606 35485 CONSTRAINT awareness_knowledge_profiles awareness_knowledge_profiles_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "awareness_knowledge_profiles" are not allowed
+Command was: ALTER TABLE ONLY public.awareness_knowledge_profiles
+    ADD CONSTRAINT awareness_knowledge_profiles_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.awareness_object_memories awareness_object_memories_pkey"
+pg_restore: creating CONSTRAINT "public.awareness_relationship_memories awareness_relationship_memories_pkey"
+pg_restore: from TOC entry 5309; 2606 35571 CONSTRAINT awareness_relationship_memories awareness_relationship_memories_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "awareness_relationship_memories" are not allowed
+Command was: ALTER TABLE ONLY public.awareness_relationship_memories
+    ADD CONSTRAINT awareness_relationship_memories_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.awareness_sessions awareness_sessions_pkey"
+pg_restore: creating CONSTRAINT "public.billing_events billing_events_pkey"
+pg_restore: from TOC entry 5254; 2606 35314 CONSTRAINT billing_events billing_events_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "billing_events" are not allowed
+Command was: ALTER TABLE ONLY public.billing_events
+    ADD CONSTRAINT billing_events_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.billing_subscriptions billing_subscriptions_pkey"
+pg_restore: from TOC entry 5245; 2606 35285 CONSTRAINT billing_subscriptions billing_subscriptions_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "billing_subscriptions" are not allowed
+Command was: ALTER TABLE ONLY public.billing_subscriptions
+    ADD CONSTRAINT billing_subscriptions_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.body_calibrations body_calibrations_pkey"
+pg_restore: from TOC entry 5203; 2606 33879 CONSTRAINT body_calibrations body_calibrations_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "body_calibrations" are not allowed
+Command was: ALTER TABLE ONLY public.body_calibrations
+    ADD CONSTRAINT body_calibrations_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.catalog_items catalog_items_pkey"
+pg_restore: creating CONSTRAINT "public.catalog_nodes catalog_nodes_pkey"
+pg_restore: creating CONSTRAINT "public.catalog_placements catalog_placements_pkey"
+pg_restore: creating CONSTRAINT "public.consent_records consent_records_pkey"
+pg_restore: from TOC entry 5261; 2606 35348 CONSTRAINT consent_records consent_records_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "consent_records" are not allowed
+Command was: ALTER TABLE ONLY public.consent_records
+    ADD CONSTRAINT consent_records_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.contact_messages contact_messages_pkey"
+pg_restore: creating CONSTRAINT "public.martial_categories martial_categories_name_key"
+pg_restore: from TOC entry 5158; 2606 16497 CONSTRAINT martial_categories martial_categories_name_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "public.martial_categories" does not exist
+Command was: ALTER TABLE ONLY public.martial_categories
+    ADD CONSTRAINT martial_categories_name_key UNIQUE (name);
+
+
+pg_restore: creating CONSTRAINT "public.martial_categories martial_categories_pkey"
+pg_restore: from TOC entry 5160; 2606 16495 CONSTRAINT martial_categories martial_categories_pkey postgres
+pg_restore: error: could not execute query: ERROR:  relation "public.martial_categories" does not exist
+Command was: ALTER TABLE ONLY public.martial_categories
+    ADD CONSTRAINT martial_categories_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.password_reset_tokens password_reset_tokens_pkey"
+pg_restore: creating CONSTRAINT "public.practice_reps practice_reps_pkey"
+pg_restore: creating CONSTRAINT "public.practice_session_analytics practice_session_analytics_pkey"
+pg_restore: creating CONSTRAINT "public.practice_session_tapes practice_session_tapes_pkey"
+pg_restore: creating CONSTRAINT "public.practice_sessions practice_sessions_pkey"
+pg_restore: creating CONSTRAINT "public.rate_limit_buckets rate_limit_buckets_pkey"
+pg_restore: creating CONSTRAINT "public.refresh_sessions refresh_sessions_pkey"
+pg_restore: creating CONSTRAINT "public.target_angles target_angles_pkey"
+pg_restore: creating CONSTRAINT "public.target_positions target_positions_pkey"
+pg_restore: creating CONSTRAINT "public.technique_families technique_families_pkey"
+pg_restore: from TOC entry 5327; 2606 35644 CONSTRAINT technique_families technique_families_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "technique_families" are not allowed
+Command was: ALTER TABLE ONLY public.technique_families
+    ADD CONSTRAINT technique_families_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.technique_groups technique_groups_pkey"
+pg_restore: from TOC entry 5162; 2606 16510 CONSTRAINT technique_groups technique_groups_pkey postgres
+pg_restore: error: could not execute query: ERROR:  relation "public.technique_groups" does not exist
+Command was: ALTER TABLE ONLY public.technique_groups
+    ADD CONSTRAINT technique_groups_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.technique_revisions technique_revisions_pkey"
+pg_restore: creating CONSTRAINT "public.technique_steps technique_steps_pkey"
+pg_restore: creating CONSTRAINT "public.technique_variants technique_variants_pkey"
+pg_restore: from TOC entry 5362; 2606 35874 CONSTRAINT technique_variants technique_variants_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "technique_variants" are not allowed
+Command was: ALTER TABLE ONLY public.technique_variants
+    ADD CONSTRAINT technique_variants_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.techniques techniques_pkey"
+pg_restore: creating CONSTRAINT "public.temporal_labeling_drafts temporal_labeling_drafts_pkey"
+pg_restore: creating CONSTRAINT "public.training_feedback_events training_feedback_events_pkey"
+pg_restore: creating CONSTRAINT "public.training_sessions training_sessions_pkey"
+pg_restore: creating CONSTRAINT "public.training_step_attempts training_step_attempts_pkey"
+pg_restore: creating CONSTRAINT "public.awareness_action_deliveries uq_awareness_action_delivery"
+pg_restore: creating CONSTRAINT "public.awareness_decision_evaluations uq_awareness_evaluation_session_revision"
+pg_restore: creating CONSTRAINT "public.awareness_knowledge_profiles uq_awareness_knowledge_profile_version"
+pg_restore: from TOC entry 5294; 2606 35487 CONSTRAINT awareness_knowledge_profiles uq_awareness_knowledge_profile_version postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_awareness_knowledge_profile_version" already exists
+Command was: ALTER TABLE ONLY public.awareness_knowledge_profiles
+    ADD CONSTRAINT uq_awareness_knowledge_profile_version UNIQUE (profile_id, version);
+
+
+pg_restore: creating CONSTRAINT "public.awareness_object_memories uq_awareness_object_memory"
+pg_restore: creating CONSTRAINT "public.awareness_relationship_memories uq_awareness_relationship_memory"
+pg_restore: from TOC entry 5314; 2606 35573 CONSTRAINT awareness_relationship_memories uq_awareness_relationship_memory postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_awareness_relationship_memory" already exists
+Command was: ALTER TABLE ONLY public.awareness_relationship_memories
+    ADD CONSTRAINT uq_awareness_relationship_memory UNIQUE (user_id, relationship_id);
+
+
+pg_restore: creating CONSTRAINT "public.awareness_sessions uq_awareness_session_user_key"
+pg_restore: creating CONSTRAINT "public.catalog_items uq_catalog_item_resource"
+pg_restore: creating CONSTRAINT "public.catalog_items uq_catalog_items_slug"
+pg_restore: creating CONSTRAINT "public.catalog_nodes uq_catalog_nodes_slug"
+pg_restore: creating CONSTRAINT "public.catalog_placements uq_catalog_placement"
+pg_restore: creating CONSTRAINT "public.consent_records uq_consent_user_document_version"
+pg_restore: from TOC entry 5266; 2606 35350 CONSTRAINT consent_records uq_consent_user_document_version postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_consent_user_document_version" already exists
+Command was: ALTER TABLE ONLY public.consent_records
+    ADD CONSTRAINT uq_consent_user_document_version UNIQUE (user_id, document_type, document_version);
+
+
+pg_restore: creating CONSTRAINT "public.practice_session_tapes uq_practice_tapes_blob_name"
+pg_restore: from TOC entry 5220; 2606 35330 CONSTRAINT practice_session_tapes uq_practice_tapes_blob_name postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_practice_tapes_blob_name" already exists
+Command was: ALTER TABLE ONLY public.practice_session_tapes
+    ADD CONSTRAINT uq_practice_tapes_blob_name UNIQUE (blob_name);
+
+
+pg_restore: creating CONSTRAINT "public.target_positions uq_target_position_step_body_part"
+pg_restore: creating CONSTRAINT "public.technique_families uq_technique_families_slug"
+pg_restore: from TOC entry 5329; 2606 35646 CONSTRAINT technique_families uq_technique_families_slug postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_technique_families_slug" already exists
+Command was: ALTER TABLE ONLY public.technique_families
+    ADD CONSTRAINT uq_technique_families_slug UNIQUE (slug);
+
+
+pg_restore: creating CONSTRAINT "public.technique_variants uq_technique_variants_technique_slug"
+pg_restore: from TOC entry 5364; 2606 35876 CONSTRAINT technique_variants uq_technique_variants_technique_slug postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_technique_variants_technique_slug" already exists
+Command was: ALTER TABLE ONLY public.technique_variants
+    ADD CONSTRAINT uq_technique_variants_technique_slug UNIQUE (technique_id, slug);
+
+
+pg_restore: creating CONSTRAINT "public.users uq_users_paypal_subscription_id"
+pg_restore: from TOC entry 5145; 2606 35266 CONSTRAINT users uq_users_paypal_subscription_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "uq_users_paypal_subscription_id" already exists
+Command was: ALTER TABLE ONLY public.users
+    ADD CONSTRAINT uq_users_paypal_subscription_id UNIQUE (paypal_subscription_id);
+
+
+pg_restore: creating CONSTRAINT "public.user_training_memory user_training_memory_pkey"
+pg_restore: creating CONSTRAINT "public.users users_pkey"
+pg_restore: creating INDEX "public.ix_awareness_action_deliveries_awareness_session_id"
+pg_restore: from TOC entry 5317; 1259 35612 INDEX ix_awareness_action_deliveries_awareness_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_action_deliveries_awareness_session_id" already exists
+Command was: CREATE INDEX ix_awareness_action_deliveries_awareness_session_id ON public.awareness_action_deliveries USING btree (awareness_session_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_action_deliveries_channel"
+pg_restore: from TOC entry 5318; 1259 35614 INDEX ix_awareness_action_deliveries_channel postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_action_deliveries_channel" already exists
+Command was: CREATE INDEX ix_awareness_action_deliveries_channel ON public.awareness_action_deliveries USING btree (channel);
+
+
+pg_restore: creating INDEX "public.ix_awareness_action_deliveries_id"
+pg_restore: from TOC entry 5319; 1259 35611 INDEX ix_awareness_action_deliveries_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_action_deliveries_id" already exists
+Command was: CREATE INDEX ix_awareness_action_deliveries_id ON public.awareness_action_deliveries USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_action_deliveries_revision"
+pg_restore: from TOC entry 5320; 1259 35613 INDEX ix_awareness_action_deliveries_revision postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_action_deliveries_revision" already exists
+Command was: CREATE INDEX ix_awareness_action_deliveries_revision ON public.awareness_action_deliveries USING btree (revision);
+
+
+pg_restore: creating INDEX "public.ix_awareness_action_deliveries_status"
+pg_restore: from TOC entry 5321; 1259 35615 INDEX ix_awareness_action_deliveries_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_action_deliveries_status" already exists
+Command was: CREATE INDEX ix_awareness_action_deliveries_status ON public.awareness_action_deliveries USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_awareness_decision_evaluations_awareness_session_id"
+pg_restore: from TOC entry 5297; 1259 35524 INDEX ix_awareness_decision_evaluations_awareness_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_decision_evaluations_awareness_session_id" already exists
+Command was: CREATE INDEX ix_awareness_decision_evaluations_awareness_session_id ON public.awareness_decision_evaluations USING btree (awareness_session_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_decision_evaluations_id"
+pg_restore: from TOC entry 5298; 1259 35523 INDEX ix_awareness_decision_evaluations_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_decision_evaluations_id" already exists
+Command was: CREATE INDEX ix_awareness_decision_evaluations_id ON public.awareness_decision_evaluations USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_events_awareness_session_id"
+pg_restore: from TOC entry 5282; 1259 35463 INDEX ix_awareness_events_awareness_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_events_awareness_session_id" already exists
+Command was: CREATE INDEX ix_awareness_events_awareness_session_id ON public.awareness_events USING btree (awareness_session_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_events_event_id"
+pg_restore: creating INDEX "public.ix_awareness_events_event_type"
+pg_restore: from TOC entry 5284; 1259 35466 INDEX ix_awareness_events_event_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_events_event_type" already exists
+Command was: CREATE INDEX ix_awareness_events_event_type ON public.awareness_events USING btree (event_type);
+
+
+pg_restore: creating INDEX "public.ix_awareness_events_id"
+pg_restore: from TOC entry 5285; 1259 35462 INDEX ix_awareness_events_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_events_id" already exists
+Command was: CREATE INDEX ix_awareness_events_id ON public.awareness_events USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_events_revision"
+pg_restore: from TOC entry 5286; 1259 35465 INDEX ix_awareness_events_revision postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_events_revision" already exists
+Command was: CREATE INDEX ix_awareness_events_revision ON public.awareness_events USING btree (revision);
+
+
+pg_restore: creating INDEX "public.ix_awareness_knowledge_profiles_created_by_user_id"
+pg_restore: from TOC entry 5289; 1259 35501 INDEX ix_awareness_knowledge_profiles_created_by_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_knowledge_profiles_created_by_user_id" already exists
+Command was: CREATE INDEX ix_awareness_knowledge_profiles_created_by_user_id ON public.awareness_knowledge_profiles USING btree (created_by_user_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_knowledge_profiles_id"
+pg_restore: from TOC entry 5290; 1259 35498 INDEX ix_awareness_knowledge_profiles_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_knowledge_profiles_id" already exists
+Command was: CREATE INDEX ix_awareness_knowledge_profiles_id ON public.awareness_knowledge_profiles USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_knowledge_profiles_profile_id"
+pg_restore: from TOC entry 5291; 1259 35499 INDEX ix_awareness_knowledge_profiles_profile_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_knowledge_profiles_profile_id" already exists
+Command was: CREATE INDEX ix_awareness_knowledge_profiles_profile_id ON public.awareness_knowledge_profiles USING btree (profile_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_knowledge_profiles_status"
+pg_restore: from TOC entry 5292; 1259 35500 INDEX ix_awareness_knowledge_profiles_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_knowledge_profiles_status" already exists
+Command was: CREATE INDEX ix_awareness_knowledge_profiles_status ON public.awareness_knowledge_profiles USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_awareness_object_memories_id"
+pg_restore: from TOC entry 5303; 1259 35551 INDEX ix_awareness_object_memories_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_object_memories_id" already exists
+Command was: CREATE INDEX ix_awareness_object_memories_id ON public.awareness_object_memories USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_object_memories_object_type"
+pg_restore: from TOC entry 5304; 1259 35553 INDEX ix_awareness_object_memories_object_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_object_memories_object_type" already exists
+Command was: CREATE INDEX ix_awareness_object_memories_object_type ON public.awareness_object_memories USING btree (object_type);
+
+
+pg_restore: creating INDEX "public.ix_awareness_object_memories_user_id"
+pg_restore: from TOC entry 5305; 1259 35552 INDEX ix_awareness_object_memories_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_object_memories_user_id" already exists
+Command was: CREATE INDEX ix_awareness_object_memories_user_id ON public.awareness_object_memories USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_relationship_memories_id"
+pg_restore: from TOC entry 5310; 1259 35579 INDEX ix_awareness_relationship_memories_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_relationship_memories_id" already exists
+Command was: CREATE INDEX ix_awareness_relationship_memories_id ON public.awareness_relationship_memories USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_relationship_memories_relationship_type"
+pg_restore: from TOC entry 5311; 1259 35581 INDEX ix_awareness_relationship_memories_relationship_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_relationship_memories_relationship_type" already exists
+Command was: CREATE INDEX ix_awareness_relationship_memories_relationship_type ON public.awareness_relationship_memories USING btree (relationship_type);
+
+
+pg_restore: creating INDEX "public.ix_awareness_relationship_memories_user_id"
+pg_restore: from TOC entry 5312; 1259 35580 INDEX ix_awareness_relationship_memories_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_relationship_memories_user_id" already exists
+Command was: CREATE INDEX ix_awareness_relationship_memories_user_id ON public.awareness_relationship_memories USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_sessions_id"
+pg_restore: from TOC entry 5274; 1259 35434 INDEX ix_awareness_sessions_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_sessions_id" already exists
+Command was: CREATE INDEX ix_awareness_sessions_id ON public.awareness_sessions USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_awareness_sessions_user_id"
+pg_restore: from TOC entry 5275; 1259 35435 INDEX ix_awareness_sessions_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_awareness_sessions_user_id" already exists
+Command was: CREATE INDEX ix_awareness_sessions_user_id ON public.awareness_sessions USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_billing_events_event_type"
+pg_restore: from TOC entry 5255; 1259 35317 INDEX ix_billing_events_event_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_events_event_type" already exists
+Command was: CREATE INDEX ix_billing_events_event_type ON public.billing_events USING btree (event_type);
+
+
+pg_restore: creating INDEX "public.ix_billing_events_id"
+pg_restore: from TOC entry 5256; 1259 35315 INDEX ix_billing_events_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_events_id" already exists
+Command was: CREATE INDEX ix_billing_events_id ON public.billing_events USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_billing_events_processing_status"
+pg_restore: from TOC entry 5257; 1259 35319 INDEX ix_billing_events_processing_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_events_processing_status" already exists
+Command was: CREATE INDEX ix_billing_events_processing_status ON public.billing_events USING btree (processing_status);
+
+
+pg_restore: creating INDEX "public.ix_billing_events_provider_event_id"
+pg_restore: from TOC entry 5258; 1259 35316 INDEX ix_billing_events_provider_event_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_events_provider_event_id" already exists
+Command was: CREATE UNIQUE INDEX ix_billing_events_provider_event_id ON public.billing_events USING btree (provider_event_id);
+
+
+pg_restore: creating INDEX "public.ix_billing_events_provider_subscription_id"
+pg_restore: from TOC entry 5259; 1259 35318 INDEX ix_billing_events_provider_subscription_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_events_provider_subscription_id" already exists
+Command was: CREATE INDEX ix_billing_events_provider_subscription_id ON public.billing_events USING btree (provider_subscription_id);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_id"
+pg_restore: from TOC entry 5246; 1259 35291 INDEX ix_billing_subscriptions_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_id" already exists
+Command was: CREATE INDEX ix_billing_subscriptions_id ON public.billing_subscriptions USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_last_reconciled_at"
+pg_restore: from TOC entry 5247; 1259 35297 INDEX ix_billing_subscriptions_last_reconciled_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_last_reconciled_at" already exists
+Command was: CREATE INDEX ix_billing_subscriptions_last_reconciled_at ON public.billing_subscriptions USING btree (last_reconciled_at);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_needs_review"
+pg_restore: from TOC entry 5248; 1259 35296 INDEX ix_billing_subscriptions_needs_review postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_needs_review" already exists
+Command was: CREATE INDEX ix_billing_subscriptions_needs_review ON public.billing_subscriptions USING btree (needs_review);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_provider_plan_id"
+pg_restore: from TOC entry 5249; 1259 35294 INDEX ix_billing_subscriptions_provider_plan_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_provider_plan_id" already exists
+Command was: CREATE INDEX ix_billing_subscriptions_provider_plan_id ON public.billing_subscriptions USING btree (provider_plan_id);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_provider_subscription_id"
+pg_restore: from TOC entry 5250; 1259 35293 INDEX ix_billing_subscriptions_provider_subscription_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_provider_subscription_id" already exists
+Command was: CREATE UNIQUE INDEX ix_billing_subscriptions_provider_subscription_id ON public.billing_subscriptions USING btree (provider_subscription_id);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_status"
+pg_restore: from TOC entry 5251; 1259 35295 INDEX ix_billing_subscriptions_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_status" already exists
+Command was: CREATE INDEX ix_billing_subscriptions_status ON public.billing_subscriptions USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_billing_subscriptions_user_id"
+pg_restore: from TOC entry 5252; 1259 35292 INDEX ix_billing_subscriptions_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_billing_subscriptions_user_id" already exists
+Command was: CREATE INDEX ix_billing_subscriptions_user_id ON public.billing_subscriptions USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_body_calibrations_id"
+pg_restore: from TOC entry 5204; 1259 33885 INDEX ix_body_calibrations_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_body_calibrations_id" already exists
+Command was: CREATE INDEX ix_body_calibrations_id ON public.body_calibrations USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_body_calibrations_user_id"
+pg_restore: from TOC entry 5205; 1259 33886 INDEX ix_body_calibrations_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_body_calibrations_user_id" already exists
+Command was: CREATE UNIQUE INDEX ix_body_calibrations_user_id ON public.body_calibrations USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_catalog_items_active"
+pg_restore: from TOC entry 5340; 1259 35714 INDEX ix_catalog_items_active postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_items_active" already exists
+Command was: CREATE INDEX ix_catalog_items_active ON public.catalog_items USING btree (active);
+
+
+pg_restore: creating INDEX "public.ix_catalog_items_resource_id"
+pg_restore: from TOC entry 5341; 1259 35713 INDEX ix_catalog_items_resource_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_items_resource_id" already exists
+Command was: CREATE INDEX ix_catalog_items_resource_id ON public.catalog_items USING btree (resource_id);
+
+
+pg_restore: creating INDEX "public.ix_catalog_items_resource_type"
+pg_restore: from TOC entry 5342; 1259 35712 INDEX ix_catalog_items_resource_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_items_resource_type" already exists
+Command was: CREATE INDEX ix_catalog_items_resource_type ON public.catalog_items USING btree (resource_type);
+
+
+pg_restore: creating INDEX "public.ix_catalog_items_slug"
+pg_restore: from TOC entry 5343; 1259 35711 INDEX ix_catalog_items_slug postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_items_slug" already exists
+Command was: CREATE INDEX ix_catalog_items_slug ON public.catalog_items USING btree (slug);
+
+
+pg_restore: creating INDEX "public.ix_catalog_nodes_active"
+pg_restore: from TOC entry 5332; 1259 35686 INDEX ix_catalog_nodes_active postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_nodes_active" already exists
+Command was: CREATE INDEX ix_catalog_nodes_active ON public.catalog_nodes USING btree (active);
+
+
+pg_restore: creating INDEX "public.ix_catalog_nodes_node_type"
+pg_restore: from TOC entry 5333; 1259 35685 INDEX ix_catalog_nodes_node_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_nodes_node_type" already exists
+Command was: CREATE INDEX ix_catalog_nodes_node_type ON public.catalog_nodes USING btree (node_type);
+
+
+pg_restore: creating INDEX "public.ix_catalog_nodes_parent_id"
+pg_restore: from TOC entry 5334; 1259 35684 INDEX ix_catalog_nodes_parent_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_nodes_parent_id" already exists
+Command was: CREATE INDEX ix_catalog_nodes_parent_id ON public.catalog_nodes USING btree (parent_id);
+
+
+pg_restore: creating INDEX "public.ix_catalog_nodes_slug"
+pg_restore: from TOC entry 5335; 1259 35683 INDEX ix_catalog_nodes_slug postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_nodes_slug" already exists
+Command was: CREATE INDEX ix_catalog_nodes_slug ON public.catalog_nodes USING btree (slug);
+
+
+pg_restore: creating INDEX "public.ix_catalog_placements_catalog_item_id"
+pg_restore: from TOC entry 5350; 1259 35745 INDEX ix_catalog_placements_catalog_item_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_placements_catalog_item_id" already exists
+Command was: CREATE INDEX ix_catalog_placements_catalog_item_id ON public.catalog_placements USING btree (catalog_item_id);
+
+
+pg_restore: creating INDEX "public.ix_catalog_placements_catalog_node_id"
+pg_restore: from TOC entry 5351; 1259 35746 INDEX ix_catalog_placements_catalog_node_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_catalog_placements_catalog_node_id" already exists
+Command was: CREATE INDEX ix_catalog_placements_catalog_node_id ON public.catalog_placements USING btree (catalog_node_id);
+
+
+pg_restore: creating INDEX "public.ix_consent_records_document_type"
+pg_restore: from TOC entry 5262; 1259 35358 INDEX ix_consent_records_document_type postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_consent_records_document_type" already exists
+Command was: CREATE INDEX ix_consent_records_document_type ON public.consent_records USING btree (document_type);
+
+
+pg_restore: creating INDEX "public.ix_consent_records_id"
+pg_restore: from TOC entry 5263; 1259 35356 INDEX ix_consent_records_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_consent_records_id" already exists
+Command was: CREATE INDEX ix_consent_records_id ON public.consent_records USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_consent_records_user_id"
+pg_restore: from TOC entry 5264; 1259 35357 INDEX ix_consent_records_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_consent_records_user_id" already exists
+Command was: CREATE INDEX ix_consent_records_user_id ON public.consent_records USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_contact_messages_created_at"
+pg_restore: from TOC entry 5198; 1259 33819 INDEX ix_contact_messages_created_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_contact_messages_created_at" already exists
+Command was: CREATE INDEX ix_contact_messages_created_at ON public.contact_messages USING btree (created_at);
+
+
+pg_restore: creating INDEX "public.ix_contact_messages_email"
+pg_restore: from TOC entry 5199; 1259 33820 INDEX ix_contact_messages_email postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_contact_messages_email" already exists
+Command was: CREATE INDEX ix_contact_messages_email ON public.contact_messages USING btree (email);
+
+
+pg_restore: creating INDEX "public.ix_contact_messages_id"
+pg_restore: from TOC entry 5200; 1259 33818 INDEX ix_contact_messages_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_contact_messages_id" already exists
+Command was: CREATE INDEX ix_contact_messages_id ON public.contact_messages USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_contact_messages_status"
+pg_restore: from TOC entry 5201; 1259 33821 INDEX ix_contact_messages_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_contact_messages_status" already exists
+Command was: CREATE INDEX ix_contact_messages_status ON public.contact_messages USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_password_reset_tokens_expires_at"
+pg_restore: from TOC entry 5206; 1259 34258 INDEX ix_password_reset_tokens_expires_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_password_reset_tokens_expires_at" already exists
+Command was: CREATE INDEX ix_password_reset_tokens_expires_at ON public.password_reset_tokens USING btree (expires_at);
+
+
+pg_restore: creating INDEX "public.ix_password_reset_tokens_id"
+pg_restore: from TOC entry 5207; 1259 34260 INDEX ix_password_reset_tokens_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_password_reset_tokens_id" already exists
+Command was: CREATE INDEX ix_password_reset_tokens_id ON public.password_reset_tokens USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_password_reset_tokens_token_hash"
+pg_restore: creating INDEX "public.ix_password_reset_tokens_user_id"
+pg_restore: from TOC entry 5209; 1259 34261 INDEX ix_password_reset_tokens_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_password_reset_tokens_user_id" already exists
+Command was: CREATE INDEX ix_password_reset_tokens_user_id ON public.password_reset_tokens USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_practice_reps_id"
+pg_restore: from TOC entry 5192; 1259 24752 INDEX ix_practice_reps_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_reps_id" already exists
+Command was: CREATE INDEX ix_practice_reps_id ON public.practice_reps USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_practice_reps_practice_session_id"
+pg_restore: from TOC entry 5193; 1259 24751 INDEX ix_practice_reps_practice_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_reps_practice_session_id" already exists
+Command was: CREATE INDEX ix_practice_reps_practice_session_id ON public.practice_reps USING btree (practice_session_id);
+
+
+pg_restore: creating INDEX "public.ix_practice_session_analytics_id"
+pg_restore: from TOC entry 5221; 1259 35185 INDEX ix_practice_session_analytics_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_session_analytics_id" already exists
+Command was: CREATE INDEX ix_practice_session_analytics_id ON public.practice_session_analytics USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_practice_session_analytics_practice_session_id"
+pg_restore: creating INDEX "public.ix_practice_session_tapes_content_sha256"
+pg_restore: from TOC entry 5212; 1259 35332 INDEX ix_practice_session_tapes_content_sha256 postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_session_tapes_content_sha256" already exists
+Command was: CREATE INDEX ix_practice_session_tapes_content_sha256 ON public.practice_session_tapes USING btree (content_sha256);
+
+
+pg_restore: creating INDEX "public.ix_practice_session_tapes_expires_at"
+pg_restore: from TOC entry 5213; 1259 35333 INDEX ix_practice_session_tapes_expires_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_session_tapes_expires_at" already exists
+Command was: CREATE INDEX ix_practice_session_tapes_expires_at ON public.practice_session_tapes USING btree (expires_at);
+
+
+pg_restore: creating INDEX "public.ix_practice_session_tapes_id"
+pg_restore: from TOC entry 5214; 1259 34857 INDEX ix_practice_session_tapes_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_session_tapes_id" already exists
+Command was: CREATE INDEX ix_practice_session_tapes_id ON public.practice_session_tapes USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_practice_session_tapes_practice_session_id"
+pg_restore: creating INDEX "public.ix_practice_session_tapes_upload_status"
+pg_restore: from TOC entry 5216; 1259 35331 INDEX ix_practice_session_tapes_upload_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_session_tapes_upload_status" already exists
+Command was: CREATE INDEX ix_practice_session_tapes_upload_status ON public.practice_session_tapes USING btree (upload_status);
+
+
+pg_restore: creating INDEX "public.ix_practice_sessions_id"
+pg_restore: from TOC entry 5184; 1259 24734 INDEX ix_practice_sessions_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_sessions_id" already exists
+Command was: CREATE INDEX ix_practice_sessions_id ON public.practice_sessions USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_practice_sessions_status"
+pg_restore: from TOC entry 5185; 1259 24730 INDEX ix_practice_sessions_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_sessions_status" already exists
+Command was: CREATE INDEX ix_practice_sessions_status ON public.practice_sessions USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_practice_sessions_step_key"
+pg_restore: from TOC entry 5186; 1259 24733 INDEX ix_practice_sessions_step_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_sessions_step_key" already exists
+Command was: CREATE INDEX ix_practice_sessions_step_key ON public.practice_sessions USING btree (step_key);
+
+
+pg_restore: creating INDEX "public.ix_practice_sessions_technique_id"
+pg_restore: from TOC entry 5187; 1259 34233 INDEX ix_practice_sessions_technique_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_sessions_technique_id" already exists
+Command was: CREATE INDEX ix_practice_sessions_technique_id ON public.practice_sessions USING btree (technique_id);
+
+
+pg_restore: creating INDEX "public.ix_practice_sessions_technique_name"
+pg_restore: from TOC entry 5188; 1259 24731 INDEX ix_practice_sessions_technique_name postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_sessions_technique_name" already exists
+Command was: CREATE INDEX ix_practice_sessions_technique_name ON public.practice_sessions USING btree (technique_name);
+
+
+pg_restore: creating INDEX "public.ix_practice_sessions_user_id"
+pg_restore: from TOC entry 5189; 1259 24732 INDEX ix_practice_sessions_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_practice_sessions_user_id" already exists
+Command was: CREATE INDEX ix_practice_sessions_user_id ON public.practice_sessions USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_rate_limit_buckets_expires_at"
+pg_restore: from TOC entry 5239; 1259 35258 INDEX ix_rate_limit_buckets_expires_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_rate_limit_buckets_expires_at" already exists
+Command was: CREATE INDEX ix_rate_limit_buckets_expires_at ON public.rate_limit_buckets USING btree (expires_at);
+
+
+pg_restore: creating INDEX "public.ix_refresh_sessions_expires_at"
+pg_restore: from TOC entry 5231; 1259 35246 INDEX ix_refresh_sessions_expires_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_refresh_sessions_expires_at" already exists
+Command was: CREATE INDEX ix_refresh_sessions_expires_at ON public.refresh_sessions USING btree (expires_at);
+
+
+pg_restore: creating INDEX "public.ix_refresh_sessions_family_id"
+pg_restore: from TOC entry 5232; 1259 35245 INDEX ix_refresh_sessions_family_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_refresh_sessions_family_id" already exists
+Command was: CREATE INDEX ix_refresh_sessions_family_id ON public.refresh_sessions USING btree (family_id);
+
+
+pg_restore: creating INDEX "public.ix_refresh_sessions_id"
+pg_restore: from TOC entry 5233; 1259 35243 INDEX ix_refresh_sessions_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_refresh_sessions_id" already exists
+Command was: CREATE INDEX ix_refresh_sessions_id ON public.refresh_sessions USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_refresh_sessions_revoked_at"
+pg_restore: from TOC entry 5234; 1259 35244 INDEX ix_refresh_sessions_revoked_at postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_refresh_sessions_revoked_at" already exists
+Command was: CREATE INDEX ix_refresh_sessions_revoked_at ON public.refresh_sessions USING btree (revoked_at);
+
+
+pg_restore: creating INDEX "public.ix_refresh_sessions_token_hash"
+pg_restore: creating INDEX "public.ix_refresh_sessions_user_id"
+pg_restore: from TOC entry 5236; 1259 35247 INDEX ix_refresh_sessions_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_refresh_sessions_user_id" already exists
+Command was: CREATE INDEX ix_refresh_sessions_user_id ON public.refresh_sessions USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_target_positions_step_id"
+pg_restore: from TOC entry 5267; 1259 35406 INDEX ix_target_positions_step_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_target_positions_step_id" already exists
+Command was: CREATE INDEX ix_target_positions_step_id ON public.target_positions USING btree (step_id);
+
+
+pg_restore: creating INDEX "public.ix_technique_families_parent_id"
+pg_restore: from TOC entry 5324; 1259 35653 INDEX ix_technique_families_parent_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_families_parent_id" already exists
+Command was: CREATE INDEX ix_technique_families_parent_id ON public.technique_families USING btree (parent_id);
+
+
+pg_restore: creating INDEX "public.ix_technique_families_slug"
+pg_restore: from TOC entry 5325; 1259 35652 INDEX ix_technique_families_slug postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_families_slug" already exists
+Command was: CREATE INDEX ix_technique_families_slug ON public.technique_families USING btree (slug);
+
+
+pg_restore: creating INDEX "public.ix_technique_revisions_technique_id"
+pg_restore: from TOC entry 5354; 1259 35783 INDEX ix_technique_revisions_technique_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_revisions_technique_id" already exists
+Command was: CREATE INDEX ix_technique_revisions_technique_id ON public.technique_revisions USING btree (technique_id);
+
+
+pg_restore: creating INDEX "public.ix_technique_revisions_version"
+pg_restore: from TOC entry 5355; 1259 35784 INDEX ix_technique_revisions_version postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_revisions_version" already exists
+Command was: CREATE INDEX ix_technique_revisions_version ON public.technique_revisions USING btree (technique_id, version);
+
+
+pg_restore: creating INDEX "public.ix_technique_variants_review_status"
+pg_restore: from TOC entry 5358; 1259 35884 INDEX ix_technique_variants_review_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_variants_review_status" already exists
+Command was: CREATE INDEX ix_technique_variants_review_status ON public.technique_variants USING btree (review_status);
+
+
+pg_restore: creating INDEX "public.ix_technique_variants_status"
+pg_restore: from TOC entry 5359; 1259 35883 INDEX ix_technique_variants_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_variants_status" already exists
+Command was: CREATE INDEX ix_technique_variants_status ON public.technique_variants USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_technique_variants_technique_id"
+pg_restore: from TOC entry 5360; 1259 35882 INDEX ix_technique_variants_technique_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_technique_variants_technique_id" already exists
+Command was: CREATE INDEX ix_technique_variants_technique_id ON public.technique_variants USING btree (technique_id);
+
+
+pg_restore: creating INDEX "public.ix_techniques_family_id"
+pg_restore: from TOC entry 5148; 1259 35627 INDEX ix_techniques_family_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_techniques_family_id" already exists
+Command was: CREATE INDEX ix_techniques_family_id ON public.techniques USING btree (family_id);
+
+
+pg_restore: creating INDEX "public.ix_techniques_slug"
+pg_restore: creating INDEX "public.ix_techniques_status"
+pg_restore: from TOC entry 5150; 1259 35628 INDEX ix_techniques_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_techniques_status" already exists
+Command was: CREATE INDEX ix_techniques_status ON public.techniques USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_temporal_labeling_drafts_admin_user_id"
+pg_restore: from TOC entry 5225; 1259 35210 INDEX ix_temporal_labeling_drafts_admin_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_temporal_labeling_drafts_admin_user_id" already exists
+Command was: CREATE INDEX ix_temporal_labeling_drafts_admin_user_id ON public.temporal_labeling_drafts USING btree (admin_user_id);
+
+
+pg_restore: creating INDEX "public.ix_temporal_labeling_drafts_id"
+pg_restore: from TOC entry 5226; 1259 35209 INDEX ix_temporal_labeling_drafts_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_temporal_labeling_drafts_id" already exists
+Command was: CREATE INDEX ix_temporal_labeling_drafts_id ON public.temporal_labeling_drafts USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_temporal_labeling_drafts_status"
+pg_restore: from TOC entry 5227; 1259 35207 INDEX ix_temporal_labeling_drafts_status postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_temporal_labeling_drafts_status" already exists
+Command was: CREATE INDEX ix_temporal_labeling_drafts_status ON public.temporal_labeling_drafts USING btree (status);
+
+
+pg_restore: creating INDEX "public.ix_temporal_labeling_drafts_technique_key"
+pg_restore: from TOC entry 5228; 1259 35208 INDEX ix_temporal_labeling_drafts_technique_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_temporal_labeling_drafts_technique_key" already exists
+Command was: CREATE INDEX ix_temporal_labeling_drafts_technique_key ON public.temporal_labeling_drafts USING btree (technique_key);
+
+
+pg_restore: creating INDEX "public.ix_training_feedback_events_id"
+pg_restore: from TOC entry 5179; 1259 16601 INDEX ix_training_feedback_events_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_feedback_events_id" already exists
+Command was: CREATE INDEX ix_training_feedback_events_id ON public.training_feedback_events USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_training_feedback_events_session_id"
+pg_restore: from TOC entry 5180; 1259 16600 INDEX ix_training_feedback_events_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_feedback_events_session_id" already exists
+Command was: CREATE INDEX ix_training_feedback_events_session_id ON public.training_feedback_events USING btree (session_id);
+
+
+pg_restore: creating INDEX "public.ix_training_feedback_events_step_key"
+pg_restore: from TOC entry 5181; 1259 16599 INDEX ix_training_feedback_events_step_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_feedback_events_step_key" already exists
+Command was: CREATE INDEX ix_training_feedback_events_step_key ON public.training_feedback_events USING btree (step_key);
+
+
+pg_restore: creating INDEX "public.ix_training_sessions_id"
+pg_restore: from TOC entry 5163; 1259 16544 INDEX ix_training_sessions_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_sessions_id" already exists
+Command was: CREATE INDEX ix_training_sessions_id ON public.training_sessions USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_training_sessions_technique_id"
+pg_restore: from TOC entry 5164; 1259 34239 INDEX ix_training_sessions_technique_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_sessions_technique_id" already exists
+Command was: CREATE INDEX ix_training_sessions_technique_id ON public.training_sessions USING btree (technique_id);
+
+
+pg_restore: creating INDEX "public.ix_training_sessions_technique_name"
+pg_restore: from TOC entry 5165; 1259 16545 INDEX ix_training_sessions_technique_name postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_sessions_technique_name" already exists
+Command was: CREATE INDEX ix_training_sessions_technique_name ON public.training_sessions USING btree (technique_name);
+
+
+pg_restore: creating INDEX "public.ix_training_sessions_user_id"
+pg_restore: from TOC entry 5166; 1259 16543 INDEX ix_training_sessions_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_sessions_user_id" already exists
+Command was: CREATE INDEX ix_training_sessions_user_id ON public.training_sessions USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_training_step_attempts_id"
+pg_restore: from TOC entry 5174; 1259 16580 INDEX ix_training_step_attempts_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_step_attempts_id" already exists
+Command was: CREATE INDEX ix_training_step_attempts_id ON public.training_step_attempts USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_training_step_attempts_session_id"
+pg_restore: from TOC entry 5175; 1259 16581 INDEX ix_training_step_attempts_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_step_attempts_session_id" already exists
+Command was: CREATE INDEX ix_training_step_attempts_session_id ON public.training_step_attempts USING btree (session_id);
+
+
+pg_restore: creating INDEX "public.ix_training_step_attempts_step_key"
+pg_restore: from TOC entry 5176; 1259 16582 INDEX ix_training_step_attempts_step_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_training_step_attempts_step_key" already exists
+Command was: CREATE INDEX ix_training_step_attempts_step_key ON public.training_step_attempts USING btree (step_key);
+
+
+pg_restore: creating INDEX "public.ix_user_training_memory_id"
+pg_restore: from TOC entry 5169; 1259 16564 INDEX ix_user_training_memory_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_user_training_memory_id" already exists
+Command was: CREATE INDEX ix_user_training_memory_id ON public.user_training_memory USING btree (id);
+
+
+pg_restore: creating INDEX "public.ix_user_training_memory_memory_key"
+pg_restore: from TOC entry 5170; 1259 16563 INDEX ix_user_training_memory_memory_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_user_training_memory_memory_key" already exists
+Command was: CREATE INDEX ix_user_training_memory_memory_key ON public.user_training_memory USING btree (memory_key);
+
+
+pg_restore: creating INDEX "public.ix_user_training_memory_user_id"
+pg_restore: from TOC entry 5171; 1259 16562 INDEX ix_user_training_memory_user_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_user_training_memory_user_id" already exists
+Command was: CREATE INDEX ix_user_training_memory_user_id ON public.user_training_memory USING btree (user_id);
+
+
+pg_restore: creating INDEX "public.ix_users_email"
+pg_restore: creating INDEX "public.ix_users_id"
+pg_restore: from TOC entry 5143; 1259 16399 INDEX ix_users_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "ix_users_id" already exists
+Command was: CREATE INDEX ix_users_id ON public.users USING btree (id);
+
+
+pg_restore: creating FK CONSTRAINT "public.awareness_action_deliveries awareness_action_deliveries_awareness_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_decision_evaluations awareness_decision_evaluations_awareness_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_events awareness_events_awareness_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_knowledge_profiles awareness_knowledge_profiles_created_by_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_knowledge_profiles awareness_knowledge_profiles_reviewed_by_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_object_memories awareness_object_memories_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_relationship_memories awareness_relationship_memories_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.awareness_sessions awareness_sessions_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.billing_subscriptions billing_subscriptions_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.body_calibrations body_calibrations_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.catalog_nodes catalog_nodes_parent_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.catalog_placements catalog_placements_catalog_item_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.catalog_placements catalog_placements_catalog_node_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.consent_records consent_records_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.password_reset_tokens password_reset_tokens_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.practice_reps practice_reps_practice_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.practice_session_analytics practice_session_analytics_practice_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.practice_session_tapes practice_session_tapes_practice_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.practice_sessions practice_sessions_technique_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.practice_sessions practice_sessions_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.refresh_sessions refresh_sessions_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.target_angles target_angles_step_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.target_positions target_positions_step_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.technique_families technique_families_parent_id_fkey"
+pg_restore: from TOC entry 5394; 2606 35647 FK CONSTRAINT technique_families technique_families_parent_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "technique_families_parent_id_fkey" for relation "technique_families" already exists
+Command was: ALTER TABLE ONLY public.technique_families
+    ADD CONSTRAINT technique_families_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.technique_families(id) ON DELETE RESTRICT;
+
+
+pg_restore: creating FK CONSTRAINT "public.technique_groups technique_groups_category_id_fkey"
+pg_restore: from TOC entry 5368; 2606 16511 FK CONSTRAINT technique_groups technique_groups_category_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  relation "public.technique_groups" does not exist
+Command was: ALTER TABLE ONLY public.technique_groups
+    ADD CONSTRAINT technique_groups_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.martial_categories(id) ON DELETE CASCADE;
+
+
+pg_restore: creating FK CONSTRAINT "public.technique_revisions technique_revisions_created_by_fkey"
+pg_restore: creating FK CONSTRAINT "public.technique_revisions technique_revisions_technique_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.technique_steps technique_steps_technique_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.technique_variants technique_variants_technique_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.techniques techniques_group_id_fkey"
+pg_restore: from TOC entry 5365; 2606 16516 FK CONSTRAINT techniques techniques_group_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  relation "public.technique_groups" does not exist
+Command was: ALTER TABLE ONLY public.techniques
+    ADD CONSTRAINT techniques_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.technique_groups(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.temporal_labeling_drafts temporal_labeling_drafts_admin_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.training_feedback_events training_feedback_events_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.training_sessions training_sessions_technique_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.training_sessions training_sessions_user_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.training_step_attempts training_step_attempts_session_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.user_training_memory user_training_memory_user_id_fkey"
+pg_restore: warning: errors ignored on restore: 125

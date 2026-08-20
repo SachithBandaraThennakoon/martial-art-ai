@@ -12,6 +12,7 @@ const MediaPipeSkeleton3D = memo(function MediaPipeSkeleton3D({
   lineWidth = 1.45,
   onSelect,
   selectedId = null,
+  trajectory = [],
 }) {
   const graph = useMemo(
     () => suppliedGraph || buildMediaPipePoseGraph(landmarks),
@@ -21,6 +22,7 @@ const MediaPipeSkeleton3D = memo(function MediaPipeSkeleton3D({
 
   return (
     <group userData={{ skeletonType: "mediapipe-pose-33" }}>
+      {trajectory.length > 1 ? <Line color="#f2c35f" dashed dashScale={12} lineWidth={1.8} opacity={0.8} points={trajectory} transparent /> : null}
       {graph.edges.map(({ from, to }) => (
         <Line
           color={BONE_COLOR}

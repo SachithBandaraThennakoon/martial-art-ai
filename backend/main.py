@@ -25,10 +25,8 @@ validate_runtime_environment()
 from database import check_database_ready, database_readiness, get_db, SessionLocal
 
 # Models
-from models import user, technique, technique_step, target_angle, target_position, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy, awareness, catalog
+from models import user, technique, training_memory, contact_message, body_calibration, password_reset_token, refresh_session, rate_limit_bucket, billing, privacy, awareness, catalog
 from models.body_calibration import BodyCalibration
-from models.target_angle import TargetAngle
-from models.target_position import TargetPosition
 from models.training_memory import (
     PracticeRep,
     PracticeSession,
@@ -54,7 +52,6 @@ from routers import awareness as awareness_router
 from routers import catalog as catalog_router
 
 # Services
-from services.angle_service import compare_angles
 from services.practice_analytics import (
     load_practice_analytics,
     upsert_practice_analytics,
@@ -1408,14 +1405,7 @@ async def train(websocket: WebSocket):
             # -----------------------------
             # GET TARGET ANGLES
             # -----------------------------
-            if required_parts_payload:
-                required_parts = required_parts_payload
-            elif isinstance(step_id, int):
-                required_parts = db.query(TargetAngle).filter(
-                    TargetAngle.step_id == step_id
-                ).all()
-            else:
-                required_parts = []
+            required_parts = required_parts_payload if required_parts_payload else []
 
             coach_event = coach.movement_event(
                 step_id,
@@ -1740,35 +1730,3 @@ def _restore_coach_memory(db, user_id, coach):
 
     coach.restore_memory(payload.get("coach"))
 
-@app.get("/steps/{step_id}/angles")
-def get_angles(step_id: int, db: Session = Depends(get_db)):
-    angles = db.query(TargetAngle).filter(
-        TargetAngle.step_id == step_id
-    ).all()
-
-    return [
-        {
-            "body_part": a.body_part,
-            "min": a.min_angle,
-            "max": a.max_angle
-        }
-        for a in angles
-    ]
-
-
-@app.get("/steps/{step_id}/positions")
-def get_positions(step_id: int, db: Session = Depends(get_db)):
-    positions = db.query(TargetPosition).filter(
-        TargetPosition.step_id == step_id
-    ).all()
-
-    return {
-        "coordinate_space": positions[0].coordinate_space if positions else "body_normalized_v1",
-        "origin": "hip_center",
-        "scale_basis": "torso_length",
-        "tolerance": positions[0].tolerance if positions else 0.12,
-        "landmarks": {
-            position.body_part: [position.x, position.y, position.z]
-            for position in positions
-        },
-    }

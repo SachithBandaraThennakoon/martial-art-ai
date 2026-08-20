@@ -1,101 +1,46 @@
-"""Read-only navigation API for the database-backed training catalog."""
+"""Read-only navigation API backed by the checked-in system catalog snapshot."""
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-import re
+from fastapi import APIRouter, HTTPException
 
-from database import get_db
-from models.catalog import CatalogItem, CatalogNode, CatalogPlacement
+from services.cache import CATALOG_TREE_CACHE_KEY, get_json, set_json
+from services.system_snapshots import load_catalog_snapshot
 
 
 router = APIRouter(prefix="/catalog", tags=["Catalog"])
+_CATALOG_CACHE_SECONDS = 5 * 60
 
 
-def _node_payload(node: CatalogNode) -> dict:
-    return {
-        "id": node.id,
-        "slug": node.slug,
-        "name": node.name,
-        "node_type": node.node_type,
-        "description": node.description,
-        "sort_order": node.sort_order,
-        "metadata": node.metadata_json,
-    }
+def _catalog_payload() -> dict:
+    cached_payload = get_json(CATALOG_TREE_CACHE_KEY)
+    if cached_payload is not None:
+        return cached_payload
 
-
-def _item_payload(item: CatalogItem) -> dict:
-    return {
-        "id": item.id,
-        "slug": item.slug,
-        "title": item.title,
-        "resource_type": item.resource_type,
-        "resource_id": item.resource_id,
-        "metadata": item.metadata_json,
-    }
+    snapshot_payload = load_catalog_snapshot()
+    if snapshot_payload is None:
+        raise HTTPException(503, "System catalog snapshot is unavailable")
+    set_json(CATALOG_TREE_CACHE_KEY, snapshot_payload, _CATALOG_CACHE_SECONDS)
+    return snapshot_payload
 
 
 @router.get("")
-def get_catalog(db: Session = Depends(get_db)):
-    """Return the complete active catalog tree from relational navigation data."""
-    nodes = db.query(CatalogNode).filter(CatalogNode.active.is_(True)).order_by(
-        CatalogNode.sort_order, CatalogNode.name
-    ).all()
-    placements = db.query(CatalogPlacement, CatalogItem).join(
-        CatalogItem, CatalogItem.id == CatalogPlacement.catalog_item_id
-    ).filter(CatalogItem.active.is_(True)).order_by(
-        CatalogPlacement.sort_order, CatalogItem.title
-    ).all()
-    items_by_node = {}
-    for placement, item in placements:
-        payload = _item_payload(item)
-        payload["is_primary"] = placement.is_primary
-        payload["sort_order"] = placement.sort_order
-        items_by_node.setdefault(placement.catalog_node_id, []).append(payload)
+def get_catalog():
+    """Return the static system catalog without a cloud database query."""
+    return _catalog_payload()
 
-    def build_tree(node):
-        children = [
-            child for child in nodes
-            if child.parent_id == node.id
-            and (child.metadata_json or {}).get("resource_kind") == "catalog_node"
-        ]
-        # The legacy sync created duplicate top-level groups. The imported
-        # taxonomy is the numbered hierarchy and is the single public tree.
-        if node.parent_id is None:
-            children = [child for child in children if re.match(r"^[1-8]\.\s", child.name or "")]
-        return {
-            **_node_payload(node),
-            "children": [build_tree(child) for child in children],
-            "items": items_by_node.get(node.id, []),
-        }
 
-    return {"nodes": [build_tree(node) for node in nodes if node.parent_id is None]}
+def _find_node(nodes: list[dict], slug: str) -> dict | None:
+    for node in nodes:
+        if node.get("slug") == slug:
+            return node
+        found = _find_node(node.get("children") or [], slug)
+        if found is not None:
+            return found
+    return None
 
 
 @router.get("/{node_slug}")
-def get_catalog_node(node_slug: str, db: Session = Depends(get_db)):
-    node = db.query(CatalogNode).filter(
-        CatalogNode.slug == node_slug,
-        CatalogNode.active.is_(True),
-    ).first()
-    if not node:
+def get_catalog_node(node_slug: str):
+    node = _find_node(_catalog_payload().get("nodes") or [], node_slug)
+    if node is None:
         raise HTTPException(404, "Catalog node not found")
-
-    children = db.query(CatalogNode).filter(
-        CatalogNode.parent_id == node.id,
-        CatalogNode.active.is_(True),
-    ).order_by(CatalogNode.sort_order, CatalogNode.name).all()
-    placements = db.query(CatalogPlacement, CatalogItem).join(
-        CatalogItem, CatalogItem.id == CatalogPlacement.catalog_item_id
-    ).filter(
-        CatalogPlacement.catalog_node_id == node.id,
-        CatalogItem.active.is_(True),
-    ).order_by(CatalogPlacement.sort_order, CatalogItem.title).all()
-
-    return {
-        **_node_payload(node),
-        "children": [_node_payload(child) for child in children],
-        "items": [
-            {**_item_payload(item), "is_primary": placement.is_primary, "sort_order": placement.sort_order}
-            for placement, item in placements
-        ],
-    }
+    return node

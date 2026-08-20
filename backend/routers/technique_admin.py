@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from auth_context import require_admin_user
 from database import get_db
 from models.technique import Technique, TechniqueRevision
-from services.catalog_sync import _sync_catalog_placement
+from services.cache import invalidate_catalog_cache
 from models.user import User
 from routers.catalog_admin import PackagePayload, _validate_payload
 
@@ -68,9 +68,9 @@ def create_runtime_technique(
     )
     db.add(technique)
     db.flush()
-    _sync_catalog_placement(db, technique, normalized_catalog, 0)
     _create_revision(db, technique, admin, "create")
     db.commit()
+    invalidate_catalog_cache()
     return {"message": "Technique created in PostgreSQL", "id": technique.slug, "version": technique.version}
 
 
@@ -211,6 +211,7 @@ def publish_runtime(
     _record_update(technique, admin, "runtime_publication")
     revision = _create_revision(db, technique, admin, "publish")
     db.commit()
+    invalidate_catalog_cache()
     db.refresh(revision)
     return {"message": "Runtime technique published", "slug": technique.slug, "version": technique.version, "revision_id": revision.id}
 
@@ -234,6 +235,7 @@ def rollback_revision(
     _record_update(technique, admin, "revision_rollback")
     restored = _create_revision(db, technique, admin, f"rollback:{revision_id}")
     db.commit()
+    invalidate_catalog_cache()
     db.refresh(restored)
     return {"message": "Technique revision restored", "slug": technique.slug, "version": technique.version, "revision_id": restored.id}
 

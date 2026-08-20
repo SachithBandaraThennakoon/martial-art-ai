@@ -1,0 +1,77 @@
+pg_restore: connecting to database for restore
+pg_restore: executing SELECT pg_catalog.set_config('search_path', '', false);
+pg_restore: implied no-schema restore
+pg_restore: processing data for table "public.alembic_version"
+pg_restore: processing data for table "public.awareness_action_deliveries"
+pg_restore: processing data for table "public.awareness_decision_evaluations"
+pg_restore: processing data for table "public.awareness_events"
+pg_restore: processing data for table "public.awareness_knowledge_profiles"
+pg_restore: processing data for table "public.awareness_object_memories"
+pg_restore: processing data for table "public.awareness_relationship_memories"
+pg_restore: processing data for table "public.awareness_sessions"
+pg_restore: processing data for table "public.billing_events"
+pg_restore: processing data for table "public.billing_subscriptions"
+pg_restore: processing data for table "public.body_calibrations"
+pg_restore: processing data for table "public.catalog_items"
+pg_restore: processing data for table "public.catalog_nodes"
+pg_restore: processing data for table "public.catalog_placements"
+pg_restore: processing data for table "public.consent_records"
+pg_restore: processing data for table "public.contact_messages"
+pg_restore: processing data for table "public.martial_categories"
+pg_restore: processing data for table "public.password_reset_tokens"
+pg_restore: processing data for table "public.practice_reps"
+pg_restore: processing data for table "public.practice_session_analytics"
+pg_restore: processing data for table "public.practice_session_tapes"
+pg_restore: processing data for table "public.practice_sessions"
+pg_restore: processing data for table "public.rate_limit_buckets"
+pg_restore: processing data for table "public.refresh_sessions"
+pg_restore: processing data for table "public.target_angles"
+pg_restore: processing data for table "public.target_positions"
+pg_restore: processing data for table "public.technique_families"
+pg_restore: processing data for table "public.technique_groups"
+pg_restore: processing data for table "public.technique_revisions"
+pg_restore: processing data for table "public.technique_steps"
+pg_restore: processing data for table "public.technique_variants"
+pg_restore: processing data for table "public.techniques"
+pg_restore: processing data for table "public.temporal_labeling_drafts"
+pg_restore: processing data for table "public.training_feedback_events"
+pg_restore: processing data for table "public.training_sessions"
+pg_restore: processing data for table "public.training_step_attempts"
+pg_restore: processing data for table "public.user_training_memory"
+pg_restore: processing data for table "public.users"
+pg_restore: executing SEQUENCE SET awareness_action_deliveries_id_seq
+pg_restore: executing SEQUENCE SET awareness_decision_evaluations_id_seq
+pg_restore: executing SEQUENCE SET awareness_events_id_seq
+pg_restore: executing SEQUENCE SET awareness_knowledge_profiles_id_seq
+pg_restore: executing SEQUENCE SET awareness_object_memories_id_seq
+pg_restore: executing SEQUENCE SET awareness_relationship_memories_id_seq
+pg_restore: executing SEQUENCE SET awareness_sessions_id_seq
+pg_restore: executing SEQUENCE SET billing_events_id_seq
+pg_restore: executing SEQUENCE SET billing_subscriptions_id_seq
+pg_restore: executing SEQUENCE SET body_calibrations_id_seq
+pg_restore: executing SEQUENCE SET catalog_items_id_seq
+pg_restore: executing SEQUENCE SET catalog_nodes_id_seq
+pg_restore: executing SEQUENCE SET catalog_placements_id_seq
+pg_restore: executing SEQUENCE SET consent_records_id_seq
+pg_restore: executing SEQUENCE SET contact_messages_id_seq
+pg_restore: executing SEQUENCE SET martial_categories_id_seq
+pg_restore: executing SEQUENCE SET password_reset_tokens_id_seq
+pg_restore: executing SEQUENCE SET practice_reps_id_seq
+pg_restore: executing SEQUENCE SET practice_session_analytics_id_seq
+pg_restore: executing SEQUENCE SET practice_session_tapes_id_seq
+pg_restore: executing SEQUENCE SET practice_sessions_id_seq
+pg_restore: executing SEQUENCE SET refresh_sessions_id_seq
+pg_restore: executing SEQUENCE SET target_angles_id_seq
+pg_restore: executing SEQUENCE SET target_positions_id_seq
+pg_restore: executing SEQUENCE SET technique_families_id_seq
+pg_restore: executing SEQUENCE SET technique_groups_id_seq
+pg_restore: executing SEQUENCE SET technique_revisions_id_seq
+pg_restore: executing SEQUENCE SET technique_steps_id_seq
+pg_restore: executing SEQUENCE SET technique_variants_id_seq
+pg_restore: executing SEQUENCE SET techniques_id_seq
+pg_restore: executing SEQUENCE SET temporal_labeling_drafts_id_seq
+pg_restore: executing SEQUENCE SET training_feedback_events_id_seq
+pg_restore: executing SEQUENCE SET training_sessions_id_seq
+pg_restore: executing SEQUENCE SET training_step_attempts_id_seq
+pg_restore: executing SEQUENCE SET user_training_memory_id_seq
+pg_restore: executing SEQUENCE SET users_id_seq

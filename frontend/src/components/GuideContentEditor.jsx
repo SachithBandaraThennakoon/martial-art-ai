@@ -42,6 +42,7 @@ export default function GuideContentEditor({ content, onChange, steps, technique
 
   return <div className="guide-editor">
     <div className="guide-editor__preview">
+      <div className="guide-editor__locked-components" role="note"><strong>Core learner components</strong><span>3D space · skeleton · animation</span><small>Required in Guide mode · users can view and interact with the reference, but cannot edit or remove it.</small></div>
       <GuideSkeletonViewer animation={content.animation} steps={steps} />
       <div className="guide-editor__animation-settings">
         <label>Camera<select value={content.animation.camera_preset} onChange={(event) => updateAnimation("camera_preset", event.target.value)}><option value="front_diagonal">Front diagonal</option><option value="front">Front</option><option value="side">Side</option></select></label>

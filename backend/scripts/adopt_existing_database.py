@@ -24,9 +24,7 @@ from models import (  # noqa: E402,F401
     privacy,
     rate_limit_bucket,
     refresh_session,
-    target_angle,
     technique,
-    technique_step,
     training_memory,
     user,
 )
@@ -39,9 +37,9 @@ def baseline_metadata() -> MetaData:
     metadata = MetaData()
     for table in Base.metadata.sorted_tables:
         if table.name not in {
-            "catalog_items", "catalog_nodes", "catalog_placements", "technique_families",
+            "catalog_items", "catalog_nodes", "catalog_placements",
             "technique_revisions",
-            "billing_events", "billing_subscriptions", "consent_records", "target_positions",
+            "billing_events", "billing_subscriptions", "consent_records",
             "awareness_sessions", "awareness_events", "awareness_knowledge_profiles",
             "awareness_decision_evaluations", "awareness_object_memories",
             "awareness_relationship_memories",
@@ -73,7 +71,7 @@ def baseline_metadata() -> MetaData:
     tapes_table.c.payload.nullable = False
     techniques_table = metadata.tables["techniques"]
     catalog_columns = {
-        "slug", "family_id", "status", "version", "training_config",
+        "slug", "status", "version", "training_config",
         "learning_content", "biomechanics_config", "optimization_config",
         "visualization_config", "metadata_json", "created_at", "updated_at",
     }

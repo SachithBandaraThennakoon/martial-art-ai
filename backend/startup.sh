@@ -5,10 +5,6 @@ if [ "${RUN_DB_MIGRATIONS:-false}" = "true" ]; then
   python -m alembic upgrade head
 fi
 
-if [ "${RUN_CATALOG_SYNC:-false}" = "true" ]; then
-  python -m scripts.sync_technique_catalog
-fi
-
 exec python -m uvicorn main:app \
   --host 0.0.0.0 \
   --port "${PORT:-8000}" \

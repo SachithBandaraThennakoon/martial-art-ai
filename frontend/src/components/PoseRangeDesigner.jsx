@@ -25,7 +25,6 @@ import {
   timelineFrameAt,
 } from "../utils/techniqueTimeline";
 import PoseStudioContext from "./PoseStudioContext";
-import AuthoringSkeletonGlbOverlay from "./AuthoringSkeletonGlbOverlay";
 import MediaPipeSkeleton3D from "./MediaPipeSkeleton3D";
 import { manualPoseToMediaPipePreview } from "../skeleton/manualPoseAdapter";
 import { buildHandLandmarks } from "../skeleton/handLandmarks";
@@ -430,7 +429,7 @@ function referencePoseFromPose(
   };
 }
 
-function poseFromReferencePose(referencePose) {
+export function poseFromReferencePose(referencePose) {
   if (
     referencePose?.coordinate_space !== "body_normalized_v1" ||
     !referencePose.landmarks
@@ -460,7 +459,7 @@ function smoothProgress(progress) {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-function interpolatePose(startPose, endPose, progress, targetLengths = LINK_LENGTHS) {
+export function interpolatePose(startPose, endPose, progress, targetLengths = LINK_LENGTHS) {
   const eased = smoothProgress(progress);
   const normalizedStart = groundPose(
     enforceAllBoneLengths(startPose, "hip_left", targetLengths),
@@ -498,7 +497,7 @@ function interpolateWristRotation(start, end, progress) {
   return [rotation.x, rotation.y, rotation.z];
 }
 
-function interpolateArticulation(startValue, endValue, progress) {
+export function interpolateArticulation(startValue, endValue, progress) {
   const start = normalizedArticulation(startValue);
   const end = normalizedArticulation(endValue);
   const eased = smoothProgress(progress);
@@ -787,7 +786,7 @@ const GuideVolume = memo(function GuideVolume() {
   );
 });
 
-const ArticulationOverlay = memo(function ArticulationOverlay({
+export const ArticulationOverlay = memo(function ArticulationOverlay({
   articulation,
   pose,
 }) {
@@ -978,7 +977,7 @@ const AxialRigOverlay = memo(function AxialRigOverlay({ pose }) {
   );
 });
 
-const FootDetailOverlay = memo(function FootDetailOverlay({
+export const FootDetailOverlay = memo(function FootDetailOverlay({
   animationProgress,
   pose,
   strikingSide,
@@ -1075,13 +1074,12 @@ const FootDetailOverlay = memo(function FootDetailOverlay({
   );
 });
 
-function PoseScene({
+export function PoseScene({
   articulation,
   animationProgress,
   cameraViewRef,
   editingEnabled = true,
   guidesVisible,
-  modelVisible,
   pose,
   poseScale,
   selectedJoint,
@@ -1206,7 +1204,8 @@ function PoseScene({
   }, [camera, cameraViewRef, studio]);
   useEffect(() => {
     if (isTransforming.current) return;
-    transformTarget.position.fromArray(pose[selectedJoint]);
+    const selectedPosition = pose?.[selectedJoint] || pose?.head || [0, 0, 0];
+    transformTarget.position.fromArray(selectedPosition);
     transformTarget.rotation.set(...rotation);
     transformTarget.updateMatrixWorld();
   }, [pose, rotation, selectedJoint, transformTarget]);
@@ -1434,14 +1433,6 @@ function PoseScene({
       <group position={groundedActiveOffset} scale={sceneScale}>
         <primitive object={transformTarget} />
         <group>
-          {modelVisible ? (
-            <Suspense fallback={null}>
-              <AuthoringSkeletonGlbOverlay
-                articulation={articulation}
-                pose={pose}
-              />
-            </Suspense>
-          ) : null}
           <MediaPipeSkeleton3D
             jointRadius={0.025}
             landmarks={mediaPipePreview}
@@ -1579,7 +1570,6 @@ export default function PoseRangeDesigner({
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [anglesOpen, setAnglesOpen] = useState(true);
   const [guidesVisible, setGuidesVisible] = useState(false);
-  const [modelVisible, setModelVisible] = useState(true);
   const [articulation, setArticulation] = useState(() =>
     normalizedArticulation(referencePose?.articulation),
   );
@@ -2175,7 +2165,6 @@ export default function PoseRangeDesigner({
           !sequencePreviewActive && !isAnimating && animationProgress === 0
         }
         guidesVisible={guidesVisible}
-        modelVisible={modelVisible}
         onMoveJoint={moveJoint}
         onRotateJoint={rotateJoint}
         onSelectJoint={setSelectedJoint}
@@ -2239,15 +2228,6 @@ export default function PoseRangeDesigner({
         </span>
         <div className="pose-designer__toolbar-actions">
           {studioActions}
-          <button
-            aria-pressed={modelVisible}
-            className={`btn btn--ghost btn--small ${modelVisible ? "is-active" : ""}`}
-            onClick={() => setModelVisible((value) => !value)}
-            title="Show or hide the athletic body model"
-            type="button"
-          >
-            Model
-          </button>
           <button
             aria-pressed={guidesVisible}
             className={`btn btn--ghost btn--small ${guidesVisible ? "is-active" : ""}`}

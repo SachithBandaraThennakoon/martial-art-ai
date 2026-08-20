@@ -1,9 +1,7 @@
 """Alembic comparison policy for retained, pre-baseline legacy objects."""
 
-RETAINED_LEGACY_TABLES = {
-    "martial_categories", "technique_groups", "practice_session_annotations", "user_bio",
-}
-RETAINED_TECHNIQUE_COLUMNS = {"group_id", "image_url", "video_url", "is_premium"}
+RETAINED_LEGACY_TABLES = {"practice_session_annotations", "user_bio"}
+RETAINED_TECHNIQUE_COLUMNS = set()
 
 
 def include_schema_object(object_, name, type_, reflected, compare_to) -> bool:
