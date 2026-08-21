@@ -61,7 +61,16 @@ def load_technique_snapshot(slug: str) -> dict[str, Any] | None:
     safe_slug = str(slug or "").strip().lower()
     if not safe_slug or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789-" for character in safe_slug):
         return None
-    return _read_json(TECHNIQUE_SNAPSHOT_DIR / f"{safe_slug}.json")
+    direct = _read_json(TECHNIQUE_SNAPSHOT_DIR / f"{safe_slug}.json")
+    if direct:
+        return direct
+    # Authored records may use the full catalog hierarchy in their filename
+    # while retaining the short runtime slug for API compatibility.
+    for candidate in TECHNIQUE_SNAPSHOT_DIR.glob("*.json"):
+        payload = _read_json(candidate)
+        if payload and str((payload.get("technique") or {}).get("slug") or "").strip().lower() == safe_slug:
+            return payload
+    return None
 
 
 def technique_snapshot_payload(technique) -> dict[str, Any]:

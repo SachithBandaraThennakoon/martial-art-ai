@@ -1,1 +1,76 @@
-{"technique":{"id":280,"slug":"3-technique-training--defense--covers--high-cover","name":"High Cover","description":"Catalog placeholder for High Cover. Training content has not been authored yet.","difficulty":"Beginner","status":"active","version":"1.0.0","category":"MARTIAL ARTS","subcategory":"Catalog","price":0.0,"required_plan":"FREE_PLAN","metadata":{"capabilities":{"learning":false,"optimization":false,"guided_training":false,"temporal_tracking":false},"catalog_only":true,"review_status":"unreviewed","runtime_source":"postgresql","publication_status":"DRAFT"}},"training_config":{"steps":[]},"learning_content":null}
+{
+  "technique": {
+    "id": 14,
+    "slug": "high-cover",
+    "name": "High Cover",
+    "description": "Face the camera. Bring both closed hands beside the temples, keep elbows compact, and look through the guard without pressing on the head.",
+    "difficulty": "Beginner",
+    "status": "active",
+    "version": "1.0.0",
+    "category": "Technique Training",
+    "subcategory": "Defense",
+    "price": 0,
+    "required_plan": "FREE_PLAN",
+    "metadata": {
+      "has_tracking": false,
+      "package_index": {
+        "id": "high-cover",
+        "enabled": true,
+        "directory": "high-cover",
+        "catalog_version": "1.0.0"
+      },
+      "tracking_package": null,
+      "tracking_version": null,
+      "runtime_capability": "catalog_only",
+      "catalog_schema_version": "1.0"
+    }
+  },
+  "training_config": {
+    "steps": [
+      {
+        "angles": [
+          {
+            "max": 85,
+            "min": 35,
+            "body_part": "elbow_left"
+          },
+          {
+            "max": 85,
+            "min": 35,
+            "body_part": "elbow_right"
+          },
+          {
+            "max": 90,
+            "min": 35,
+            "body_part": "shoulder_left"
+          },
+          {
+            "max": 90,
+            "min": 35,
+            "body_part": "shoulder_right"
+          },
+          {
+            "max": 100,
+            "min": 65,
+            "body_part": "fist_left"
+          },
+          {
+            "max": 100,
+            "min": 65,
+            "body_part": "fist_right"
+          },
+          {
+            "max": 100,
+            "min": 55,
+            "body_part": "eyes_forward"
+          }
+        ],
+        "step_name": "Build high cover",
+        "step_number": 1
+      }
+    ],
+    "technique_id": "high-cover",
+    "schema_version": "1.0"
+  },
+  "learning_content": null
+}
