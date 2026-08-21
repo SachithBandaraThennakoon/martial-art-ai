@@ -1258,12 +1258,14 @@ export function PoseScene({
         intensity={0.72}
         position={[-4, 2.5, -3]}
       />
-      <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-        <GizmoViewport
-          axisColors={["#ef5350", "#60d394", "#6aa8ff"]}
-          labelColor="white"
-        />
-      </GizmoHelper>
+      {editingEnabled ? (
+        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+          <GizmoViewport
+            axisColors={["#ef5350", "#60d394", "#6aa8ff"]}
+            labelColor="white"
+          />
+        </GizmoHelper>
+      ) : null}
       {studio?.singlePoseMode ? (
         <>
           <mesh
@@ -1441,9 +1443,9 @@ export function PoseScene({
           {Object.entries(pose).map(([name, position]) => (
               <mesh
                 key={name}
-                onClick={(event) => chooseJoint(event, name)}
+                onClick={editingEnabled ? (event) => chooseJoint(event, name) : undefined}
                 position={position}
-                scale={selectedJoint === name ? 1.16 : 1}
+                scale={editingEnabled && selectedJoint === name ? 1.16 : 1}
               >
                 <sphereGeometry
                   args={[
@@ -1455,8 +1457,8 @@ export function PoseScene({
                   ]}
                 />
                 <meshStandardMaterial
-                  color={selectedJoint === name ? "#f2c35f" : "#60d394"}
-                  emissive={selectedJoint === name ? "#6c4a0b" : "#112a20"}
+                  color={editingEnabled && selectedJoint === name ? "#f2c35f" : "#60d394"}
+                  emissive={editingEnabled && selectedJoint === name ? "#6c4a0b" : "#112a20"}
                   emissiveIntensity={0.35}
                   roughness={0.62}
                 />
@@ -1486,7 +1488,7 @@ export function PoseScene({
           </Html>
         ) : null}
       </group>
-      <TransformControls
+      {editingEnabled ? <TransformControls
           enabled={editingEnabled}
           mode={transformMode}
           object={transformTarget}
@@ -1498,7 +1500,7 @@ export function PoseScene({
           rotationSnap={rotationSnap ? THREE.MathUtils.degToRad(5) : null}
           size={0.68}
           space="world"
-      />
+      /> : null}
       <OrbitControls
         makeDefault
         maxDistance={12}
