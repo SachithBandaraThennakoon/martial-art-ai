@@ -19,10 +19,7 @@ from models import (  # noqa: F401
     privacy,
     rate_limit_bucket,
     refresh_session,
-    target_angle,
-    target_position,
     technique,
-    technique_step,
     training_memory,
     user,
 )

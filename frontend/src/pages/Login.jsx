@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { AuthContext } from "../context/auth";
 import { API_BASE_URL } from "../services/api";
 import AuthStory from "../components/AuthStory";
@@ -10,7 +10,7 @@ import AuthStory from "../components/AuthStory";
 const LOGIN_TIMEOUT_MS = 30_000;
 
 export default function Login() {
-  const { login } = useContext(AuthContext);
+  const { authReady, login, token } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState(location.state?.email || "");
@@ -19,6 +19,13 @@ export default function Login() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const registered = location.state?.registered;
+  const destination = location.state?.from;
+
+  // A valid restored tab session should never leave the user at a second login
+  // form. It is both confusing and can create unnecessary refresh sessions.
+  if (authReady && token) {
+    return <Navigate replace to={destination ? `${destination.pathname}${destination.search || ""}` : "/studio"} />;
+  }
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -48,7 +55,6 @@ export default function Login() {
         name: data.name,
         role: data.role
       });
-      const destination = location.state?.from;
       navigate(destination ? `${destination.pathname}${destination.search || ""}` : "/", {
         replace: true
       });

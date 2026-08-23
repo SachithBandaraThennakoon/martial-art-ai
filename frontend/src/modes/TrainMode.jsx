@@ -18,13 +18,15 @@ import {
 } from "../services/browserVoice";
 import {
   getCoachFeedbackIntent,
-  repeatsPendingQuestion
+  repeatsPendingQuestion,
+  shouldIgnoreServerMovementFeedback
 } from "../services/feedbackReasoning";
 import {
   buildCorrectionAcknowledgement,
-  buildNaturalAwarenessFeedback,
+  buildTeachingFeedback,
   FORM_DIFFICULTIES,
-  scoreCompositeForm
+  scoreCompositeForm,
+  smoothLiveAccuracy
 } from "../utils/compositeFormScoring";
 import {
   buildStepTransitionFeedback,
@@ -34,7 +36,7 @@ import { evaluatePositionFeedback } from "../utils/positionFeedback";
 import { deriveSceneGeometry } from "../perception/sceneGeometryAdapter";
 import { buildAwarenessPerceptionEnvelope } from "../perception/awarenessEnvelope";
 import { createAwarenessStream } from "../services/awarenessStream";
-import { deliverAwarenessActions } from "../services/awarenessActions";
+import { deliverAwarenessActions, shouldAuditAwarenessDeliveries } from "../services/awarenessActions";
 import { API_BASE_URL } from "../services/api";
 import { authFetch } from "../services/authSession";
 
@@ -43,7 +45,7 @@ const VOICE_PROFILES = {
     label: "Master Male",
     gender: "male",
     pitch: 0.72,
-    rate: 0.82
+    rate: 0.76
   },
   calmFemale: {
     label: "Master Female",
@@ -87,6 +89,12 @@ const VOICE_INTERRUPT_ACTIONS = new Set([
 ]);
 
 const NATURAL_VOICE_CACHE_LIMIT = 24;
+const CALM_ACCURACY_UPDATE_MS = 500;
+const CALM_ACCURACY_WARMUP_MS = 3000;
+const MIN_ASSESSMENT_COVERAGE = 60;
+const FRAMEWORK_CONFIRMATION_MS = 2800;
+const FRAMEWORK_REPEAT_MS = 22000;
+const FRAMEWORK_MESSAGE_GAP_MS = 10500;
 const splitVoiceWords = (message) =>
   message
     .trim()
@@ -117,6 +125,7 @@ export default function TrainMode({
   isAdminStudio = false,
   performanceProfile = "student",
   performanceMode = "auto",
+  feedbackStrategy = "framework",
   skeletonLayers = {},
   bodyCalibration,
   stanceTargetDegrees = 0,
@@ -220,8 +229,16 @@ export default function TrainMode({
     firstSeenAt: 0,
     lastSpokenAt: 0,
     recentParts: new Map(),
+    focusAttempts: new Map(),
     activeCorrection: null,
     stepKey: ""
+  });
+  const [calmAccuracy, setCalmAccuracy] = useState(null);
+  const calmAccuracyRef = useRef({
+    stepKey: "",
+    value: null,
+    updatedAt: 0,
+    stableSince: 0
   });
   const localFeedbackPriorityUntilRef = useRef(0);
   const currentAudioRef = useRef(null);
@@ -268,6 +285,78 @@ export default function TrainMode({
         positionCorrections
       }),
     [angles, currentStep, displayAngleParts, formDifficulty, positionCorrections, ruleEngineFrame]
+  );
+  const assessmentSessionReady = Boolean(
+    trainSessionStarted &&
+    !backendPaused &&
+    !coachEvent?.memory?.paused &&
+    !["confirm_session_complete", "session_complete"].includes(coachEvent?.state) &&
+    coachEvent?.action !== "session_complete_prompt" &&
+    !(coachEvent?.requires_response && coachEvent?.question?.options?.length)
+  );
+  const assessmentFramingReady =
+    perceptionObservation?.diagnostics?.full_body_in_frame === true;
+  const assessmentEvidenceReady = Boolean(
+    assessmentFramingReady &&
+    compositeForm.scorable &&
+    compositeForm.coverage >= MIN_ASSESSMENT_COVERAGE
+  );
+  useEffect(() => {
+    const stepKey = currentStep?.id || currentStepName || "";
+    const state = calmAccuracyRef.current;
+    const now = Date.now();
+    if (!assessmentSessionReady || !assessmentEvidenceReady) {
+      state.stepKey = stepKey;
+      state.value = null;
+      state.updatedAt = now;
+      state.stableSince = 0;
+      setCalmAccuracy(null);
+      return;
+    }
+    if (state.stepKey !== stepKey || !state.stableSince) {
+      state.stepKey = stepKey;
+      state.value = null;
+      state.updatedAt = now;
+      state.stableSince = now;
+      setCalmAccuracy(null);
+      return;
+    }
+    if (now - state.stableSince < CALM_ACCURACY_WARMUP_MS) return;
+    if (!Number.isFinite(state.value)) {
+      state.value = compositeForm.accuracy;
+      state.updatedAt = now;
+      setCalmAccuracy(state.value);
+      return;
+    }
+    if (now - state.updatedAt < CALM_ACCURACY_UPDATE_MS) return;
+
+    const nextValue = smoothLiveAccuracy(
+      state.value,
+      compositeForm.accuracy,
+      now - state.updatedAt
+    );
+    state.updatedAt = now;
+    state.value = nextValue;
+    setCalmAccuracy((current) => current === nextValue ? current : nextValue);
+  }, [
+    assessmentEvidenceReady,
+    assessmentSessionReady,
+    compositeForm,
+    currentStep?.id,
+    currentStepName
+  ]);
+  const assessmentActive = Boolean(
+    assessmentSessionReady &&
+    assessmentEvidenceReady &&
+    Number.isFinite(calmAccuracy)
+  );
+  const displayedCompositeForm = useMemo(
+    () => ({
+      ...compositeForm,
+      accuracy: assessmentActive ? calmAccuracy : 0,
+      scorable: assessmentActive
+    }),
+    [assessmentActive, calmAccuracy, compositeForm]
   );
   const handleLandmarkFrame = useCallback((frame) => {
     const now = Number(frame?.timestamp) || Date.now();
@@ -397,7 +486,13 @@ export default function TrainMode({
   }, []);
 
   useEffect(() => {
-    const situation = situationAwarenessState?.situation_context;
+    const rawSituation = situationAwarenessState?.situation_context;
+    const framingUnclear = Boolean(
+      trainSessionActive && perceptionObservation && !assessmentFramingReady
+    );
+    const situation = framingUnclear && rawSituation?.situation_state !== "warning"
+      ? { ...rawSituation, situation_state: "tracking_unclear" }
+      : rawSituation;
     const awarenessPriority = ["tracking_unclear", "warning"].includes(
       situation?.situation_state
     );
@@ -409,6 +504,7 @@ export default function TrainMode({
       feedbackState.signature = "";
       feedbackState.activeCorrection = null;
       feedbackState.recentParts.clear();
+      feedbackState.focusAttempts.clear();
     }
     const previousCorrection = feedbackState.activeCorrection;
     const previousResolved = Boolean(
@@ -419,14 +515,14 @@ export default function TrainMode({
     );
 
     if (
+      feedbackStrategy !== "framework" ||
       (!textEnabled && !voiceEnabled) ||
       !trainSessionActive ||
       requiresResponse ||
       (
         !awarenessPriority &&
         (
-          !compositeForm.scorable ||
-          compositeForm.coverage < 50 ||
+          !displayedCompositeForm.scorable ||
           (!compositeForm.corrections.length && !previousResolved)
         )
       )
@@ -434,11 +530,16 @@ export default function TrainMode({
       return;
     }
 
+    const activeCorrection = previousCorrection
+      ? compositeForm.corrections.find(
+          (item) => item.bodyPart === previousCorrection.bodyPart
+        )
+      : null;
     const correction = awarenessPriority
       ? null
-      : compositeForm.corrections.find(
+      : activeCorrection || compositeForm.corrections.find(
           (item) =>
-            now - (feedbackState.recentParts.get(item.bodyPart) || 0) >= 14000
+            now - (feedbackState.recentParts.get(item.bodyPart) || 0) >= FRAMEWORK_REPEAT_MS
         ) || compositeForm.corrections[0];
     const signature = awarenessPriority
       ? `awareness:${situation.situation_state}`
@@ -456,11 +557,11 @@ export default function TrainMode({
       return;
     }
     if (
-      now - feedbackState.firstSeenAt < (awarenessPriority ? 700 : previousResolved ? 900 : 1400) ||
-      now - feedbackState.lastSpokenAt < (previousResolved ? 3200 : 7500) ||
+      now - feedbackState.firstSeenAt < (awarenessPriority ? 900 : previousResolved ? 1600 : FRAMEWORK_CONFIRMATION_MS) ||
+      now - feedbackState.lastSpokenAt < (previousResolved ? 6000 : FRAMEWORK_MESSAGE_GAP_MS) ||
       (
         correction && !previousResolved &&
-        now - (feedbackState.recentParts.get(correction.bodyPart) || 0) < 14000
+        now - (feedbackState.recentParts.get(correction.bodyPart) || 0) < FRAMEWORK_REPEAT_MS
       )
     ) {
       return;
@@ -468,8 +569,9 @@ export default function TrainMode({
 
     const message = previousResolved && !awarenessPriority
       ? buildCorrectionAcknowledgement(previousCorrection, correction)
-      : buildNaturalAwarenessFeedback({
+      : buildTeachingFeedback({
           correction,
+          attempt: feedbackState.focusAttempts.get(correction?.bodyPart) || 0,
           form: compositeForm,
           situation,
           stepName: currentStepName,
@@ -481,6 +583,13 @@ export default function TrainMode({
     feedbackState.lastSpokenAt = now;
     if (correction) {
       feedbackState.recentParts.set(correction.bodyPart, now);
+      feedbackState.focusAttempts.set(
+        correction.bodyPart,
+        (feedbackState.focusAttempts.get(correction.bodyPart) || 0) + 1
+      );
+    }
+    if (previousResolved && previousCorrection) {
+      feedbackState.focusAttempts.delete(previousCorrection.bodyPart);
     }
     feedbackState.activeCorrection = awarenessPriority ? null : correction;
     localFeedbackPriorityUntilRef.current = now + 4000;
@@ -493,7 +602,7 @@ export default function TrainMode({
       focus_body_part:
         correction?.bodyPart || situation?.attention_target?.body_part || "whole_body",
       evidence: {
-        accuracy: compositeForm.accuracy,
+        accuracy: displayedCompositeForm.accuracy,
         coverage: compositeForm.coverage,
         group: correction?.group || "awareness",
         situation_state: situation?.situation_state
@@ -507,6 +616,11 @@ export default function TrainMode({
     compositeForm,
     currentStep?.id,
     currentStepName,
+    displayedCompositeForm.accuracy,
+    displayedCompositeForm.scorable,
+    feedbackStrategy,
+    assessmentFramingReady,
+    perceptionObservation,
     requiresResponse,
     textEnabled,
     trainSessionActive,
@@ -515,6 +629,13 @@ export default function TrainMode({
   ]);
 
   const handleCoachEvent = useCallback((event) => {
+    if (shouldIgnoreServerMovementFeedback({
+      event,
+      feedbackStrategy,
+      sessionActive: trainSessionActive
+    })) {
+      return;
+    }
     if (
       Date.now() < localFeedbackPriorityUntilRef.current &&
       ["correct", "observe", "hold_good", "waiting"].includes(event?.action)
@@ -577,7 +698,15 @@ export default function TrainMode({
     if (event?.action === "switch_practice" && onModeChange) {
       onModeChange("practice");
     }
-  }, [appendConversation, goToNextStep, goToStepIndex, onModeChange, textEnabled]);
+  }, [
+    appendConversation,
+    feedbackStrategy,
+    goToNextStep,
+    goToStepIndex,
+    onModeChange,
+    textEnabled,
+    trainSessionActive
+  ]);
 
   const handleAngleUpdate = useCallback((liveAngles) => {
     setAngles(liveAngles);
@@ -633,7 +762,7 @@ export default function TrainMode({
 
         return index + 1;
       });
-    }, 360);
+    }, 460);
   }, []);
 
   const stopCurrentVoice = useCallback(() => {
@@ -1064,7 +1193,7 @@ export default function TrainMode({
   useEffect(() => {
     if (isAdminStudio || !level1State || !backendAwarenessRunIdRef.current) return;
     const now = Date.now();
-    if (now - backendAwarenessPublishRef.current < 500) return;
+    if (now - backendAwarenessPublishRef.current < 1000) return;
     backendAwarenessPublishRef.current = now;
     backendAwarenessSequenceRef.current += 1;
     backendAwarenessStreamRef.current?.publishPerception(buildAwarenessPerceptionEnvelope({
@@ -1080,6 +1209,7 @@ export default function TrainMode({
       sequence: backendAwarenessSequenceRef.current,
       sessionKey: `user.${String(currentTechnique?.id || "unknown")}.${backendAwarenessRunIdRef.current}`,
       techniqueName: currentTechnique?.name,
+      feedbackStrategy,
       metadata: {
         source: "studio-train-mode",
         performance_mode: performanceMode
@@ -1096,6 +1226,7 @@ export default function TrainMode({
     level4State,
     perceptionObservation,
     performanceMode,
+    feedbackStrategy,
     situationAwarenessState
   ]);
 
@@ -1105,13 +1236,22 @@ export default function TrainMode({
     if (!snapshot?.revision || backendDeliveredRevisionRef.current >= snapshot.revision) return;
     backendDeliveredRevisionRef.current = snapshot.revision;
     const backendDecision = snapshot.backend_decision || {};
+    const frameworkOwnsTechniqueCue =
+      feedbackStrategy === "framework" &&
+      !["safety", "tracking"].includes(backendDecision.feedback?.type);
+    const deliveryActions = frameworkOwnsTechniqueCue
+      ? (backendDecision.actions || []).filter(
+          (action) => !["visual", "audio"].includes(action.channel)
+        )
+      : backendDecision.actions || [];
+    if (frameworkOwnsTechniqueCue) setBackendFeedback(null);
     const audioAdapter = voiceEnabled
       ? ({ message }) => queueVoiceMessage(message || "", {
           feedbackIntent: `backend:${backendDecision.feedback?.type || "guidance"}`,
           interrupt: backendDecision.feedback?.type === "safety"
         })
       : null;
-    deliverAwarenessActions(backendDecision.actions || [], {
+    deliverAwarenessActions(deliveryActions, {
       visual: (payload) => {
         if (payload?.message) setBackendFeedback(payload);
       },
@@ -1121,7 +1261,7 @@ export default function TrainMode({
         else setBackendPaused(false);
       }
     }).then(async (deliveries) => {
-      if (!deliveries.length || !snapshot.session_key) return;
+      if (!deliveries.length || !snapshot.session_key || !shouldAuditAwarenessDeliveries(snapshot, deliveries)) return;
       await authFetch(
         `${API_BASE_URL}/awareness/sessions/${encodeURIComponent(snapshot.session_key)}/deliveries`,
         {
@@ -1131,7 +1271,7 @@ export default function TrainMode({
         }
       );
     }).catch(() => {});
-  }, [backendAwarenessSnapshot, isAdminStudio, queueVoiceMessage, voiceEnabled]);
+  }, [backendAwarenessSnapshot, feedbackStrategy, isAdminStudio, queueVoiceMessage, voiceEnabled]);
 
   useEffect(() => {
     const message = coachText(coachEvent);
@@ -1583,12 +1723,20 @@ export default function TrainMode({
         <MetricsPanel
           steps={steps}
           currentStepIndex={safeStepIndex}
-          accuracy={compositeForm.scorable ? compositeForm.accuracy : 0}
+          accuracy={displayedCompositeForm.accuracy}
+          accuracyNote={assessmentActive
+            ? "Calm 3-second estimate"
+            : assessmentSessionReady
+              ? !assessmentFramingReady
+                ? "Step back · show your full body"
+                : `Waiting for ${MIN_ASSESSMENT_COVERAGE}% stable evidence`
+              : "Starts after you begin"}
           angles={angles}
           requiredParts={feedbackAngleParts}
           feedback={textEnabled ? feedback : ""}
           coachEvent={textEnabled ? coachEvent : null}
-          compositeForm={compositeForm}
+          compositeForm={displayedCompositeForm}
+          assessmentActive={assessmentActive}
           hideLiveValues={awarenessCompact}
           showFullBodyAssessment={isAdminStudio && !awarenessCompact}
           difficulty={formDifficulty}

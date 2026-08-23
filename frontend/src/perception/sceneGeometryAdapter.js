@@ -7,6 +7,22 @@ const clamp = (value, minimum = 0, maximum = 1) =>
 
 const confidenceOf = (point) => clamp(point?.visibility ?? point?.presence ?? 1);
 const usable = (point) => point && Number.isFinite(point.x) && Number.isFinite(point.y);
+const inCameraFrame = (point, margin = 0.015) =>
+  usable(point) &&
+  point.x >= margin &&
+  point.x <= 1 - margin &&
+  point.y >= margin &&
+  point.y <= 1 - margin &&
+  confidenceOf(point) >= 0.35;
+
+function fullBodyInFrame(points) {
+  const bilateralUpperBody = [...SHOULDER_INDICES, ...HIP_INDICES].every(
+    (index) => inCameraFrame(points?.[index])
+  );
+  const leftFootVisible = [27, 29, 31].some((index) => inCameraFrame(points?.[index]));
+  const rightFootVisible = [28, 30, 32].some((index) => inCameraFrame(points?.[index]));
+  return bilateralUpperBody && leftFootVisible && rightFootVisible;
+}
 
 function center(points, indices) {
   const selected = indices.map((index) => points?.[index]).filter(usable);
@@ -47,9 +63,8 @@ function personBounds(points) {
 export function deriveSceneGeometry({ imagePose, worldPose, trackingConfidence = 0 }) {
   const imagePoints = Array.isArray(imagePose) ? imagePose : [];
   const worldPoints = Array.isArray(worldPose) ? worldPose : [];
-  const visibleFeet = FOOT_INDICES.map((index) => imagePoints[index]).filter(
-    (point) => usable(point) && confidenceOf(point) >= 0.35,
-  );
+  const visibleFeet = FOOT_INDICES.map((index) => imagePoints[index]).filter(inCameraFrame);
+  const hasFullBodyFrame = fullBodyInFrame(imagePoints);
   const poseConfidence = clamp(trackingConfidence);
   const footConfidence = visibleFeet.length
     ? visibleFeet.reduce((sum, point) => sum + confidenceOf(point), 0) / visibleFeet.length
@@ -126,6 +141,7 @@ export function deriveSceneGeometry({ imagePose, worldPose, trackingConfidence =
       method: "pose-ground-v1",
       floor_line: floorY,
       visible_feet: visibleFeet.length,
+      full_body_in_frame: hasFullBodyFrame,
       world_geometry: worldPoints.length >= 33,
       raw_media_stored: false,
     },

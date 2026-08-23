@@ -37,6 +37,22 @@ export function repeatsPendingQuestion(event, previousIntent) {
   return Boolean(event?.requires_response && intent === previousIntent);
 }
 
+// Framework mode owns ordinary form teaching in the browser. The backend
+// session coach still owns readiness, safety, questions and step transitions,
+// but letting both sources emit movement corrections creates contradictory
+// instructions and duplicate speech.
+export function shouldIgnoreServerMovementFeedback({
+  event,
+  feedbackStrategy,
+  sessionActive
+}) {
+  return Boolean(
+    feedbackStrategy === "framework" &&
+    sessionActive &&
+    ["correct", "observe", "hold_good"].includes(event?.action)
+  );
+}
+
 export function buildPracticeSetMessage({ gapMs, reps, started = false, stepName = "the first step" }) {
   const gapSeconds = Number(gapMs) / 1000;
   const gapLabel = Number.isInteger(gapSeconds) ? String(gapSeconds) : gapSeconds.toFixed(1);

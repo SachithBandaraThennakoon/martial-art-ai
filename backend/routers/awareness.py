@@ -2,6 +2,7 @@ from collections import deque
 import json
 import os
 import time
+from threading import RLock
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -14,7 +15,7 @@ from models.user import User
 from sqlalchemy.orm import Session
 from awareness.repository import (
     delete_long_term_memory, export_long_term_memory, list_sessions,
-    load_action_deliveries, load_decision_evaluations, load_events,
+    load_action_deliveries, load_decision_evaluations,
     load_long_term_memory, load_snapshot, persist_action_deliveries,
     persist_snapshot,
 )
@@ -29,10 +30,29 @@ from awareness.retention import prune_awareness_data, retention_status
 from services.observability import record_awareness_snapshot
 
 
-def _sync_active_knowledge(db: Session):
-    profile = active_profile(db) or DEFAULT_KNOWLEDGE
+KNOWLEDGE_CACHE_TTL_SECONDS = max(5.0, float(os.getenv("AWARENESS_KNOWLEDGE_CACHE_TTL_SECONDS", "60")))
+_knowledge_cache_lock = RLock()
+_knowledge_cache = {"loaded_at": 0.0, "profile": None, "source": "bundled"}
+
+
+def _cache_active_knowledge(profile: KnowledgeProfile, source: str) -> None:
+    with _knowledge_cache_lock:
+        _knowledge_cache.update({"loaded_at": time.monotonic(), "profile": profile, "source": source})
+
+
+def _sync_active_knowledge(db: Session, *, force: bool = False) -> tuple[KnowledgeProfile, str]:
+    with _knowledge_cache_lock:
+        cached_profile = _knowledge_cache["profile"]
+        cache_fresh = time.monotonic() - _knowledge_cache["loaded_at"] < KNOWLEDGE_CACHE_TTL_SECONDS
+        if not force and cached_profile is not None and cache_fresh:
+            world_model_engine.configure(cached_profile)
+            return cached_profile, str(_knowledge_cache["source"])
+    stored_profile = active_profile(db)
+    profile = stored_profile or DEFAULT_KNOWLEDGE
+    source = "database" if stored_profile else "bundled"
+    _cache_active_knowledge(profile, source)
     world_model_engine.configure(profile)
-    return profile
+    return profile, source
 
 
 router = APIRouter(prefix="/admin/awareness", tags=["Admin awareness"])
@@ -45,30 +65,54 @@ AWARENESS_PROCESSING_BUDGET_MS = max(1, int(os.getenv("AWARENESS_PROCESSING_BUDG
 def _process_snapshot(db: Session, owner_user_id: int, payload: AwarenessSnapshotInput, source: str):
     started = time.perf_counter()
     _sync_active_knowledge(db)
-    previous_snapshot = load_snapshot(db, owner_user_id, payload.session_key)
+    # Read the hot session from process memory first; the database is the durable
+    # checkpoint, not the per-frame coordination path.
+    previous_snapshot = awareness_store.get_snapshot(payload.session_key, owner_user_id)
+    if previous_snapshot is None:
+        previous_snapshot = load_snapshot(db, owner_user_id, payload.session_key)
     previous_awareness = (
         previous_snapshot.awareness.get("backend_inference", {}) if previous_snapshot else None
     )
-    object_memory, relationship_memory = load_long_term_memory(db, owner_user_id)
+    cached_memory = awareness_store.get_long_term_memory(owner_user_id)
+    if cached_memory is None:
+        cached_memory = load_long_term_memory(db, owner_user_id)
+        awareness_store.set_long_term_memory(owner_user_id, *cached_memory)
+    object_memory, relationship_memory = cached_memory
     processed = world_model_engine.process(
         owner_user_id, payload, previous_awareness, object_memory, relationship_memory
     )
-    processing_ms = (time.perf_counter() - started) * 1000
+    engine_ms = (time.perf_counter() - started) * 1000
     metadata = dict(processed.metadata)
     metadata["latency"] = {
-        "processing_ms": round(processing_ms, 3),
+        "processing_ms": round(engine_ms, 3),
         "budget_ms": AWARENESS_PROCESSING_BUDGET_MS,
-        "within_budget": processing_ms <= AWARENESS_PROCESSING_BUDGET_MS,
+        "within_budget": engine_ms <= AWARENESS_PROCESSING_BUDGET_MS,
+        "checkpointed": False,
     }
     processed = processed.model_copy(update={"metadata": metadata})
-    snapshot = persist_snapshot(db, awareness_store.ingest(owner_user_id, processed))
+    snapshot = awareness_store.ingest(owner_user_id, processed)
+    checkpointed = False
+    if awareness_store.should_checkpoint(snapshot):
+        snapshot = persist_snapshot(db, snapshot)
+        awareness_store.mark_checkpoint(snapshot)
+        checkpointed = True
+    total_ms = (time.perf_counter() - started) * 1000
+    response_metadata = dict(snapshot.metadata)
+    response_metadata["latency"] = {
+        **response_metadata.get("latency", {}),
+        "processing_ms": round(total_ms, 3),
+        "engine_ms": round(engine_ms, 3),
+        "checkpointed": checkpointed,
+        "within_budget": total_ms <= AWARENESS_PROCESSING_BUDGET_MS,
+    }
+    snapshot = snapshot.model_copy(update={"metadata": response_metadata})
     decision = snapshot.reasoning.get("backend_decision", {})
     inference = snapshot.awareness.get("backend_inference", {})
     record_awareness_snapshot(
         source=source,
         state=str(inference.get("situation_state", "unknown")),
         command=str(decision.get("command", "observe")),
-        duration_ms=processing_ms,
+        duration_ms=total_ms,
         verified_entities=sum(1 for item in snapshot.objects if item.verified),
     )
     return snapshot
@@ -102,7 +146,9 @@ def export_awareness_memory(
 def clear_awareness_memory(
     admin: User = Depends(require_admin_user), db: Session = Depends(get_db)
 ):
-    return delete_long_term_memory(db, admin.id)
+    result = delete_long_term_memory(db, admin.id)
+    awareness_store.clear_long_term_memory(admin.id)
+    return result
 
 
 @user_router.get("/memory")
@@ -116,7 +162,9 @@ def export_user_awareness_memory(
 def clear_user_awareness_memory(
     user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    return delete_long_term_memory(db, user.id)
+    result = delete_long_term_memory(db, user.id)
+    awareness_store.clear_long_term_memory(user.id)
+    return result
 
 
 @router.post("/retention/prune")
@@ -145,8 +193,8 @@ def ingest_perception(
 def get_awareness_knowledge(
     admin: User = Depends(require_admin_user), db: Session = Depends(get_db)
 ):
-    profile = _sync_active_knowledge(db)
-    return {"source": "database" if active_profile(db) else "bundled", "profile": profile}
+    profile, source = _sync_active_knowledge(db, force=True)
+    return {"source": source, "profile": profile}
 
 
 @router.get("/knowledge/profiles")
@@ -181,7 +229,9 @@ def activate_knowledge_profile(
     db: Session = Depends(get_db),
 ):
     record = activate_profile(db, record_id, admin.id)
-    world_model_engine.configure(KnowledgeProfile.model_validate_json(record.payload_json))
+    profile = KnowledgeProfile.model_validate_json(record.payload_json)
+    _cache_active_knowledge(profile, "database")
+    world_model_engine.configure(profile)
     return record_payload(record)
 
 
@@ -214,16 +264,6 @@ def get_awareness_snapshot(
     if not snapshot:
         raise HTTPException(status_code=404, detail="awareness session not found")
     return snapshot
-
-
-@router.get("/sessions/{session_key}/events")
-def get_awareness_events(
-    session_key: str,
-    limit: int = Query(default=50, ge=1, le=200),
-    admin: User = Depends(require_admin_user),
-    db: Session = Depends(get_db),
-):
-    return load_events(db, admin.id, session_key, limit)
 
 
 @router.get("/sessions/{session_key}/evaluations")

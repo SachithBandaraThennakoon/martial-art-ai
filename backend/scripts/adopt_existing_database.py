@@ -40,7 +40,7 @@ def baseline_metadata() -> MetaData:
             "catalog_items", "catalog_nodes", "catalog_placements",
             "technique_revisions",
             "billing_events", "billing_subscriptions", "consent_records",
-            "awareness_sessions", "awareness_events", "awareness_knowledge_profiles",
+            "awareness_sessions", "awareness_knowledge_profiles",
             "awareness_decision_evaluations", "awareness_object_memories",
             "awareness_relationship_memories",
             "awareness_action_deliveries",

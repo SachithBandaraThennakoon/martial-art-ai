@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- shared 3D pose primitives are consumed by the guide viewer */
 import { Canvas, useThree } from "@react-three/fiber";
 import {
   GizmoHelper,

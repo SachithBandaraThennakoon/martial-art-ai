@@ -48,9 +48,22 @@ class AwarenessInferenceTests(unittest.TestCase):
         self.assertFalse(result["next_action"]["pause_training"])
 
     def test_supported_mistake_enters_correction(self):
-        result = self.infer([item("user:primary", l2={"mistake_risk": .8})])
+        result = self.infer([item("user:primary", l2={
+            "mistake_risk": .8,
+            "current_step_name": "Guard stance",
+            "likely_mistake": {
+                "body_part": "knee_left", "issue": "too_open", "error": 20
+            },
+            "targets": [
+                {"body_part": "knee_left", "issue": "too_open", "error": 20},
+                {"body_part": "elbow_right", "issue": "good"},
+            ],
+        })])
         self.assertEqual(result["situation_state"], "correcting")
         self.assertEqual(result["next_action"]["command"], "hold_current_step")
+        self.assertEqual(result["likely_mistake"]["body_part"], "knee_left")
+        self.assertEqual(result["context"]["step"], "Guard stance")
+        self.assertEqual(result["what_is_correct"][0]["body_part"], "elbow_right")
 
     def test_closing_opponent_relationship_gates_hazard(self):
         objects = [

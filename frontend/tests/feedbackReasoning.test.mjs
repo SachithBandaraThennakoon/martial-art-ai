@@ -5,7 +5,8 @@ import {
   buildPracticeSetMessage,
   getCoachFeedbackIntent,
   getPracticeFeedbackIntent,
-  repeatsPendingQuestion
+  repeatsPendingQuestion,
+  shouldIgnoreServerMovementFeedback
 } from "../src/services/feedbackReasoning.js";
 
 test("ready-check paraphrases share one semantic intent", () => {
@@ -34,6 +35,24 @@ test("a reminder is distinct from the original ready check", () => {
   };
 
   assert.equal(repeatsPendingQuestion(reminder, "question:ready"), false);
+});
+
+test("framework mode keeps one owner for ordinary movement coaching", () => {
+  assert.equal(shouldIgnoreServerMovementFeedback({
+    event: { action: "correct", message: "Decrease your elbow 114 degrees." },
+    feedbackStrategy: "framework",
+    sessionActive: true
+  }), true);
+  assert.equal(shouldIgnoreServerMovementFeedback({
+    event: { action: "attention_prompt", message: "Move fully into frame." },
+    feedbackStrategy: "framework",
+    sessionActive: true
+  }), false);
+  assert.equal(shouldIgnoreServerMovementFeedback({
+    event: { action: "correct" },
+    feedbackStrategy: "agent",
+    sessionActive: true
+  }), false);
 });
 
 test("practice setup paraphrases are deduplicated but set start is new", () => {

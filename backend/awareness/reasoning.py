@@ -1,6 +1,7 @@
 from typing import Any
 
 from .attention import AttentionResult
+from .feedback import build_feedback_frame, feedback_agent
 from .knowledge import DEFAULT_KNOWLEDGE, KnowledgeProfile
 
 
@@ -99,6 +100,18 @@ class DecisionPolicy:
         awareness_confidence = float(awareness.get("confidence") or 0)
         forecast_factor = min(1, prediction.get("trusted_forecast_count", 0))
         decision_confidence = max(0, min(1, awareness_confidence * .8 + forecast_factor * .2))
+        feedback_frame = build_feedback_frame(
+            mode=goal.get("feedback_mode") or awareness.get("feedback_mode"),
+            goal=goal,
+            awareness=awareness,
+            feedback_type=feedback_type,
+            message=message,
+            priority=priority,
+            confidence=decision_confidence,
+            forecast_risks=forecast_risks,
+        )
+        rendered_feedback = feedback_agent.render(feedback_frame)
+        message = rendered_feedback["message"]
         actions = [
             {"channel": "visual", "command": "display_feedback", "payload": {"message": message, "type": feedback_type}},
             {"channel": "system", "command": command, "payload": {"pause_training": pause}},
@@ -114,6 +127,11 @@ class DecisionPolicy:
             "pause_training": pause,
             "should_speak": should_speak,
             "feedback": {"type": feedback_type, "message": message},
+            "feedback_framework": {
+                **feedback_frame,
+                "rendered_by": rendered_feedback["renderer"],
+                "fallback": rendered_feedback.get("fallback", False),
+            },
             "priority": priority,
             "confidence": decision_confidence,
             "reasons": reasons,

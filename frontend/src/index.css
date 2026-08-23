@@ -3415,6 +3415,61 @@ select:focus {
   outline-offset: 2px;
 }
 
+.studio-feedback-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 34px;
+  padding: 0 4px 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.studio-feedback-switch .coach-toggle-button {
+  min-height: 26px;
+  padding: 0 6px;
+  font-size: 9px;
+}
+
+/* The coach control group contains five controls (performance, feedback mode,
+   voice, text, and mirror).  A four-column grid makes the feedback switch
+   narrower than its two buttons, so those buttons paint over their neighbours.
+   Keep the two strategy choices together on the first row and distribute the
+   three display controls evenly beneath them. */
+@media (min-width: 1181px) {
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .coach-toggles:not(.coach-toggles--skeleton) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-flow: row;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-performance-control {
+    grid-column: span 2;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-feedback-switch {
+    grid-column: span 4;
+    min-width: 0;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-feedback-switch .coach-toggle-button {
+    min-width: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .coach-toggles > .coach-toggle-button {
+    grid-column: span 2;
+    min-width: 0;
+  }
+}
+
 .quick-replies button {
   min-height: 34px;
   padding: 0 8px;
@@ -10576,9 +10631,33 @@ select:focus {
     min-width: 0;
     grid-column: 1;
     grid-row: 2;
-    grid-template-columns: minmax(82px, 1.2fr) repeat(3, minmax(58px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
     margin: 0;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-feedback-switch {
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 3px;
+    gap: 3px;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-feedback-switch > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-feedback-switch .coach-toggle-button {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-inline: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .training-shell:not(.training-shell--analysis) .studio-mode-switch .studio-performance-control select,
@@ -12091,6 +12170,9 @@ select:focus {
 .awareness-studio-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; max-width: 1640px; margin: 0 auto 14px; padding: 8px; border: 1px solid var(--console-line); border-radius: 9px; background: #080f10; }
 .awareness-studio-controls label { display: flex; align-items: center; gap: 7px; min-height: 39px; padding-left: 8px; border: 1px solid #30383a; border-radius: 7px; color: #a5abad; font-size: .62rem; font-weight: 800; text-transform: uppercase; }
 .awareness-studio-controls label select { height: 35px; border: 0; border-left: 1px solid #30383a; border-radius: 0 6px 6px 0; background: #05090a; font-size: .7rem; font-weight: 700; text-transform: uppercase; }
+.awareness-feedback-switch { display: flex; align-items: center; gap: 4px; min-height: 39px; padding: 0 4px 0 8px; border: 1px solid #30383a; border-radius: 7px; color: #a5abad; font-size: .62rem; font-weight: 800; text-transform: uppercase; }
+.awareness-feedback-switch button { min-height: 30px; padding: 0 8px; }
+.awareness-feedback-switch button.is-active { border-color: #3c8668; background: #10261e; color: #c5f5dd; }
 .awareness-studio-controls button { min-height: 39px; padding: 0 12px; border: 1px solid #30383a; border-radius: 7px; background: #141719; color: #adb3b5; font-size: .7rem; font-weight: 750; }
 .awareness-studio-controls button.is-active { border-color: #3c8668; background: #10261e; color: #c5f5dd; }
 .awareness-studio-controls button.is-yellow { border-color: #d3b93e; background: #27230e; color: #ffe66d; }

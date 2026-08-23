@@ -40,7 +40,8 @@ test("catalog API tree preserves the legacy browser catalog contract", () => {
     difficulty: "Beginner",
     price: 0,
     requiredPlan: "FREE_PLAN",
-    description: "",
+    description: "A focused punching activity. Practice Jab with controlled movement, clear form, and a pace that feels safe for you.",
+    runtimeReady: true,
     steps: []
   });
 });

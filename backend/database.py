@@ -28,13 +28,27 @@ if not DATABASE_URL:
 # is especially noticeable for the public catalog.  Keep it for direct/local
 # databases, but let the pooler reuse its healthy sessions without that cost.
 is_supabase_pooler = "pooler.supabase.com" in DATABASE_URL.lower()
+pool_pre_ping = os.getenv("DATABASE_POOL_PRE_PING", "true").strip().lower() not in {"0", "false", "no"}
+connect_args = {}
+if DATABASE_URL.lower().startswith(("postgresql://", "postgresql+psycopg2://")):
+    connect_args = {
+        "connect_timeout": int(os.getenv("DATABASE_CONNECT_TIMEOUT_SECONDS", "5")),
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 3,
+    }
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=not is_supabase_pooler,
+    pool_pre_ping=pool_pre_ping,
+    pool_recycle=int(os.getenv("DATABASE_POOL_RECYCLE_SECONDS", "180" if is_supabase_pooler else "1800")),
+    pool_size=int(os.getenv("DATABASE_POOL_SIZE", "5")),
+    max_overflow=int(os.getenv("DATABASE_MAX_OVERFLOW", "5")),
+    connect_args=connect_args,
     # Bound pool waits so a saturated or unavailable database cannot hold an
     # HTTP request indefinitely. The Supabase pooler maintains connection
     # health, while this process keeps reusable sessions per worker.
-    pool_timeout=int(os.getenv("DATABASE_POOL_TIMEOUT_SECONDS", "10")),
+    pool_timeout=int(os.getenv("DATABASE_POOL_TIMEOUT_SECONDS", "5")),
 )
 
 SessionLocal = sessionmaker(

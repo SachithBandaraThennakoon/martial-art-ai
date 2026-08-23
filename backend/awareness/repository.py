@@ -2,16 +2,15 @@ import json
 import math
 import os
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
 from models.awareness import (
-    AwarenessActionDelivery, AwarenessDecisionEvaluation, AwarenessEventRecord, AwarenessObjectMemory,
+    AwarenessActionDelivery, AwarenessDecisionEvaluation, AwarenessObjectMemory,
     AwarenessRelationshipMemory, AwarenessSession,
 )
 
-from .schemas import ActionDeliveryBatch, AwarenessEvent, AwarenessSessionSummary, AwarenessSnapshot
+from .schemas import ActionDeliveryBatch, AwarenessSessionSummary, AwarenessSnapshot
 
 
 def _event_signature(snapshot: AwarenessSnapshot) -> tuple:
@@ -59,21 +58,6 @@ def persist_snapshot(db: Session, snapshot: AwarenessSnapshot) -> AwarenessSnaps
 
     transition_changed = previous_snapshot is None or _event_signature(previous_snapshot) != _event_signature(snapshot)
     if transition_changed:
-        verified = [item.object_id for item in snapshot.objects if item.verified]
-        state = str(snapshot.awareness.get("situation_state") or "observing").replace("_", " ")
-        db.add(AwarenessEventRecord(
-            awareness_session_id=record.id,
-            event_id=uuid4().hex,
-            revision=snapshot.revision,
-            event_type="world_transition",
-            summary=f"{len(verified)} verified objects · {state}",
-            data_json=json.dumps({
-                "verified_object_ids": verified,
-                "relationship_count": len(snapshot.relationships),
-                "sequence": snapshot.sequence,
-            }, separators=(",", ":")),
-            occurred_at=snapshot.received_at,
-        ))
         comparison = snapshot.metadata.get("decision_comparison") or {}
         if comparison.get("comparable"):
             client = comparison.get("client") or {}
@@ -261,24 +245,6 @@ def load_snapshot(db: Session, owner_user_id: int, session_key: str) -> Awarenes
         AwarenessSession.session_key == session_key,
     ).first()
     return AwarenessSnapshot.model_validate_json(record.latest_snapshot) if record else None
-
-
-def load_events(
-    db: Session, owner_user_id: int, session_key: str, limit: int = 50
-) -> list[AwarenessEvent]:
-    rows = db.query(AwarenessEventRecord).join(AwarenessSession).filter(
-        AwarenessSession.user_id == owner_user_id,
-        AwarenessSession.session_key == session_key,
-    ).order_by(AwarenessEventRecord.revision.desc()).limit(max(1, min(limit, 200))).all()
-    return [AwarenessEvent(
-        event_id=row.event_id,
-        session_key=session_key,
-        revision=row.revision,
-        event_type=row.event_type,
-        occurred_at=row.occurred_at.replace(tzinfo=timezone.utc) if row.occurred_at.tzinfo is None else row.occurred_at,
-        summary=row.summary,
-        data=json.loads(row.data_json or "{}"),
-    ) for row in rows]
 
 
 def list_sessions(db: Session, owner_user_id: int) -> list[AwarenessSessionSummary]:

@@ -10,7 +10,7 @@ from awareness.repository import persist_snapshot
 from awareness.retention import prune_awareness_data, retention_policy
 from awareness.schemas import AwarenessSnapshot, utc_now
 from database import Base
-from models.awareness import AwarenessEventRecord, AwarenessSession
+from models.awareness import AwarenessSession
 from models.user import User
 
 
@@ -30,9 +30,8 @@ class AwarenessRetentionTests(unittest.TestCase):
         self.engine.dispose()
 
     def test_policy_uses_safe_defaults_and_valid_environment_overrides(self):
-        with patch.dict("os.environ", {"AWARENESS_EVENT_RETENTION_DAYS": "3", "AWARENESS_SESSION_RETENTION_DAYS": "bad"}):
+        with patch.dict("os.environ", {"AWARENESS_SESSION_RETENTION_DAYS": "bad"}):
             policy = retention_policy()
-            self.assertEqual(policy.events_days, 3)
             self.assertEqual(policy.sessions_days, 30)
 
     def test_dry_run_reports_without_deleting_then_prunes(self):
@@ -44,7 +43,6 @@ class AwarenessRetentionTests(unittest.TestCase):
         old = datetime.now(timezone.utc) - timedelta(days=60)
         session = self.db.query(AwarenessSession).one()
         session.updated_at = old
-        self.db.query(AwarenessEventRecord).update({AwarenessEventRecord.created_at: old})
         self.db.commit()
 
         preview = prune_awareness_data(self.db, dry_run=True)
@@ -54,7 +52,6 @@ class AwarenessRetentionTests(unittest.TestCase):
 
         result = prune_awareness_data(self.db, dry_run=False)
         self.assertEqual(result["deleted"]["sessions"], 1)
-        self.assertEqual(result["deleted"]["events"], 1)
         self.assertEqual(self.db.query(AwarenessSession).count(), 0)
 
 

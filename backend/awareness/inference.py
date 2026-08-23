@@ -40,7 +40,28 @@ class AwarenessInferenceEngine:
 
         user = next((item for item in verified_objects if item.object_id == "user:primary"), None)
         tracking_confidence = user.confidence if user else max(item.confidence for item in verified_objects)
-        mistake_risk = _number(user.state.l2.get("mistake_risk")) if user else 0
+        action_state = user.state.l2 if user else {}
+        mistake_risk = _number(action_state.get("mistake_risk"))
+        likely_mistake = action_state.get("likely_mistake") or None
+        target_evidence = list(action_state.get("targets") or [])
+        correct_targets = [
+            {
+                "body_part": item.get("body_part"),
+                "label": item.get("label") or item.get("body_part"),
+            }
+            for item in target_evidence
+            if item.get("issue") == "good" and item.get("body_part")
+        ]
+        secondary_problems = [
+            {
+                "body_part": item.get("body_part"),
+                "issue": item.get("issue"),
+                "error": item.get("error"),
+            }
+            for item in target_evidence
+            if item.get("issue") not in {None, "good", "missing"}
+            and item.get("body_part") != (likely_mistake or {}).get("body_part")
+        ]
         hazards = []
         threats: list[dict[str, Any]] = []
         opportunities: list[dict[str, Any]] = []
@@ -118,6 +139,17 @@ class AwarenessInferenceEngine:
             "patterns": patterns,
             "uncertainty": 1 - confidence,
             "next_action": {"command": command, "pause_training": pause},
+            "likely_mistake": likely_mistake,
+            "what_is_correct": correct_targets[:4],
+            "secondary_problems": secondary_problems[:6],
+            "difference_vector": {
+                str((likely_mistake or {}).get("body_part")): (likely_mistake or {}).get("error")
+            } if (likely_mistake or {}).get("body_part") else {},
+            "context": {
+                "step": action_state.get("current_step_name") or action_state.get("step_state"),
+                "step_id": action_state.get("current_step_id"),
+                "technique": action_state.get("technique_name"),
+            },
         }
     def __init__(self, knowledge: KnowledgeProfile = DEFAULT_KNOWLEDGE):
         self.knowledge = knowledge

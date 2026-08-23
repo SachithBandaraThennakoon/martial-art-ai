@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,7 +8,10 @@ import {
   TechniquePackageValidationError,
   validateTechniquePackage
 } from "../src/tracking/techniquePackage.js";
-import { loadTechniqueSource } from "./helpers/loadTechniqueSource.mjs";
+import {
+  loadTechniqueSource,
+  loadTechniqueTrainingConfig
+} from "./helpers/loadTechniqueSource.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const trackingRoot = path.resolve(
@@ -69,12 +71,7 @@ test("offline decoder configuration rejects invalid duration values", async () =
 });
 
 test("every Jab angle target has a valid ideal inside its range", async () => {
-  const document = JSON.parse(
-    await readFile(
-      path.join(trackingRoot, "jab", "training-steps.json"),
-      "utf8"
-    )
-  );
+  const document = await loadTechniqueTrainingConfig(trackingRoot, "jab");
 
   const expectedPoseAngles = [
     "ankle_left",
@@ -105,12 +102,7 @@ test("every Jab angle target has a valid ideal inside its range", async () => {
 });
 
 test("Jab authoring poses include safe impact and complete transition data", async () => {
-  const document = JSON.parse(
-    await readFile(
-      path.join(trackingRoot, "jab", "training-steps.json"),
-      "utf8",
-    ),
-  );
+  const document = await loadTechniqueTrainingConfig(trackingRoot, "jab");
   assert.deepEqual(
     document.steps.map(
       (step) => step.reference_pose.articulation.hand_left.palm_turn,
@@ -139,12 +131,7 @@ test("Jab authoring poses include safe impact and complete transition data", asy
 });
 
 test("Front Kick authoring data includes the complete guard-to-recovery cycle", async () => {
-  const document = JSON.parse(
-    await readFile(
-      path.join(trackingRoot, "front-kick", "training-steps.json"),
-      "utf8",
-    ),
-  );
+  const document = await loadTechniqueTrainingConfig(trackingRoot, "front-kick");
   assert.equal(document.schema_version, "2.0");
   assert.deepEqual(
     document.steps.map((step) => step.phase_states),
@@ -175,9 +162,7 @@ test("Front Kick authoring data includes the complete guard-to-recovery cycle", 
   }
   assert.deepEqual(
     document.steps[0].reference_pose.landmarks,
-    JSON.parse(
-      await readFile(path.join(trackingRoot, "jab", "training-steps.json"), "utf8"),
-    ).steps[0].reference_pose.landmarks,
+    (await loadTechniqueTrainingConfig(trackingRoot, "jab")).steps[0].reference_pose.landmarks,
     "Front Kick should reuse the proven Jab guard skeleton",
   );
   assert.deepEqual(

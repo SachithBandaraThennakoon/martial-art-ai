@@ -1,4 +1,5 @@
 """Add conservative default metadata to every seeded taxonomy node."""
+import json
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
@@ -22,6 +23,20 @@ DEFAULTS = {
 
 def upgrade() -> None:
     bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        rows = bind.execute(
+            sa.text("SELECT id, metadata_json FROM catalog_nodes WHERE active = true")
+        ).mappings()
+        for row in rows:
+            metadata = row["metadata_json"] or {}
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata)
+            updated = {**DEFAULTS, **metadata}
+            bind.execute(
+                sa.text("UPDATE catalog_nodes SET metadata_json = :metadata WHERE id = :id"),
+                {"id": row["id"], "metadata": json.dumps(updated, separators=(",", ":"))},
+            )
+        return
     # jsonb concatenation preserves any existing node-specific metadata.
     bind.execute(
         sa.text(
@@ -39,6 +54,21 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        rows = bind.execute(
+            sa.text("SELECT id, metadata_json FROM catalog_nodes")
+        ).mappings()
+        for row in rows:
+            metadata = row["metadata_json"] or {}
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata)
+            for key in DEFAULTS:
+                metadata.pop(key, None)
+            bind.execute(
+                sa.text("UPDATE catalog_nodes SET metadata_json = :metadata WHERE id = :id"),
+                {"id": row["id"], "metadata": json.dumps(metadata, separators=(",", ":"))},
+            )
+        return
     bind.execute(
         sa.text(
             """UPDATE catalog_nodes

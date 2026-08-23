@@ -150,7 +150,11 @@ import {
   getStudioPerformanceConfig
 } from "../performance/studioPerformanceConfig";
 import { WS_BASE_URL } from "../services/api";
-import { getAccessToken } from "../services/authSession";
+import {
+  getAccessToken,
+  refreshAccessToken,
+  subscribeAccessToken
+} from "../services/authSession";
 import { getBodyCalibrationSample, getCalibrationFit } from "../utils/bodyCalibration";
 import { assignHandSides } from "../utils/handSideAssignment";
 import {
@@ -1182,54 +1186,92 @@ export default function SkeletonCanvas({
       return undefined;
     }
 
-    const token = getAccessToken();
-    const socket = new WebSocket(`${WS_BASE_URL}/ws/train`);
     let disposed = false;
-    wsRef.current = socket;
+    let socket = null;
+    let reconnectTimer = null;
+    let reconnectDelay = 500;
 
-    socket.onopen = () => {
-      if (disposed) {
-        socket.close();
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimer) return;
+      const delay = reconnectDelay;
+      reconnectDelay = Math.min(5000, reconnectDelay * 2);
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, delay);
+    };
+
+    const connect = async () => {
+      if (disposed || socket) return;
+      let token = getAccessToken();
+      if (!token) {
+        try {
+          token = (await refreshAccessToken())?.access_token || null;
+        } catch {
+          scheduleReconnect();
+          return;
+        }
+      }
+      if (disposed || socket) return;
+      if (!token) {
+        scheduleReconnect();
         return;
       }
 
-      socket.send(JSON.stringify({ type: "authenticate", token }));
-      socket.send(
-        JSON.stringify({
-          type: "session_config",
-          ...sessionConfigRef.current,
-          step_key: currentStepIdRef.current,
-          step_name: currentStepNameRef.current
-        })
-      );
+      const nextSocket = new WebSocket(`${WS_BASE_URL}/ws/train`);
+      socket = nextSocket;
+      wsRef.current = nextSocket;
 
-      if (pendingCommandRef.current) {
-        sendCoachCommand(pendingCommandRef.current);
-      }
+      nextSocket.onopen = () => {
+        if (disposed || socket !== nextSocket) {
+          nextSocket.close();
+          return;
+        }
+        reconnectDelay = 500;
+        nextSocket.send(JSON.stringify({ type: "authenticate", token }));
+        nextSocket.send(
+          JSON.stringify({
+            type: "session_config",
+            ...sessionConfigRef.current,
+            step_key: currentStepIdRef.current,
+            step_name: currentStepNameRef.current
+          })
+        );
+        if (pendingCommandRef.current) sendCoachCommand(pendingCommandRef.current);
+      };
+
+      nextSocket.onmessage = (event) => {
+        let data;
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+        onAccuracyUpdateRef.current?.(data.accuracy);
+        onFeedbackUpdateRef.current?.(data.feedback?.join("\n") || data.message || "");
+        if (data.summary) onSummaryUpdateRef.current?.(data.summary);
+        onCoachEventRef.current?.(data);
+      };
+
+      nextSocket.onclose = () => {
+        if (socket === nextSocket) socket = null;
+        if (wsRef.current === nextSocket) wsRef.current = null;
+        if (!disposed) scheduleReconnect();
+      };
+      nextSocket.onerror = () => nextSocket.close();
     };
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      onAccuracyUpdateRef.current?.(data.accuracy);
-      onFeedbackUpdateRef.current?.(data.feedback?.join("\n") || data.message || "");
-
-      if (data.summary) {
-        onSummaryUpdateRef.current?.(data.summary);
-      }
-
-      onCoachEventRef.current?.(data);
-    };
+    const unsubscribeToken = subscribeAccessToken((token) => {
+      if (token && !socket && !disposed) connect();
+    });
+    connect();
 
     return () => {
       disposed = true;
-      socket.onmessage = null;
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-      if (wsRef.current === socket) {
-        wsRef.current = null;
-      }
+      unsubscribeToken();
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      socket?.close();
+      if (wsRef.current === socket) wsRef.current = null;
     };
   }, [
     enableCoach,

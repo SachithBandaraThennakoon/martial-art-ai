@@ -244,6 +244,24 @@ export function scoreCompositeForm({
 
 export const FORM_DIFFICULTIES = ["easy", "medium", "hard"];
 
+export function smoothLiveAccuracy(
+  previous,
+  current,
+  elapsedMs,
+  { maxPointsPerSecond = 5, timeConstantMs = 3000 } = {}
+) {
+  if (!Number.isFinite(current)) return Number.isFinite(previous) ? previous : 0;
+  if (!Number.isFinite(previous)) return Math.round(current);
+
+  const elapsed = Math.max(0, Number(elapsedMs) || 0);
+  if (!elapsed) return Math.round(previous);
+  const alpha = 1 - Math.exp(-elapsed / Math.max(250, timeConstantMs));
+  const blendedDelta = (current - previous) * alpha;
+  const maximumDelta = Math.max(0.5, maxPointsPerSecond * (elapsed / 1000));
+  const limitedDelta = Math.max(-maximumDelta, Math.min(maximumDelta, blendedDelta));
+  return Math.round(Math.max(0, Math.min(100, previous + limitedDelta)));
+}
+
 export function buildCompositeCorrectionFeedback(correction) {
   if (!correction) return "";
   if (correction.kind === "quality") {
@@ -344,6 +362,43 @@ export function buildNaturalAwarenessFeedback({
   return `Adjust your ${label}.`;
 }
 
+function correctionPurpose(correction) {
+  const bodyPart = correction?.bodyPart || "";
+  if (/knee|ankle/.test(bodyPart)) return "This gives you a stable base.";
+  if (/hip/.test(bodyPart)) return "This connects the stance to your strike.";
+  if (/shoulder/.test(bodyPart)) return "This keeps your reach without losing posture.";
+  if (/wrist/.test(bodyPart)) return "This protects the joint and lines up the strike.";
+  if (/elbow/.test(bodyPart)) return "This keeps the arm strong without locking it.";
+  if (/fist|hand/.test(bodyPart)) return "This keeps the guard ready and the hand protected.";
+  if (/eyes|face/.test(bodyPart)) return "This keeps your attention calm and forward.";
+  return "This keeps the whole movement connected.";
+}
+
+function withoutTerminalPunctuation(message) {
+  return String(message || "").trim().replace(/[.!?]+$/, "");
+}
+
+/**
+ * Deterministic teaching progression for a correction that remains active.
+ * It starts with one short cue, then adds purpose, then simplifies the task.
+ * No LLM or network call is involved.
+ */
+export function buildTeachingFeedback({ correction, attempt = 0, situation, strength }) {
+  const cue = buildNaturalAwarenessFeedback({ correction, situation, strength });
+  if (
+    !cue ||
+    !correction ||
+    ["tracking_unclear", "warning"].includes(situation?.situation_state)
+  ) return cue;
+
+  const cleanCue = withoutTerminalPunctuation(cue);
+  if (attempt <= 0) return cue;
+  if (attempt === 1) return `${cleanCue}. ${correctionPurpose(correction)}`;
+  if (attempt === 2) return `Reset once. ${cleanCue}. Move slowly, then hold the shape.`;
+
+  return `Isolate your ${shortCorrectionName(correction)}. ${cleanCue}, then hold for two seconds.`;
+}
+
 function shortCorrectionName(correction) {
   const bodyPart = correction?.bodyPart || "position";
   const side = bodyPart.endsWith("_left") ? "lead" : bodyPart.endsWith("_right") ? "rear" : "";
@@ -353,6 +408,9 @@ function shortCorrectionName(correction) {
 
 export function buildCorrectionAcknowledgement(previous, next) {
   const corrected = shortCorrectionName(previous);
-  if (!next) return `Good ${corrected}. Hold it.`;
-  return `Good ${corrected}. Now ${shortCorrectionName(next)}.`;
+  if (!next) return `Good, your ${corrected} is set. Hold that shape.`;
+  const nextCue = withoutTerminalPunctuation(
+    buildNaturalAwarenessFeedback({ correction: next })
+  );
+  return `Good, your ${corrected} is set. Now ${nextCue.charAt(0).toLowerCase()}${nextCue.slice(1)}.`;
 }

@@ -37,6 +37,9 @@ export default function TrainingStudio({ studioMode = "student" }) {
     const storedMode = localStorage.getItem("studioPerformanceMode") || "auto";
     return STUDIO_PERFORMANCE_MODES[storedMode] ? storedMode : "auto";
   });
+  const [feedbackStrategy, setFeedbackStrategy] = useState(
+    () => localStorage.getItem("studioFeedbackStrategy") || "framework"
+  );
   const [skeletonLayers, setSkeletonLayers] = useState({
     level1: false,
     onnx: false
@@ -129,6 +132,13 @@ export default function TrainingStudio({ studioMode = "student" }) {
     setPerformanceMode(nextMode);
     localStorage.setItem("studioPerformanceMode", nextMode);
   };
+
+  const updateFeedbackStrategy = (nextStrategy) => {
+    if (!["framework", "agent"].includes(nextStrategy)) return;
+    setFeedbackStrategy(nextStrategy);
+    localStorage.setItem("studioFeedbackStrategy", nextStrategy);
+  };
+
 
   const updateAdminInputSource = (nextSource) => {
     if (!["live", "video", "skeleton"].includes(nextSource)) return;
@@ -238,6 +248,11 @@ export default function TrainingStudio({ studioMode = "student" }) {
               ))}
             </select>
           </label>
+          <div className="studio-feedback-switch" aria-label="Feedback strategy">
+            <span>Feedback</span>
+            <button aria-pressed={feedbackStrategy === "framework"} className={`coach-toggle-button ${feedbackStrategy === "framework" ? "is-active" : ""}`} onClick={() => updateFeedbackStrategy("framework")} type="button">Framework</button>
+            <button aria-pressed={feedbackStrategy === "agent"} className={`coach-toggle-button ${feedbackStrategy === "agent" ? "is-active" : ""}`} onClick={() => updateFeedbackStrategy("agent")} type="button">Agent</button>
+          </div>
           <button
             aria-pressed={voiceEnabled}
             className={`coach-toggle-button ${voiceEnabled ? "is-active" : ""}`}
@@ -375,6 +390,7 @@ export default function TrainingStudio({ studioMode = "student" }) {
           isAdminStudio={isAdminStudio}
           performanceProfile={isAdminStudio ? "admin" : "student"}
           performanceMode={performanceMode}
+          feedbackStrategy={feedbackStrategy}
           skeletonLayers={activeSkeletonLayers}
           bodyCalibration={bodyCalibration}
           stanceTargetDegrees={stanceTargetDegrees}

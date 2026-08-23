@@ -366,6 +366,88 @@ Structured action contracts support:
 
 Safety remains evidence-gated. A verified hazard is the only state that forces a training pause.
 
+### 10.1 What feedback depends on
+
+Framework feedback is produced from measured and derived data, not from free-form generation:
+
+1. **L1 — current motion:** tracking confidence, visible landmarks, joint angles, velocity, acceleration, and prediction confidence.
+2. **L2 — current action:** selected technique/step, step match, mistake risk, highest-priority supported mistake, target values, and motion phase.
+3. **L3 — current session:** completed/incomplete repetitions, consistency, repeated mistake, fatigue risk, mastery trend, and session recommendation.
+4. **L4 — user history:** current technique mastery, persistent weakness, learning trend, recommended speed, and coaching intensity.
+5. **Situation awareness:** combines L1–L4 into one state and one attention target.
+6. **Framework policy:** keeps one correction active, chooses a body-specific cue, waits for stable evidence, confirms improvement, and advances only after the active correction clears.
+
+Example data for a Jab guard correction:
+
+```json
+{
+  "l1_motion": {
+    "tracking_confidence": 0.91,
+    "angles_deg": { "elbow_left": 118, "knee_left": 151 },
+    "motion_energy": 0.12
+  },
+  "l2_action": {
+    "technique_name": "Jab",
+    "current_step_name": "Guard stance",
+    "step_state": "in_progress",
+    "mistake_risk": 0.76,
+    "likely_mistake": {
+      "body_part": "knee_left",
+      "issue": "too_open",
+      "error": 26
+    }
+  },
+  "l3_session": {
+    "repetitions_completed": 2,
+    "consistency_score": 0.58,
+    "fatigue_risk": 0.21,
+    "repeated_mistake": { "body_part": "knee_left", "issue": "too_open" }
+  },
+  "l4_user": {
+    "user_level": "beginner",
+    "top_weakness": { "body_part": "knee_left", "issue": "too_open" },
+    "personalization": { "recommended_speed": "slow", "coaching_intensity": "medium" }
+  },
+  "situation": {
+    "situation_state": "correcting",
+    "attention_target": { "body_part": "knee_left", "issue": "too_open" }
+  },
+  "framework_feedback": {
+    "message": "Bend your lead knee slightly more.",
+    "llm_used": false
+  }
+}
+```
+
+The next messages depend on what happens after that cue:
+
+- If the knee remains wrong: `Bend your lead knee slightly more. This gives you a stable base.`
+- If it still remains wrong: `Reset once. Bend your lead knee slightly more. Move slowly, then hold the shape.`
+- When corrected: `Good, your lead knee is set. Hold that shape.`
+
+### 10.2 Awareness-state examples
+
+| Awareness state | Data condition | Framework response |
+|---|---|---|
+| `waiting_for_perception` | No verified user evidence | Wait silently for usable pose evidence. |
+| `tracking_unclear` | Tracking confidence below the gate | Ask the student to step back and show the full body. |
+| `observing` | Stable tracking and no supported correction | Continue monitoring without unnecessary speech. |
+| `correcting` | Stable mistake risk above the correction gate | Teach one body-part correction and keep that focus. |
+| `anticipating` | Trusted forecast predicts an upcoming form error | Give a short preventive cue without pausing progression. |
+| `warning` | Session fatigue/form degradation passes its gate | Slow down, breathe, and reset the stance. |
+| `encouraging` | Session trend is improving with adequate mastery | Give occasional reinforcement; do not interrupt the movement. |
+| `advance_ready` | Form and consistency satisfy progression rules | Confirm control and offer the next step. |
+| `hazard_detected` | Verified spatial/contact relationship indicates danger | Pause immediately and review the training space. |
+
+### 10.3 Calm timing and accuracy
+
+- Raw pose and angle data may update many times each second, but the visible form-match score is a calm estimate rather than a single-frame result.
+- The score is updated at most every `500 ms`, smoothed over roughly `3 seconds`, and limited to about `5 percentage points per second` in either direction.
+- An ordinary framework correction must remain stable for `2.8 seconds` before delivery.
+- Ordinary messages have at least a `10.5-second` gap, and the same unresolved body-part lesson waits `22 seconds` before the next teaching stage.
+- A resolved correction is confirmed after stable recovery while respecting a `6-second` conversation gap.
+- Tracking and safety states use shorter confirmation because delayed recovery guidance would be unsafe or confusing.
+
 ---
 
 ## 11. Perception status
@@ -381,6 +463,11 @@ Safety remains evidence-gated. A verified hazard is the only state that forces a
 - Rejection of raw frame fields at the backend contract boundary.
 - Truthful module status: ready, disabled, or model missing.
 - No raw media persistence in awareness records.
+- Structured deterministic feedback frames with LIVE, STEP, REPETITION, SESSION, and EVOLUTION modes.
+- Feedback is fully deterministic; the Feedback Agent does not call an LLM or external API.
+- Framework feedback uses a deterministic teaching loop: verify stable evidence, select one supported correction, give one actionable cue, explain its purpose only if the issue persists, simplify to a slow reset drill, confirm the correction, and then advance focus.
+- The active body-part lesson remains locked until it is corrected; lower-priority issues do not replace it merely because a cooldown elapsed.
+- Safety and tracking recovery can interrupt the lesson immediately. Ordinary backend diagnostic prose cannot overwrite the more precise angle/position framework cue shown to the student.
 
 ### Deliberately deferred
 
@@ -415,7 +502,7 @@ The `/admin-awareness` page provides:
 - Prediction timeline.
 - Utility-selected decision.
 - Client/backend decision comparison.
-- Recent awareness events.
+- Recent in-memory awareness transitions.
 - Knowledge-profile governance.
 - Decision-evaluation history.
 
@@ -445,7 +532,6 @@ User runtime routes require an authenticated account and are always scoped to th
 | POST | `/admin/awareness/sessions/{session_key}/snapshots` | Process a complete awareness snapshot. |
 | POST | `/admin/awareness/sessions/{session_key}/perception` | Fuse and process a perception envelope. |
 | GET | `/admin/awareness/sessions/{session_key}/snapshot` | Load the latest persisted snapshot. |
-| GET | `/admin/awareness/sessions/{session_key}/events` | Load compact transition events. |
 | GET | `/admin/awareness/sessions/{session_key}/evaluations` | Load client/backend decision evaluations. |
 
 ### Perception and operations
@@ -490,10 +576,15 @@ The user route accepts any authenticated account and the admin route additionall
 
 ## 14. Persistence
 
+### Hot path and durable checkpoints
+
+Live awareness processing uses a hybrid path. The process-local `awareness_store` keeps the latest snapshot, a bounded transition buffer, and a TTL cache of each user's long-term memory. The active knowledge profile is cached separately. This prevents live camera frames from repeatedly loading session state, memory, or knowledge from PostgreSQL. Hot sessions are capped and the oldest inactive entry is evicted when the cap is reached.
+
+PostgreSQL remains the durable source for recovery, audit, retention, and long-term memory. Snapshots are checkpointed on the first update, meaningful situation/decision/action transitions, every configured sequence interval, or when the configured time interval expires. Feedback wording alone does not trigger a write. Delivery acknowledgements are persisted only for durable checkpoints, safety actions, or failed/rejected delivery. This avoids database writes for ordinary frames while preserving recoverable and safety-relevant evidence. Memory caches are invalidated when memory is explicitly deleted, and knowledge activation refreshes the active-profile cache immediately.
+
 PostgreSQL tables:
 
 - `awareness_sessions`
-- `awareness_events`
 - `awareness_knowledge_profiles`
 - `awareness_decision_evaluations`
 - `awareness_object_memories`
@@ -503,7 +594,6 @@ PostgreSQL tables:
 Persisted data includes:
 
 - Latest complete world snapshot per user/session.
-- Compact meaningful transition history.
 - Client/backend agreement evaluations.
 - Knowledge version used for each evaluation.
 - Object and relationship L1–L4 state embedded in snapshots.
@@ -513,7 +603,7 @@ Persisted data includes:
 Current migration head:
 
 ```text
-e9c3a5b7d812
+f1a2b3c4d5e6
 ```
 
 Migration portability was corrected so upgrade/check/downgrade works with PostgreSQL and the SQLite migration test environment.
@@ -539,8 +629,12 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 |---|---:|---|
 | `AWARENESS_WS_MESSAGES_PER_SECOND` | `10` | WebSocket rate cap. |
 | `AWARENESS_SESSION_RETENTION_DAYS` | `30` | Session retention. |
-| `AWARENESS_EVENT_RETENTION_DAYS` | `14` | Event retention. |
 | `AWARENESS_EVALUATION_RETENTION_DAYS` | `30` | Evaluation retention. |
+| `AWARENESS_CHECKPOINT_INTERVAL_SECONDS` | `2` | Maximum time between durable live-session checkpoints. |
+| `AWARENESS_CHECKPOINT_SEQUENCE_INTERVAL` | `20` | Maximum live updates between checkpoints. |
+| `AWARENESS_MAX_HOT_SESSIONS` | `256` | Maximum process-local awareness sessions before oldest-first eviction. |
+| `AWARENESS_KNOWLEDGE_CACHE_TTL_SECONDS` | `60` | TTL for the active governed knowledge profile. |
+| `AWARENESS_MEMORY_CACHE_TTL_SECONDS` | `300` | TTL for the process-local per-user long-term-memory cache. |
 | `AWARENESS_DELIVERY_RETENTION_DAYS` | `30` | Action-delivery audit retention. |
 | `AWARENESS_MEMORY_HALF_LIFE_DAYS` | `180` | Dynamic L4 memory-confidence half-life. |
 | `AWARENESS_PROCESSING_BUDGET_MS` | `100` | Backend snapshot-processing latency budget reported to the admin client. |
@@ -549,6 +643,9 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 | `OBJECT_DETECTOR_MODEL_PATH` | empty | Future detector asset. |
 | `SCENE_SEGMENTATION_ENABLED` | `true` | Built-in pose-ground scene adapter switch. |
 | `DEPTH_GEOMETRY_ENABLED` | `true` | Built-in MediaPipe world-geometry adapter switch. |
+| `RATE_LIMIT_STORE` | `local` in development | Avoids remote database rate-limit writes locally; production remains shared and fail-closed. |
+| `DATABASE_POOL_TIMEOUT_SECONDS` | `5` | Bounds waits when the database/pooler is unavailable or saturated. |
+| `DATABASE_POOL_RECYCLE_SECONDS` | `180` | Recycles stale PostgreSQL/pooler connections. |
 
 ---
 
@@ -565,6 +662,7 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 | Inference | `backend/awareness/inference.py` |
 | Prediction | `backend/awareness/prediction.py` |
 | Utility decision/actions | `backend/awareness/reasoning.py` |
+| Feedback framework | `backend/awareness/feedback.py` |
 | Pipeline orchestration | `backend/awareness/world_model.py` |
 | Knowledge | `backend/awareness/knowledge.py` and `backend/data/awareness/default.v1.json` |
 | Persistence | `backend/awareness/repository.py` |
@@ -587,17 +685,21 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 - Added maximum-space responsive layout and scrollable diagnostics.
 - Added technique and goal selection.
 - Added compact performance, voice, text, mirror, L1, and ACP controls.
-- Added world, object, relationship, prediction, reasoning, event, governance, and evaluation panels.
+- Added world, object, relationship, prediction, reasoning, governance, and evaluation panels.
 - Removed page-specific duplicate panels and the general footer.
 - Connected the page to the authenticated awareness WebSocket.
 - Connected ordinary authenticated Train Mode sessions to the shared backend orchestrator through `/awareness/stream`.
-- Made governed backend visual/audio/system/haptic actions authoritative in user Train Mode while retaining local Studio guidance as the offline/low-latency fallback.
+- Made governed backend safety/system/haptic actions authoritative in user Train Mode. In Framework mode, precise local angle/position teaching owns ordinary technique cues while backend awareness remains authoritative for safety and tracking recovery.
 - Added user-scoped delivery audit and memory export/delete routes without exposing admin governance.
 - Added strict `perception/v1` publishing from the live Studio rather than trusting a client-authored awareness result.
 - Added built-in floor/wall and camera-relative geometry evidence without transmitting raw camera pixels.
 - Added action-delivery acknowledgements for visual, audio, browser haptic, and system actions.
 - Added persisted action-delivery history and long-term-memory export, delete, refresh, confidence, and lifetime-summary controls.
 - Added backend processing latency and budget status to the decision diagnostics.
+- Added deterministic structured feedback frames and LIVE/STEP/REPETITION/SESSION/EVOLUTION modes.
+- Added a deterministic Feedback Agent that routes every validated frame through rule-based rendering.
+- Added a compact Framework/Agent switch; both choices remain local and deterministic with no LLM or external API path.
+- Upgraded Framework rendering to `feedback/v2` with one-focus coaching, body-specific corrective cues, biomechanical reasons, persistent-error scaffolding, correction acknowledgement, and explicit `llm_used: false` metadata.
 
 ### Backend
 
@@ -610,31 +712,35 @@ Migration portability was corrected so upgrade/check/downgrade works with Postgr
 - Added exponential L4 confidence decay plus scoped memory export and deletion.
 - Added idempotent action-delivery persistence and retention pruning.
 - Added per-snapshot processing latency and budget metadata to HTTP/WebSocket output.
+- Added a TTL-backed per-user long-term-memory cache so live awareness does not query memory tables on every update.
+- Added a TTL-backed active-knowledge cache and immediate invalidation on profile activation.
+- Capped process-local hot sessions with oldest-first eviction.
+- Stabilized checkpoint signatures so changing feedback prose cannot cause database write amplification.
 - Added REST and WebSocket interfaces.
+- Added a development-local rate-limit fallback that avoids remote database round-trips; production remains database-backed and fail-closed.
+- Added bounded PostgreSQL connect/pool waits, keepalives, recycling, and configurable pool sizing.
 
 ### Database and migrations
 
-- Added awareness session/event persistence.
+- Added awareness session persistence and bounded in-memory transition history.
 - Added knowledge and evaluation tables.
 - Added durable object and relationship memory tables and upsert persistence.
-- Added the action-delivery audit table and endpoints.
+- Kept action-delivery audit persistence because the admin console uses delivery status for diagnostics.
+- Limited delivery writes to checkpoints, safety actions, and failed/rejected delivery.
 - Applied migrations to the configured PostgreSQL development database.
-- Corrected legacy migration portability and unique-index metadata alignment.
+- Corrected legacy migration portability, optional-table handling, downgrade reconstruction, and unique-index metadata alignment.
 
 ### Verification completed
 
-- **126 backend tests passed.**
-- **326 backend subtests passed.**
-- **180 frontend tests passed.**
-- Awareness architecture tests passed.
-- Migration upgrade/check/downgrade passed.
-- Frontend ESLint passed.
-- Frontend production build passed.
+- **The full backend suite passes: 134 tests and 712 dataset subtests.**
+- **The full frontend suite passes: 182 tests; full ESLint passes.**
+- Fresh-database upgrade, adopted-legacy upgrade, Alembic schema check, and full downgrade-to-base pass on SQLite; migration head remains `f1a2b3c4d5e6`.
+- Migration head `f1a2b3c4d5e6` was applied to the configured PostgreSQL database; destructive downgrade was validated only against the disposable SQLite test database.
 - Live `/admin-awareness` camera acceptance passed in an authenticated admin session. Human tracking, floor/wall confidence, scene and geometry readiness, Studio feedback, diagnostics, and action delivery updated together.
 - ONNX Runtime now uses valid version-matched runtime sidecars, eliminating the previous loader/MIME failure.
 - OpenAPI and knowledge-profile validation passed.
 
-Build output reports existing large ONNX/WebAssembly chunks; this is a performance optimization opportunity, not a build failure.
+The production build previously passed and reported large ONNX/WebAssembly chunks. The latest recheck could not start esbuild inside the restricted filesystem sandbox, and the automatic elevated-build approval timed out twice; tests and lint are fully green.
 
 ---
 
@@ -661,6 +767,7 @@ Build output reports existing large ONNX/WebAssembly chunks; this is a performan
 | L1–L4 prediction | Implemented | Evidence-gated multiscale forecasts. |
 | Utility decision | Implemented | Governed bounded argmax selection. |
 | Feedback/action contracts | Implemented | Visual/audio/haptic/system outputs. |
+| Feedback framework | Implemented | Structured deterministic modes with no LLM or external API dependency. |
 | User feedback orchestration | Implemented | The same governed backend orchestrator serves user Train Mode and the admin test console; local feedback is the fallback. |
 | Action delivery audit | Implemented | Idempotent delivery acknowledgements persisted per user and exposed to the owning user/admin. |
 | Haptic delivery | Browser simulator implemented | Uses `navigator.vibrate` where supported; physical device adapters still require hardware. |
@@ -678,7 +785,8 @@ The requested non-YOLO architecture is complete. The items below are production 
 2. Verify goal switching changes attention and decisions during a live session.
 3. Verify network reconnect, browser refresh, backend restart, and duplicate snapshot behavior.
 4. Add component-level visual/regression tests for the admin awareness panels.
-5. Split the current end-to-end backend budget into perception, world update, prediction, decision, and feedback stage budgets.
+5. Decide whether multi-worker production needs Redis-backed hot-session/cache coordination or session affinity; the current cache is process-local by design.
+6. Split the current end-to-end backend budget into perception, world update, prediction, decision, and feedback stage budgets.
 
 ### Priority 2 — longitudinal evaluation
 
@@ -755,7 +863,7 @@ MediaPipe/derived evidence
 → multiscale prediction
 → governed utility decision
 → structured actions
-→ persisted events/evaluations/delivery audit
+→ persisted evaluations/delivery audit
 → durable L4 memory with export/delete/decay governance
 → live admin diagnostics
 ```

@@ -16,9 +16,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_table("target_positions")
-    op.drop_table("target_angles")
-    op.drop_table("technique_steps")
+    existing_tables = set(sa.inspect(op.get_bind()).get_table_names())
+    for table_name in ("target_positions", "target_angles", "technique_steps"):
+        if table_name in existing_tables:
+            op.drop_table(table_name)
 
 
 def downgrade() -> None:

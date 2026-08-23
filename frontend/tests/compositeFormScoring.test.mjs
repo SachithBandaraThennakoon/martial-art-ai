@@ -5,7 +5,9 @@ import {
   buildCorrectionAcknowledgement,
   buildCompositeCorrectionFeedback,
   buildNaturalAwarenessFeedback,
-  scoreCompositeForm
+  buildTeachingFeedback,
+  scoreCompositeForm,
+  smoothLiveAccuracy
 } from "../src/utils/compositeFormScoring.js";
 
 const angleTargets = [
@@ -189,12 +191,43 @@ test("coach acknowledges success before naming the next correction", () => {
       { bodyPart: "elbow_left" },
       { bodyPart: "shoulder_right" }
     ),
-    "Good lead elbow. Now rear shoulder."
+    "Good, your lead elbow is set. Now relax and align your rear shoulder."
   );
   assert.equal(
     buildCorrectionAcknowledgement({ bodyPart: "knee_left" }, null),
-    "Good lead knee. Hold it."
+    "Good, your lead knee is set. Hold that shape."
   );
+});
+
+test("teaching feedback scaffolds a persistent correction without changing focus", () => {
+  const correction = {
+    bodyPart: "knee_left",
+    label: "Lead knee",
+    current: 160,
+    ideal: 125,
+    direction: "decrease",
+    kind: "angle"
+  };
+
+  assert.equal(
+    buildTeachingFeedback({ correction, attempt: 0 }),
+    "Bend your lead knee slightly more."
+  );
+  assert.equal(
+    buildTeachingFeedback({ correction, attempt: 1 }),
+    "Bend your lead knee slightly more. This gives you a stable base."
+  );
+  assert.equal(
+    buildTeachingFeedback({ correction, attempt: 2 }),
+    "Reset once. Bend your lead knee slightly more. Move slowly, then hold the shape."
+  );
+});
+
+test("live accuracy changes calmly instead of following a single-frame jump", () => {
+  assert.equal(smoothLiveAccuracy(null, 42, 500), 42);
+  assert.equal(smoothLiveAccuracy(42, 92, 500), 45);
+  assert.equal(smoothLiveAccuracy(45, 92, 500), 48);
+  assert.equal(smoothLiveAccuracy(48, 10, 500), 46);
 });
 
 test("full-body correction feedback explains knee and hip purpose", () => {

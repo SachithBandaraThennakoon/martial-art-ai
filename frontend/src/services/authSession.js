@@ -43,7 +43,7 @@ export async function refreshAccessToken() {
   if (!refreshPromise) {
     const requestRefresh = () => {
       const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+      const timeout = globalThis.setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
       return fetch(`${API_BASE_URL}/refresh`, {
         method: "POST",
         credentials: "include",
@@ -59,7 +59,7 @@ export async function refreshAccessToken() {
         setAccessToken(session.access_token);
         return session;
       })
-      .finally(() => window.clearTimeout(timeout));
+      .finally(() => globalThis.clearTimeout(timeout));
     };
 
     const coordinatedRefresh =
@@ -77,7 +77,10 @@ export async function refreshAccessToken() {
 
 export async function authFetch(input, options = {}) {
   let token = getAccessToken();
-  if (token && accessTokenExpiresAt(token) <= Date.now()) {
+  const expiresAt = accessTokenExpiresAt(token);
+  // Opaque development/test tokens have no JWT expiry claim. Only discard a
+  // token when it contains a valid, expired timestamp.
+  if (token && expiresAt > 0 && expiresAt <= Date.now()) {
     setAccessToken(null);
     token = null;
   }

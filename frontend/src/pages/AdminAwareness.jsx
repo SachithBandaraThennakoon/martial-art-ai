@@ -9,7 +9,7 @@ import { STUDIO_PERFORMANCE_MODES } from "../performance/studioPerformanceConfig
 import { createAwarenessStream } from "../services/awarenessStream";
 import { API_BASE_URL } from "../services/api";
 import { authFetch } from "../services/authSession";
-import { deliverAwarenessActions } from "../services/awarenessActions";
+import { deliverAwarenessActions, shouldAuditAwarenessDeliveries } from "../services/awarenessActions";
 import { buildAwarenessPerceptionEnvelope } from "../perception/awarenessEnvelope";
 
 const label = (value, fallback = "Waiting") => value ? String(value).replaceAll("_", " ") : fallback;
@@ -38,6 +38,7 @@ export default function AdminAwareness() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [textEnabled, setTextEnabled] = useState(true);
   const [performanceMode, setPerformanceMode] = useState("auto");
+  const [feedbackStrategy, setFeedbackStrategy] = useState("framework");
   const [awarenessGoal, setAwarenessGoal] = useState("improve_user_technique");
   const [skeletonLayers, setSkeletonLayers] = useState({ level1: false, onnx: false });
   const [predictionStatus, setPredictionStatus] = useState({ status: "idle", ready: false, error: null });
@@ -159,7 +160,7 @@ export default function AdminAwareness() {
       },
     }).then(async (deliveries) => {
       setActionDelivery(deliveries);
-      if (!deliveries.length || !backendSnapshot.session_key) return;
+      if (!deliveries.length || !backendSnapshot.session_key || !shouldAuditAwarenessDeliveries(backendSnapshot, deliveries)) return;
       const response = await authFetch(
         `${API_BASE_URL}/admin/awareness/sessions/${encodeURIComponent(backendSnapshot.session_key)}/deliveries`,
         {
@@ -246,7 +247,7 @@ export default function AdminAwareness() {
     if (!diagnostics.level1State || !awarenessRunIdRef.current) return;
     // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
-    if (now - lastAwarenessPublishRef.current < 500) return;
+    if (now - lastAwarenessPublishRef.current < 1000) return;
     lastAwarenessPublishRef.current = now;
     awarenessSequenceRef.current += 1;
     awarenessStreamRef.current?.publishPerception(buildAwarenessPerceptionEnvelope({
@@ -259,11 +260,13 @@ export default function AdminAwareness() {
         source: "admin-awareness",
         frozen,
         performance_mode: performanceMode
-      }
+      },
+      feedbackStrategy
     }));
-  }, [awarenessGoal, diagnostics, frozen, live, performanceMode, selected?.id, selected?.name, tracking.confidence]);
+  }, [awarenessGoal, diagnostics, feedbackStrategy, frozen, live, performanceMode, selected?.id, selected?.name, tracking.confidence]);
   const studioControls = <section className="awareness-studio-controls" aria-label="Studio awareness controls">
     <label><span>Performance</span><select aria-label="Performance mode" value={performanceMode} onChange={(event) => setPerformanceMode(event.target.value)}>{Object.entries(STUDIO_PERFORMANCE_MODES).map(([key, option]) => <option key={key} value={key}>{option.label}</option>)}</select></label>
+    <div className="awareness-feedback-switch" aria-label="Feedback strategy"><span>Feedback</span><button aria-pressed={feedbackStrategy === "framework"} className={feedbackStrategy === "framework" ? "is-active" : ""} onClick={() => setFeedbackStrategy("framework")} type="button">Framework</button><button aria-pressed={feedbackStrategy === "agent"} className={feedbackStrategy === "agent" ? "is-active" : ""} onClick={() => setFeedbackStrategy("agent")} type="button">Agent</button></div>
     <button aria-pressed={voiceEnabled} className={voiceEnabled ? "is-active" : ""} onClick={() => setVoiceEnabled((value) => !value)} type="button">Voice {voiceEnabled ? "On" : "Off"}</button>
     <button aria-pressed={textEnabled} className={textEnabled ? "is-active" : ""} onClick={() => setTextEnabled((value) => !value)} type="button">Text {textEnabled ? "On" : "Off"}</button>
     <button aria-pressed={displayMirrored} className={displayMirrored ? "is-active" : ""} onClick={() => setDisplayMirrored((value) => !value)} type="button">Mirror {displayMirrored ? "On" : "Off"}</button>
@@ -291,7 +294,7 @@ export default function AdminAwareness() {
     <ConsoleSection id="camera" title="STUDIO TRAIN MODE · WORLD · AWARENESS" meta={live ? "Streaming" : "Camera permission required"}>
       <div className="awareness-console-triad">
         {studioControls}
-        <section className="awareness-camera-column"><header><strong>Studio Train Mode · {selected?.name}</strong><span>{selected?.difficulty} · Live feedback</span></header><div className="training-shell training-shell--admin admin-awareness-studio"><TrainMode key={selected?.id} awarenessCompact categorySlug={selected?.categorySlug} subcategorySlug={selected?.subcategorySlug} selectedTechniqueName={selected?.name} displayMirrored={displayMirrored} textEnabled={textEnabled} voiceEnabled={voiceEnabled} isAdminStudio performanceProfile="admin" performanceMode={performanceMode} skeletonLayers={skeletonLayers} bodyCalibration={bodyCalibration} inputSource="live" onDiagnosticsUpdate={handleDiagnosticsUpdate} onPredictionStatus={setPredictionStatus} /></div><ul className="awareness-sensor-list"><SensorRow name="MediaPipe Pose / Hands / Face" status={live ? "✓ Live" : perceptionStatus("human", "Starting")} active={live} /><SensorRow name="YOLO object detection" status={perceptionStatus("objects")} active={perceptionReady("objects")} /><SensorRow name="Scene segmentation" status={perceptionStatus("scene")} active={perceptionReady("scene")} /><SensorRow name="Depth geometry" status={perceptionStatus("geometry")} active={perceptionReady("geometry")} /></ul></section>
+         <section className="awareness-camera-column"><header><strong>Studio Train Mode · {selected?.name}</strong><span>{selected?.difficulty} · Live feedback</span></header><div className="training-shell training-shell--admin admin-awareness-studio"><TrainMode key={selected?.id} awarenessCompact categorySlug={selected?.categorySlug} subcategorySlug={selected?.subcategorySlug} selectedTechniqueName={selected?.name} displayMirrored={displayMirrored} textEnabled={textEnabled} voiceEnabled={voiceEnabled} isAdminStudio performanceProfile="admin" performanceMode={performanceMode} feedbackStrategy={feedbackStrategy} skeletonLayers={skeletonLayers} bodyCalibration={bodyCalibration} inputSource="live" onDiagnosticsUpdate={handleDiagnosticsUpdate} onPredictionStatus={setPredictionStatus} /></div><ul className="awareness-sensor-list"><SensorRow name="MediaPipe Pose / Hands / Face" status={live ? "✓ Live" : perceptionStatus("human", "Starting")} active={live} /><SensorRow name="YOLO object detection" status={perceptionStatus("objects")} active={perceptionReady("objects")} /><SensorRow name="Scene segmentation" status={perceptionStatus("scene")} active={perceptionReady("scene")} /><SensorRow name="Depth geometry" status={perceptionStatus("geometry")} active={perceptionReady("geometry")} /></ul></section>
         <section className="awareness-world-column">
           <header><strong>World foundation</strong><span>Verified entities only</span></header>
           <div className="awareness-world-graph"><div className={live ? "world-node world-node--user is-live" : "world-node world-node--user"}>User<small>{percent(tracking.confidence)}</small></div><div className="world-node world-node--camera">Camera<small>source</small></div><div className={`world-node world-node--floor ${backendFloor?.verified ? "is-live" : "is-pending"}`}>Floor<small>{backendFloor ? percent(backendFloor.confidence) : "pending"}</small></div><div className={`world-node world-node--wall ${backendWall?.verified ? "is-live" : "is-pending"}`}>Wall<small>{backendWall ? percent(backendWall.confidence) : "pending"}</small></div><i className="world-edge" aria-hidden="true" /></div>

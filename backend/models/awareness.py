@@ -21,25 +21,6 @@ class AwarenessSession(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
-class AwarenessEventRecord(Base):
-    __tablename__ = "awareness_events"
-
-    id = Column(Integer, primary_key=True, index=True)
-    awareness_session_id = Column(
-        Integer,
-        ForeignKey("awareness_sessions.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    event_id = Column(String(32), nullable=False, unique=True, index=True)
-    revision = Column(Integer, nullable=False, index=True)
-    event_type = Column(String(64), nullable=False, index=True)
-    summary = Column(String(512), nullable=False)
-    data_json = Column(Text, nullable=False, default="{}")
-    occurred_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-
 class AwarenessKnowledgeProfileRecord(Base):
     __tablename__ = "awareness_knowledge_profiles"
     __table_args__ = (

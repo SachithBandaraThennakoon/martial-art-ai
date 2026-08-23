@@ -17,34 +17,26 @@ depends_on = None
 
 def upgrade() -> None:
     # Superseded by catalog_nodes/catalog_items and required_plan.
-    with op.batch_alter_table("techniques") as batch_op:
-        batch_op.drop_column("group_id")
-        batch_op.drop_column("image_url")
-        batch_op.drop_column("video_url")
-        batch_op.drop_column("is_premium")
-    op.drop_table("technique_groups")
-    op.drop_table("martial_categories")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    technique_columns = {
+        column["name"] for column in inspector.get_columns("techniques")
+    }
+    legacy_columns = [
+        name for name in ("group_id", "image_url", "video_url", "is_premium")
+        if name in technique_columns
+    ]
+    if legacy_columns:
+        with op.batch_alter_table("techniques") as batch_op:
+            for column_name in legacy_columns:
+                batch_op.drop_column(column_name)
+    existing_tables = set(inspector.get_table_names())
+    for table_name in ("technique_groups", "martial_categories"):
+        if table_name in existing_tables:
+            op.drop_table(table_name)
 
 
 def downgrade() -> None:
-    op.create_table(
-        "martial_categories",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("name", sa.String(), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("sort_order", sa.Integer(), nullable=True, server_default="0"),
-        sa.Column("is_active", sa.Boolean(), nullable=True, server_default=sa.true()),
-    )
-    op.create_table(
-        "technique_groups",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("category_id", sa.Integer(), nullable=False),
-        sa.Column("name", sa.String(), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("sort_order", sa.Integer(), nullable=True, server_default="0"),
-    )
-    with op.batch_alter_table("techniques") as batch_op:
-        batch_op.add_column(sa.Column("group_id", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("image_url", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("video_url", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("is_premium", sa.Boolean(), nullable=True, server_default=sa.false()))
+    # These prototype objects were optional and are absent from the canonical
+    # baseline. A downgrade must not invent schema that was never present.
+    pass

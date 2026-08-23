@@ -194,6 +194,17 @@ def enforce_rate_limits(
     now: datetime | None = None,
 ) -> None:
     current_time = now or utcnow_naive()
+    # Local development should not block every request on a remote Supabase
+    # round-trip. Production continues to use the shared database store.
+    bind = db.get_bind()
+    local_store = (
+        APP_ENV != "production"
+        and os.getenv("RATE_LIMIT_STORE", "local").strip().lower() == "local"
+        and bind.dialect.name != "sqlite"
+    )
+    if local_store:
+        _enforce_development_fallback(checks, current_time)
+        return
     try:
         _maybe_prune(db, current_time)
         results = []

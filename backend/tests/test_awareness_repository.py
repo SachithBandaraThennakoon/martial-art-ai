@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from awareness.repository import (
     delete_long_term_memory, export_long_term_memory, list_sessions,
-    load_events, load_long_term_memory, load_snapshot,
+    load_long_term_memory, load_snapshot,
     persist_action_deliveries, persist_snapshot,
 )
 from awareness.schemas import ActionDeliveryBatch, AwarenessSnapshot, TemporalState, WorldObject, utc_now
@@ -43,24 +43,21 @@ class AwarenessRepositoryTests(unittest.TestCase):
             awareness={"situation_state": situation},
         )
 
-    def test_persists_latest_snapshot_and_events(self):
+    def test_persists_latest_snapshot(self):
         persist_snapshot(self.db, self.snapshot())
         persist_snapshot(self.db, self.snapshot(2, 2, "correcting"))
         latest = load_snapshot(self.db, self.user.id, "admin.jab.live")
         self.assertEqual(latest.revision, 2)
-        self.assertEqual(len(load_events(self.db, self.user.id, "admin.jab.live")), 2)
         self.assertEqual(list_sessions(self.db, self.user.id)[0].object_count, 1)
 
     def test_duplicate_revision_is_idempotent(self):
         persist_snapshot(self.db, self.snapshot())
         persist_snapshot(self.db, self.snapshot())
-        self.assertEqual(len(load_events(self.db, self.user.id, "admin.jab.live")), 1)
 
-    def test_unchanged_frames_update_snapshot_without_event_noise(self):
+    def test_unchanged_frames_update_snapshot(self):
         persist_snapshot(self.db, self.snapshot())
         persist_snapshot(self.db, self.snapshot(2, 2))
         self.assertEqual(load_snapshot(self.db, self.user.id, "admin.jab.live").revision, 2)
-        self.assertEqual(len(load_events(self.db, self.user.id, "admin.jab.live")), 1)
 
     def test_l4_memory_survives_across_sessions(self):
         persist_snapshot(self.db, self.snapshot())

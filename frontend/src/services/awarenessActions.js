@@ -34,3 +34,12 @@ export async function deliverAwarenessActions(actions = [], adapters = {}) {
   }
   return results;
 }
+
+export function shouldAuditAwarenessDeliveries(snapshot, deliveries = []) {
+  const decision = snapshot?.backend_decision || {};
+  return Boolean(
+    snapshot?.latency?.checkpointed ||
+    decision.feedback?.type === "safety" ||
+    deliveries.some((item) => ["failed", "rejected"].includes(item.status))
+  );
+}

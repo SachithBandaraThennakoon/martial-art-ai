@@ -2,11 +2,13 @@ export default function MetricsPanel({
   steps,
   currentStepIndex,
   accuracy,
+  accuracyNote,
   angles,
   requiredParts,
   feedback,
   coachEvent,
   compositeForm,
+  assessmentActive = true,
   hideLiveValues = false,
   showFullBodyAssessment = false,
   difficulty = "medium",
@@ -15,12 +17,13 @@ export default function MetricsPanel({
   const currentStep = steps[currentStepIndex];
   const topCompositeCorrection = compositeForm?.corrections?.[0];
   const topCompositeStrength = compositeForm?.strengths?.[0];
-  const focusPart =
-    ["angle", "quality"].includes(topCompositeCorrection?.kind)
-      ? topCompositeCorrection.bodyPart
-      : topCompositeStrength?.bodyPart ||
-        coachEvent?.focus_body_part ||
-        coachEvent?.body_part;
+  const eventFocusPart = coachEvent?.focus_body_part || coachEvent?.body_part;
+  const focusPart = assessmentActive
+    ? eventFocusPart ||
+      (["angle", "quality"].includes(topCompositeCorrection?.kind)
+        ? topCompositeCorrection.bodyPart
+        : topCompositeStrength?.bodyPart)
+    : null;
   const isReadinessMetric = (bodyPart) =>
     bodyPart?.startsWith("fist_") ||
     bodyPart?.startsWith("hand_") ||
@@ -58,7 +61,11 @@ export default function MetricsPanel({
 
     return "Good";
   };
-  const compositeCorrectionText = topCompositeCorrection
+  const compositeCorrectionText = !assessmentActive
+    ? null
+    : eventFocusPart && coachEvent?.summary
+      ? coachEvent.summary
+      : topCompositeCorrection
     ? topCompositeCorrection.kind === "angle"
       ? `${topCompositeCorrection.label}: ${topCompositeCorrection.current}°, ideal ${topCompositeCorrection.ideal}°.`
       : `${topCompositeCorrection.label}. Adjust the movement quality and repeat smoothly.`
@@ -72,7 +79,10 @@ export default function MetricsPanel({
         <div className="accuracy-card__summary">
           <span>Full-body Form Match</span>
           <strong>{compositeForm?.scorable ? `${accuracy}%` : "--"}</strong>
-          <small>{compositeForm?.coverage ?? 0}% evidence coverage</small>
+          <small>
+            {compositeForm?.coverage ?? 0}% evidence coverage
+            {accuracyNote ? ` · ${accuracyNote}` : ""}
+          </small>
         </div>
         <div className="form-difficulty" aria-label="Correction difficulty">
           {["easy", "medium", "hard"].map((option) => (
@@ -93,7 +103,7 @@ export default function MetricsPanel({
         <p className="eyebrow">Master Focus</p>
         <h2>{formatBodyPart(focusPart)}</h2>
         <p>
-          {compositeCorrectionText ||
+          {(!assessmentActive ? "Assessment begins after you accept training and stable body evidence is visible." : compositeCorrectionText) ||
             coachEvent?.summary ||
             feedback ||
             currentStep?.step_name ||
@@ -189,13 +199,15 @@ export default function MetricsPanel({
               const rawValue = angles?.[part.body_part];
               const hasValue = Number.isFinite(rawValue);
               const value = hasValue ? Math.round(rawValue) : 0;
-              const isCorrect = hasValue && value >= part.min && value <= part.max;
+              const isCorrect = assessmentActive && hasValue && value >= part.min && value <= part.max;
               const isFocus = part.body_part === focusPart;
 
               return (
                 <article
                   className={`metric-card ${
-                    isCorrect ? "metric-card--good" : "metric-card--bad"
+                    !assessmentActive
+                      ? "metric-card--waiting"
+                      : isCorrect ? "metric-card--good" : "metric-card--bad"
                   } ${isFocus ? "metric-card--focus" : ""}`}
                   key={part.body_part}
                 >
@@ -203,7 +215,9 @@ export default function MetricsPanel({
                   <strong>{hasValue ? formatValue(value) : "--"}</strong>
                   <small>{formatTarget(part.target_angle, part.min, part.max)}</small>
                   <em>
-                    {hasValue
+                    {!assessmentActive
+                      ? "Waiting for start"
+                      : hasValue
                       ? getFeedback(value, part.min, part.max)
                       : "Waiting"}
                   </em>

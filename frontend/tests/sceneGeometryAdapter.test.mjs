@@ -20,6 +20,7 @@ test("derives compact floor, wall, and user geometry without raw media", () => {
   assert.equal(result.geometry.positions["user:primary"].length, 3);
   assert.equal(result.geometry.ground_plane.length, 4);
   assert.equal(result.diagnostics.raw_media_stored, false);
+  assert.equal(result.diagnostics.full_body_in_frame, true);
   assert.ok(result.geometry.confidence > 0.8);
 });
 
@@ -29,5 +30,18 @@ test("remains conservative when feet and world landmarks are unavailable", () =>
 
   assert.equal(result.geometry.ground_plane, null);
   assert.equal(result.diagnostics.world_geometry, false);
+  assert.equal(result.diagnostics.full_body_in_frame, false);
   assert.ok(result.surfaces[0].confidence < 0.5);
+});
+
+test("rejects extrapolated feet outside the camera as full-body evidence", () => {
+  const cropped = pose.map((point, index) => index >= 27 ? { ...point, y: 1.12 } : point);
+  const result = deriveSceneGeometry({
+    imagePose: cropped,
+    worldPose: world,
+    trackingConfidence: 0.9
+  });
+
+  assert.equal(result.diagnostics.visible_feet, 0);
+  assert.equal(result.diagnostics.full_body_in_frame, false);
 });

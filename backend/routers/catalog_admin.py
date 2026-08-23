@@ -37,6 +37,8 @@ STRIKING_SIDES = {"", "left", "right", "both"}
 GUIDE_DOMAINS = {
     "kinematics", "kinetics", "balance", "stability", "alignment",
     "coordination", "footwork", "timing", "safety", "recovery",
+    "biomechanics", "mobility", "defensive coverage", "exposure",
+    "energy efficiency", "joint stress", "temporal efficiency",
 }
 SENSOR_OR_ESTIMATE_ONLY = {
     "joint_torque", "ground_reaction_force", "center_of_pressure",

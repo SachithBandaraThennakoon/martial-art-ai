@@ -2,6 +2,7 @@ const confidence = (value) => Math.max(0, Math.min(1, Number(value || 0)));
 
 export function buildAwarenessPerceptionEnvelope({
   diagnostics,
+  feedbackStrategy = "framework",
   goalType = "improve_user_technique",
   metadata = {},
   mode = "training",
@@ -21,7 +22,7 @@ export function buildAwarenessPerceptionEnvelope({
     session_key: sessionKey,
     sequence,
     captured_at: new Date().toISOString(),
-    goal: { type: goalType, technique: techniqueName, mode },
+    goal: { type: goalType, technique: techniqueName, mode, feedback_strategy: feedbackStrategy },
     human: {
       observation_id: "user:primary",
       confidence: confidence(level1.tracking?.confidence),
